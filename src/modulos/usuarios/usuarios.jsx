@@ -394,12 +394,13 @@ function Usuarios() {
               <button className="cancel-btn" onClick={cancelDelete}>
                 Cancelar
               </button>
-              <button 
-                className="save-btn" 
+              <button
+                className="save-btn"
                 style={{ background: 'var(--danger)', borderColor: 'var(--danger)', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.2)' }}
                 onClick={confirmDelete}
               >
                 Eliminar
+
               </button>
             </div>
           </div>
