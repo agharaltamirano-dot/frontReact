@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import './usuarios.css'
 
 const BASE_URL = 'http://localhost:5093/api/usuarios'
@@ -27,20 +27,29 @@ function authHeaders() {
 
 function Usuarios() {
   const [usuarios, setUsuarios] = useState([])
+  const [puntosVenta, setPuntosVenta] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [roleFilter, setRoleFilter] = useState('todos')
+  const [statusFilter, setStatusFilter] = useState('todos')
+
+  // Paginación
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(5)
+
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingUser, setEditingUser] = useState(null)
   const [notification, setNotification] = useState(null)
   const [userToDelete, setUserToDelete] = useState(null)
   const [saving, setSaving] = useState(false)
 
-  // Estado del formulario — sin nombrePersona ni fechaCreacion
+  // Estado del formulario
   const [formData, setFormData] = useState({
     usuario1: '',
     clave: '',
     rol: ROLES_ESTATICOS[0],
-    estado: true
+    estado: true,
+    PuntoVentaId: 1
   })
 
   // ── Notificación ────────────────────────────────────────────────────────────
@@ -50,13 +59,12 @@ function Usuarios() {
   }
 
   // ── GET: cargar usuarios ─────────────────────────────────────────────────────
-  const fetchUsuarios = async () => {
+  const fetchUsuarios = useCallback(async () => {
     setLoading(true)
     try {
       const res = await fetch(BASE_URL, { headers: authHeaders() })
       if (!res.ok) throw new Error(`Error ${res.status}`)
       const data = await res.json()
-
       console.log('respuesta de usuarios: ', data)
       setUsuarios(data)
     } catch (err) {
@@ -65,11 +73,40 @@ function Usuarios() {
     } finally {
       setLoading(false)
     }
+  },[])
+  const fetchPuntosVenta = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch("http://localhost:5093/api/puntos-venta", { headers: authHeaders() })
+      if (!res.ok) throw new Error(`Error ${res.status}`)
+      const data = await res.json()
+      console.log('respuesta de puntos de venta: ', data)
+      setPuntosVenta(data)
+    } catch (err) {
+      console.error(err)
+      showNotification('Error al cargar puntos de venta: ' + err.message, 'error')
+    } finally {
+      setLoading(false)
+    }
   }
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchUsuarios()
+    fetchPuntosVenta()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { fetchUsuarios() }, [])
+  //  SNE EN EL INPUT DE BÚSQUEDA
+const handleSearchChange = (e) => {
+  setSearchTerm(e.target.value);
+  setCurrentPage(1); // Actualiza ambos estados en el mismo evento
+};
 
+//  EN EL SELECT DE ROLES
+const handleRoleChange = (e) => {
+  setRoleFilter(e.target.value);
+  setCurrentPage(1); // Evita renders en cascada
+};
   // ── Abrir modal para agregar ─────────────────────────────────────────────────
   const handleAddNew = () => {
     setFormData({ usuario1: '', clave: '', rol: ROLES_ESTATICOS[0], estado: true })
@@ -77,15 +114,19 @@ function Usuarios() {
     setShowAddModal(true)
   }
 
+  const handleStatusChange = (e) => {
+    setStatusFilter(e.target.value)
+    setCurrentPage(1)
+  }
+
   // ── Abrir modal para editar ──────────────────────────────────────────────────
   const handleEdit = (user) => {
-    console.log('Editando usuario:', user)
-    const rolActual = ROLES_ESTATICOS.find(r => r.nombre === user.rol?.nombre) || ROLES_ESTATICOS[0]
+    const rolActual = ROLES_ESTATICOS.find(r => r.nombre?.toLowerCase() === user.rol?.nombre?.toLowerCase()) || ROLES_ESTATICOS[0]
     setFormData({
-      usuario1: user.usuario1,
+      usuario1: user.usuario1 || '',
       clave: '',
       rol: rolActual,
-      estado: user.estado
+      acceso: user.acceso ?? false
     })
     setEditingUser(user)
     setShowAddModal(true)
@@ -100,10 +141,12 @@ function Usuarios() {
       usuario1: formData.usuario1,
       clave: formData.clave,
       rolId: formData.rol.id,
-      estado: formData.estado
+      estado: formData.estado,
+      PuntoVentaId: formData.PuntoVentaId?.id || 1
     }
 
     try {
+      console.log('Datos a enviar:', body)
       if (editingUser) {
         // PUT: editar
         const res = await fetch(`${BASE_URL}/${editingUser.id}`, {
@@ -134,7 +177,7 @@ function Usuarios() {
     }
   }
 
-  // ── Toggle estado → PUT silencioso ──────────────────────────────────────────
+  // ── Toggle estado ────────────────────────────────────────────────────────────
   const toggleEstado = async (user) => {
     try {
       const res = await fetch(`${BASE_URL}/acceso/${user.id}`, {
@@ -172,11 +215,25 @@ function Usuarios() {
 
   const cancelDelete = () => setUserToDelete(null)
 
-  // ── Filtrar ──────────────────────────────────────────────────────────────────
-  const filteredUsuarios = usuarios.filter(u =>
-    u.usuario1?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.rol?.nombre?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  // ── Filtrado multivariable ───────────────────────────────────────────────────
+  const filteredUsuarios = usuarios.filter(u => {
+    const matchesSearch = (u.usuario1 || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (u.rol?.nombre || '').toLowerCase().includes(searchTerm.toLowerCase())
+
+    const matchesRole = roleFilter === 'todos' || (u.rol?.nombre || '').toLowerCase() === roleFilter.toLowerCase()
+
+    const matchesStatus = statusFilter === 'todos' ||
+      (statusFilter === 'activos' && u.acceso) ||
+      (statusFilter === 'inactivos' && !u.acceso)
+
+    return matchesSearch && matchesRole && matchesStatus
+  })
+
+  // Paginación Cálculo
+  const totalItems = filteredUsuarios.length
+  const totalPages = Math.ceil(totalItems / itemsPerPage) || 1
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const paginatedUsuarios = filteredUsuarios.slice(startIndex, startIndex + itemsPerPage)
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
@@ -203,19 +260,45 @@ function Usuarios() {
       <div className="content-card">
         {/* Barra de herramientas */}
         <div className="toolbar">
-          <div className="search-box">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input
-              type="text"
-              placeholder="Buscar por usuario o rol..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="search-input"
-            />
+          <div className="filter-group">
+            <div className="search-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Buscar por usuario o rol..."
+                value={searchTerm}
+                onChange={handleSearchChange}
+                className="search-input"
+              />
+            </div>
+
+            {/* Filtro por Rol */}
+            <select
+              value={roleFilter}
+              onChange={handleRoleChange}
+              className="filter-select"
+            >
+              <option value="todos">Todos los Roles</option>
+              {ROLES_ESTATICOS.map(r => (
+                <option key={r.id} value={r.nombre}>{r.nombre.charAt(0).toUpperCase() + r.nombre.slice(1)}</option>
+              ))}
+            </select>
+
+            {/* Filtro por Estado */}
+            <select
+              value={statusFilter}
+              onChange={handleStatusChange}
+              className="filter-select"
+            >
+              <option value="todos">Todos los Estados</option>
+              <option value="activos">Con Acceso</option>
+              <option value="inactivos">Sin Acceso</option>
+            </select>
           </div>
+
           <button onClick={handleAddNew} className="add-btn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="12" y1="5" x2="12" y2="19" />
@@ -240,18 +323,19 @@ function Usuarios() {
                 <tr>
                   <th>Usuario</th>
                   <th>Rol</th>
+                  <th>Punto Venta</th>
                   <th>Acceso</th>
-                  <th>Ultimo acceso</th>
+                  <th>Último acceso</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredUsuarios.map((user) => (
+                {paginatedUsuarios.map((user) => (
                   <tr key={user.id}>
                     <td>
                       <div className="user-cell">
                         <div className="user-avatar-small">
-                          {user.usuario1?.substring(0, 2).toUpperCase() || '??'}
+                          {user.usuario1?.substring(0, 2).toUpperCase() || 'US'}
                         </div>
                         <span className="username">{user.usuario1}</span>
                       </div>
@@ -262,16 +346,21 @@ function Usuarios() {
                       </span>
                     </td>
                     <td>
-                      <label className="switch">
+                      <span className={`role-badge ${user.puntoVenta?.nombre?.toLowerCase() || ''}`}>
+                        {user.puntoVenta?.nombre || '—'}
+                      </span>
+                    </td>
+                    <td>
+                      <label className="switch" title="Cambiar permisos de acceso">
                         <input
                           type="checkbox"
-                          checked={user.acceso}
+                          checked={user.acceso ?? false}
                           onChange={() => toggleEstado(user)}
                         />
                         <span className="switch-slider"></span>
                       </label>
                     </td>
-                    <td>
+                    <td className="date-cell">
                       {user.ultimoAcceso ? new Date(user.ultimoAcceso).toLocaleString() : '—'}
                     </td>
                     <td>
@@ -312,11 +401,54 @@ function Usuarios() {
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
-              <h3>No se encontraron resultados</h3>
-              <p>Intente con otros términos de búsqueda</p>
+              <h3>No se encontraron usuarios</h3>
+              <p>Intente con otros términos de búsqueda o filtros de estado</p>
             </div>
           )}
         </div>
+
+        {/* Paginación */}
+        {!loading && filteredUsuarios.length > 0 && (
+          <div className="pagination-container">
+            <div className="pagination-info">
+              Mostrando {startIndex + 1} a {Math.min(startIndex + itemsPerPage, totalItems)} de {totalItems} registros
+              <select
+                value={itemsPerPage}
+                onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                className="pagination-size-select"
+              >
+                <option value={5}>5 por pág.</option>
+                <option value={10}>10 por pág.</option>
+                <option value={20}>20 por pág.</option>
+              </select>
+            </div>
+            <div className="pagination-controls">
+              <button
+                className="page-btn"
+                onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+                disabled={currentPage === 1}
+              >
+                « Anterior
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                <button
+                  key={p}
+                  className={`page-btn ${currentPage === p ? 'active' : ''}`}
+                  onClick={() => setCurrentPage(p)}
+                >
+                  {p}
+                </button>
+              ))}
+              <button
+                className="page-btn"
+                onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+                disabled={currentPage === totalPages}
+              >
+                Siguiente »
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal Agregar / Editar */}
@@ -347,10 +479,10 @@ function Usuarios() {
                 />
               </div>
 
-              {/* Contraseña (solo para crear; opcional al editar) */}
+              {/* Contraseña */}
               <div className="input-group">
                 <label className="input-label">
-                  Contraseña{editingUser ? ' (dejar vacío para no cambiar)' : ''}
+                  Contraseña{editingUser ? ' (dejar vacío para mantener la actual)' : ''}
                 </label>
                 <input
                   type="password"
@@ -374,6 +506,22 @@ function Usuarios() {
                   className="input-field"
                 >
                   {ROLES_ESTATICOS.map(r => (
+                    <option key={r.id} value={r.id}>{r.nombre.charAt(0).toUpperCase() + r.nombre.slice(1)}</option>
+                  ))}
+                </select>
+              </div>
+              {/* Punto de venta */}
+              <div className="input-group">
+                <label className="input-label">Punto de venta</label>
+                <select
+                  value={formData.puntoVenta}
+                  onChange={(e) => {
+                    const selected = puntosVenta.find(r => r.id === Number(e.target.value))
+                    setFormData({ ...formData, PuntoVentaId: selected })
+                  }}
+                  className="input-field"
+                >
+                  {puntosVenta.map(r => (
                     <option key={r.id} value={r.id}>{r.nombre}</option>
                   ))}
                 </select>
@@ -381,18 +529,18 @@ function Usuarios() {
 
               {/* Estado */}
               <div className="input-group">
-                <label className="input-label">Estado</label>
+                <label className="input-label">Estado de Acceso</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '4px' }}>
                   <label className="switch">
                     <input
                       type="checkbox"
-                      checked={formData.estado}
-                      onChange={(e) => setFormData({ ...formData, estado: e.target.checked })}
+                      checked={formData.acceso}
+                      onChange={(e) => setFormData({ ...formData, acceso: e.target.checked })}
                     />
                     <span className="switch-slider"></span>
                   </label>
-                  <span style={{ fontSize: '14px', fontWeight: '600', color: formData.estado ? '#10b981' : '#64748b' }}>
-                    {formData.estado ? 'Activo' : 'Inactivo'}
+                  <span style={{ fontSize: '14px', fontWeight: '600', color: formData.acceso ? '#10b981' : '#64748b' }}>
+                    {formData.acceso ? 'Activo (Permitido)' : 'Inactivo (Bloqueado)'}
                   </span>
                 </div>
               </div>
@@ -420,7 +568,7 @@ function Usuarios() {
         <div className="modal-overlay" onClick={cancelDelete}>
           <div
             className="modal-content confirmation-modal"
-            style={{ maxWidth: '400px' }}
+            style={{ maxWidth: '420px' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header">
@@ -432,18 +580,18 @@ function Usuarios() {
                 </svg>
               </button>
             </div>
-            <div style={{ padding: '24px 32px' }}>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '15px', lineHeight: '1.6', margin: 0 }}>
+            <div style={{ padding: '24px 28px' }}>
+              <p style={{ color: 'var(--slate-700)', fontSize: '15px', lineHeight: '1.6', margin: 0 }}>
                 ¿Está seguro que desea eliminar el usuario <strong>{userToDelete.usuario1}</strong>? Esta acción no se puede deshacer.
               </p>
             </div>
-            <div className="modal-actions" style={{ marginTop: '0' }}>
+            <div className="modal-actions" style={{ padding: '20px 28px' }}>
               <button className="cancel-btn" onClick={cancelDelete}>
                 Cancelar
               </button>
               <button
                 className="save-btn"
-                style={{ background: 'var(--danger)', borderColor: 'var(--danger)', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.2)' }}
+                style={{ background: '#ef4444', borderColor: '#ef4444', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)' }}
                 onClick={confirmDelete}
               >
                 Eliminar

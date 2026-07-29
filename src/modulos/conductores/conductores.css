@@ -1,0 +1,53 @@
+/* ===== CONDUCTORES MODULE SPECIFIC STYLES ===== */
+@import '../usuarios/usuarios.css';
+
+.conductores-view {
+    width: 100%;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.category-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+}
+
+.category-badge.a-iii {
+    background: rgba(99, 102, 241, 0.1);
+    color: #4338ca;
+    border-color: rgba(99, 102, 241, 0.2);
+}
+
+.category-badge.a-ii {
+    background: rgba(16, 185, 129, 0.1);
+    color: #047857;
+    border-color: rgba(16, 185, 129, 0.2);
+}
+
+.category-badge.a-i {
+    background: rgba(245, 158, 11, 0.1);
+    color: #b45309;
+    border-color: rgba(245, 158, 11, 0.2);
+}
+
+.driver-name-container {
+    display: flex;
+    flex-direction: column;
+}
+
+.driver-full-name {
+    font-weight: 600;
+    color: var(--slate-900);
+}
+
+.driver-phone {
+    font-size: 12px;
+    color: #64748b;
+}

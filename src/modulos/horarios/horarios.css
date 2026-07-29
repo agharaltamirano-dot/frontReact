@@ -1,0 +1,45 @@
+/* ===== HORARIOS MODULE SPECIFIC STYLES ===== */
+@import '../usuarios/usuarios.css';
+
+.horarios-view {
+    width: 100%;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.time-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 30px;
+    background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+    color: #3730a3;
+    font-weight: 700;
+    font-size: 14px;
+    border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.time-pill svg {
+    width: 16px;
+    height: 16px;
+    color: var(--primary);
+}
+
+.route-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: var(--radius-sm);
+    background: #f8fafc;
+    color: var(--slate-800);
+    font-weight: 600;
+    font-size: 13px;
+    border: 1px solid #e2e8f0;
+}
+
+.route-chip svg {
+    width: 14px;
+    height: 14px;
+    color: #10b981;
+}
