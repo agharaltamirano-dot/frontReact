@@ -8,7 +8,7 @@ const ROLES_ESTATICOS = [
   { id: 1, nombre: 'administrador', estado: true },
   { id: 2, nombre: 'secretaria', estado: true }
 ]
-
+//obtencion de token en formato string
 function getToken() {
   try {
     const authData = JSON.parse(sessionStorage.getItem('authData') || '{}')
@@ -73,7 +73,7 @@ function Usuarios() {
     } finally {
       setLoading(false)
     }
-  },[])
+  }, [])
   const fetchPuntosVenta = async () => {
     setLoading(true)
     try {
@@ -93,20 +93,20 @@ function Usuarios() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchUsuarios()
     fetchPuntosVenta()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   //  SNE EN EL INPUT DE BÚSQUEDA
-const handleSearchChange = (e) => {
-  setSearchTerm(e.target.value);
-  setCurrentPage(1); // Actualiza ambos estados en el mismo evento
-};
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1); // Actualiza ambos estados en el mismo evento
+  };
 
-//  EN EL SELECT DE ROLES
-const handleRoleChange = (e) => {
-  setRoleFilter(e.target.value);
-  setCurrentPage(1); // Evita renders en cascada
-};
+  //  EN EL SELECT DE ROLES
+  const handleRoleChange = (e) => {
+    setRoleFilter(e.target.value);
+    setCurrentPage(1); // Evita renders en cascada
+  };
   // ── Abrir modal para agregar ─────────────────────────────────────────────────
   const handleAddNew = () => {
     setFormData({ usuario1: '', clave: '', rol: ROLES_ESTATICOS[0], estado: true })
