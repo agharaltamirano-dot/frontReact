@@ -25,6 +25,19 @@
     color: var(--primary);
 }
 
+.date-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: #f1f5f9;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 600;
+    border: 1px solid #e2e8f0;
+}
+
 .route-chip {
     display: inline-flex;
     align-items: center;
@@ -42,4 +55,17 @@
     width: 14px;
     height: 14px;
     color: #10b981;
+}
+
+.vehicle-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: #f0fdf4;
+    color: #166534;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid #bbf7d0;
 }

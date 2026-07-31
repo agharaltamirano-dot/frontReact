@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import './vehiculos.css'
 
-const BASE_URL = 'http://localhost:5093/api/vehiculos'
+const BASE_URL_VEHICULOS = 'http://localhost:5093/api/vehiculos'
+const BASE_URL_CONDUCTORES = 'http://localhost:5093/api/conductores'
+const BASE_URL_ASIENTOS = 'http://localhost:5093/api/asientos'
 
-// Objetos estáticos para las pruebas de conductores
 export const STATIC_CONDUCTORES = [
   { id: 1, nombres: 'Carlos Alberto', apellidos: 'Mamani Quispe', licencia: '4892019' },
   { id: 2, nombres: 'Juan Pablo', apellidos: 'Fernández Flores', licencia: '5829104' },
@@ -11,70 +12,59 @@ export const STATIC_CONDUCTORES = [
   { id: 4, nombres: 'Luis Enrique', apellidos: 'Salazar Choque', licencia: '8201928' }
 ]
 
-// Objetos estáticos para las pruebas de asientos: asientos { id, filas, cantidad }
 export const STATIC_ASIENTOS = [
-  { id: 1, filas: 4, cantidad: 16, nombre: 'Van (16 Asientos - 4 Filas)' },
-  { id: 2, filas: 6, cantidad: 24, nombre: 'Minibús (24 Asientos - 6 Filas)' },
-  { id: 3, filas: 8, cantidad: 32, nombre: 'Bus Cama (32 Asientos - 8 Filas)' },
-  { id: 4, filas: 10, cantidad: 40, nombre: 'Omnibús (40 Asientos - 10 Filas)' }
+  { id: 1, filas: 4, cantidad: 16, nombre: 'Van compacta', esminibus: true, estado: true },
+  { id: 2, filas: 6, cantidad: 24, nombre: 'Minibús clásico', esminibus: true, estado: true },
+  { id: 3, filas: 8, cantidad: 32, nombre: 'Bus Cama Ejecutivo', esminibus: false, estado: true },
+  { id: 4, filas: 10, cantidad: 40, nombre: 'Bus estándar', esminibus: false, estado: true },
+  { id: 5, filas: 2, cantidad: 5, nombre: 'Sedán ejecutivo', esminibus: false, estado: true }
 ]
 
 export const MOCK_VEHICULOS = [
   {
     id: 1,
-    movil: 'M-01',
+    movil: '101',
+    placa: 'ABC123',
     marca: 'Toyota',
-    modelo: 'Coaster',
-    placa: '4829-ABC',
-    color: 'Blanco / Azul',
-    tipo: 'Minibús',
-    conductor: STATIC_CONDUCTORES[0],
-    propietario: STATIC_CONDUCTORES[0],
-    asientos: STATIC_ASIENTOS[1],
-    nroSoat: 'SOAT-9840192',
-    aseguradora: 'Alianza Seguros'
+    modelo: 'Corolla',
+    color: 'Rojo',
+    tipo: 'Sedán',
+    soat: 'SOAT2026',
+    aseguradora: 'La Boliviana',
+    conductorId: 1,
+    propietarioId: 2,
+    estado: true,
+    asientosId: 5
   },
   {
     id: 2,
-    movil: 'M-02',
+    movil: '102',
+    placa: '1029-XYZ',
     marca: 'Mercedes-Benz',
     modelo: 'Sprinter 515',
-    placa: '1029-XYZ',
     color: 'Gris Plata',
     tipo: 'Van',
-    conductor: STATIC_CONDUCTORES[1],
-    propietario: STATIC_CONDUCTORES[2],
-    asientos: STATIC_ASIENTOS[0],
-    nroSoat: 'SOAT-3819204',
-    aseguradora: 'BISA Seguros'
+    soat: 'SOAT-3819204',
+    aseguradora: 'BISA Seguros',
+    conductorId: 2,
+    propietarioId: 3,
+    estado: true,
+    asientosId: 1
   },
   {
     id: 3,
-    movil: 'M-03',
+    movil: '103',
+    placa: '3810-FGT',
     marca: 'Volvo',
     modelo: 'Paradiso 1200',
-    placa: '3810-FGT',
     color: 'Azul Marino',
     tipo: 'Bus Cama',
-    conductor: STATIC_CONDUCTORES[2],
-    propietario: STATIC_CONDUCTORES[1],
-    asientos: STATIC_ASIENTOS[3],
-    nroSoat: 'SOAT-5729103',
-    aseguradora: 'Nacional Vida'
-  },
-  {
-    id: 4,
-    movil: 'M-04',
-    marca: 'Scania',
-    modelo: 'K360',
-    placa: '2849-HJK',
-    color: 'Rojo / Blanco',
-    tipo: 'Omnibús',
-    conductor: STATIC_CONDUCTORES[3],
-    propietario: STATIC_CONDUCTORES[3],
-    asientos: STATIC_ASIENTOS[2],
-    nroSoat: 'SOAT-7182930',
-    aseguradora: 'Rímac Seguros'
+    soat: 'SOAT-5729103',
+    aseguradora: 'Nacional Vida',
+    conductorId: 3,
+    propietarioId: 1,
+    estado: true,
+    asientosId: 3
   }
 ]
 
@@ -96,10 +86,13 @@ function authHeaders() {
 
 function Vehiculos() {
   const [vehiculos, setVehiculos] = useState(MOCK_VEHICULOS)
+  const [conductores, setConductores] = useState(STATIC_CONDUCTORES)
+  const [asientosList, setAsientosList] = useState(STATIC_ASIENTOS)
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [tipoFilter, setTipoFilter] = useState('todos')
   const [aseguradoraFilter, setAseguradoraFilter] = useState('todos')
+  const [statusFilter, setStatusFilter] = useState('todos')
 
   // Paginación
   const [currentPage, setCurrentPage] = useState(1)
@@ -114,16 +107,17 @@ function Vehiculos() {
   // Estado del Formulario
   const [formData, setFormData] = useState({
     movil: '',
+    placa: '',
     marca: '',
     modelo: '',
-    placa: '',
     color: '',
-    tipo: 'Minibús',
+    tipo: 'Sedán',
+    soat: '',
+    aseguradora: 'La Boliviana',
     conductorId: STATIC_CONDUCTORES[0].id,
     propietarioId: STATIC_CONDUCTORES[0].id,
-    asientosId: STATIC_ASIENTOS[0].id,
-    nroSoat: '',
-    aseguradora: 'Alianza Seguros'
+    asientosId: 5,
+    estado: true
   })
 
   const showNotification = (message, type = 'success') => {
@@ -131,16 +125,40 @@ function Vehiculos() {
     setTimeout(() => setNotification(null), 3500)
   }
 
-  // ── GET ──────────────────────────────────────────────────────────────────────
+  // ── GET Conductores ('api/conductores') ─────────────────────────────────────
+  const fetchConductores = async () => {
+    try {
+      const res = await fetch(BASE_URL_CONDUCTORES, { headers: authHeaders() })
+      if (res.ok) {
+        const data = await res.json()
+        if (Array.isArray(data) && data.length > 0) setConductores(data)
+      }
+    } catch (err) {
+      console.log('Usando conductores locales para pruebas:', err.message)
+    }
+  }
+
+  // ── GET Asientos ('api/asientos') ───────────────────────────────────────────
+  const fetchAsientos = async () => {
+    try {
+      const res = await fetch(BASE_URL_ASIENTOS, { headers: authHeaders() })
+      if (res.ok) {
+        const data = await res.json()
+        if (Array.isArray(data) && data.length > 0) setAsientosList(data)
+      }
+    } catch (err) {
+      console.log('Usando lista de asientos local para pruebas:', err.message)
+    }
+  }
+
+  // ── GET Vehículos ('api/vehiculos') ─────────────────────────────────────────
   const fetchVehiculos = async () => {
     setLoading(true)
     try {
-      const res = await fetch(BASE_URL, { headers: authHeaders() })
+      const res = await fetch(BASE_URL_VEHICULOS, { headers: authHeaders() })
       if (res.ok) {
         const data = await res.json()
-        if (Array.isArray(data) && data.length > 0) {
-          setVehiculos(data)
-        }
+        if (Array.isArray(data) && data.length > 0) setVehiculos(data)
       }
     } catch (err) {
       console.log('Usando lista local de vehículos para pruebas:', err.message)
@@ -149,26 +167,66 @@ function Vehiculos() {
     }
   }
 
-  useEffect(() => { fetchVehiculos() }, [])
+  useEffect(() => {
+    fetchConductores()
+    fetchAsientos()
+    fetchVehiculos()
+  }, [])
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, tipoFilter, aseguradoraFilter, itemsPerPage])
+  }, [searchTerm, tipoFilter, aseguradoraFilter, statusFilter, itemsPerPage])
+
+  // Helper resolver conductor
+  const getConductor = (id) => {
+    const c = conductores.find(item => Number(item.id) === Number(id))
+    if (!c) return { nombres: `Conductor #${id}`, apellidos: '', licencia: 'N/A' }
+    return c
+  }
+
+  // Helper resolver distribución de asientos
+  const getAsientoObj = (id) => {
+    const a = asientosList.find(item => Number(item.id) === Number(id))
+    if (!a) return { nombre: `Distribución #${id}`, cantidad: '?' }
+    return a
+  }
+
+  // ── Toggle Estado Rápido ──────────────────────────────────────────────────────
+  const toggleEstado = async (vehicle) => {
+    const nuevoEstado = !vehicle.estado
+    setVehiculos(prev => prev.map(v => v.id === vehicle.id ? { ...v, estado: nuevoEstado } : v))
+
+    try {
+      await fetch(`${BASE_URL_VEHICULOS}/${vehicle.id}`, {
+        method: 'PUT',
+        headers: authHeaders(),
+        body: JSON.stringify({ ...vehicle, estado: nuevoEstado })
+      })
+    } catch (err) {
+      console.log('PUT backend vehiculos no disponible:', err.message)
+    }
+
+    showNotification(`Estado del vehículo M-${vehicle.movil} actualizado a ${nuevoEstado ? 'Activo' : 'Inactivo'}`, 'success')
+  }
 
   // ── Modales ──────────────────────────────────────────────────────────────────
   const handleAddNew = () => {
+    const firstCondId = conductores[0]?.id || 1
+    const secondCondId = conductores[1]?.id || firstCondId
+    const firstAsientoId = asientosList[0]?.id || 5
     setFormData({
       movil: '',
+      placa: '',
       marca: '',
       modelo: '',
-      placa: '',
       color: '',
-      tipo: 'Minibús',
-      conductorId: STATIC_CONDUCTORES[0].id,
-      propietarioId: STATIC_CONDUCTORES[0].id,
-      asientosId: STATIC_ASIENTOS[0].id,
-      nroSoat: '',
-      aseguradora: 'Alianza Seguros'
+      tipo: 'Sedán',
+      soat: '',
+      aseguradora: 'La Boliviana',
+      conductorId: firstCondId,
+      propietarioId: secondCondId,
+      asientosId: firstAsientoId,
+      estado: true
     })
     setEditingVehicle(null)
     setShowAddModal(true)
@@ -177,16 +235,17 @@ function Vehiculos() {
   const handleEdit = (vehicle) => {
     setFormData({
       movil: vehicle.movil || '',
+      placa: vehicle.placa || '',
       marca: vehicle.marca || '',
       modelo: vehicle.modelo || '',
-      placa: vehicle.placa || '',
       color: vehicle.color || '',
-      tipo: vehicle.tipo || 'Minibús',
-      conductorId: vehicle.conductor?.id || STATIC_CONDUCTORES[0].id,
-      propietarioId: vehicle.propietario?.id || STATIC_CONDUCTORES[0].id,
-      asientosId: vehicle.asientos?.id || STATIC_ASIENTOS[0].id,
-      nroSoat: vehicle.nroSoat || '',
-      aseguradora: vehicle.aseguradora || 'Alianza Seguros'
+      tipo: vehicle.tipo || 'Sedán',
+      soat: vehicle.soat || vehicle.nroSoat || '',
+      aseguradora: vehicle.aseguradora || 'La Boliviana',
+      conductorId: vehicle.conductorId || vehicle.conductor?.id || conductores[0]?.id || 1,
+      propietarioId: vehicle.propietarioId || vehicle.propietario?.id || conductores[0]?.id || 1,
+      asientosId: vehicle.asientosId || vehicle.asientos?.id || asientosList[0]?.id || 5,
+      estado: vehicle.estado ?? true
     })
     setEditingVehicle(vehicle)
     setShowAddModal(true)
@@ -197,53 +256,50 @@ function Vehiculos() {
     e.preventDefault()
     setSaving(true)
 
-    const selectedConductor = STATIC_CONDUCTORES.find(c => c.id === Number(formData.conductorId)) || STATIC_CONDUCTORES[0]
-    const selectedPropietario = STATIC_CONDUCTORES.find(c => c.id === Number(formData.propietarioId)) || STATIC_CONDUCTORES[0]
-    const selectedAsientos = STATIC_ASIENTOS.find(a => a.id === Number(formData.asientosId)) || STATIC_ASIENTOS[0]
-
-    const fullVehicleObj = {
+    const payload = {
       movil: formData.movil,
+      placa: formData.placa,
       marca: formData.marca,
       modelo: formData.modelo,
-      placa: formData.placa,
       color: formData.color,
       tipo: formData.tipo,
-      conductor: selectedConductor,
-      propietario: selectedPropietario,
-      asientos: selectedAsientos,
-      nroSoat: formData.nroSoat,
-      aseguradora: formData.aseguradora
+      soat: formData.soat,
+      aseguradora: formData.aseguradora,
+      conductorId: Number(formData.conductorId),
+      propietarioId: Number(formData.propietarioId),
+      estado: Boolean(formData.estado),
+      asientosId: Number(formData.asientosId)
     }
 
     try {
       if (editingVehicle) {
         try {
-          await fetch(`${BASE_URL}/${editingVehicle.id}`, {
+          await fetch(`${BASE_URL_VEHICULOS}/${editingVehicle.id}`, {
             method: 'PUT',
             headers: authHeaders(),
-            body: JSON.stringify({ ...fullVehicleObj, id: editingVehicle.id })
+            body: JSON.stringify({ ...payload, id: editingVehicle.id })
           })
-        } catch {
-          console.log('PUT backend vehiculos no disponible')
+        } catch (err) {
+          console.log('PUT backend vehiculos no disponible:', err.message)
         }
 
-        setVehiculos(prev => prev.map(v => v.id === editingVehicle.id ? { ...fullVehicleObj, id: editingVehicle.id } : v))
+        setVehiculos(prev => prev.map(v => v.id === editingVehicle.id ? { ...payload, id: editingVehicle.id } : v))
         showNotification('Vehículo actualizado exitosamente')
       } else {
         const newId = Date.now()
-        const newVehicle = { ...fullVehicleObj, id: newId }
+        const newVehicle = { ...payload, id: newId }
         try {
-          const res = await fetch(BASE_URL, {
+          const res = await fetch(BASE_URL_VEHICULOS, {
             method: 'POST',
             headers: authHeaders(),
-            body: JSON.stringify(fullVehicleObj)
+            body: JSON.stringify(payload)
           })
           if (res.ok) {
             const data = await res.json()
             newVehicle.id = data.id || newId
           }
-        } catch {
-          console.log('POST backend vehiculos no disponible')
+        } catch (err) {
+          console.log('POST backend vehiculos no disponible:', err.message)
         }
 
         setVehiculos(prev => [newVehicle, ...prev])
@@ -267,12 +323,12 @@ function Vehiculos() {
     setVehiculos(prev => prev.filter(v => v.id !== vehicleToDelete.id))
 
     try {
-      await fetch(`${BASE_URL}/${vehicleToDelete.id}`, {
+      await fetch(`${BASE_URL_VEHICULOS}/${vehicleToDelete.id}`, {
         method: 'DELETE',
         headers: authHeaders()
       })
-    } catch {
-      // local
+    } catch (err) {
+      console.log('DELETE backend vehiculos no disponible:', err.message)
     }
 
     showNotification('Vehículo eliminado del sistema', 'error')
@@ -281,12 +337,18 @@ function Vehiculos() {
 
   // ── Filtrado ─────────────────────────────────────────────────────────────────
   const filteredVehiculos = vehiculos.filter(v => {
-    const textTarget = `${v.movil} ${v.marca} ${v.modelo} ${v.placa} ${v.conductor?.nombres} ${v.conductor?.apellidos} ${v.propietario?.nombres}`.toLowerCase()
+    const conductorObj = getConductor(v.conductorId || v.conductor?.id)
+    const propietarioObj = getConductor(v.propietarioId || v.propietario?.id)
+
+    const textTarget = `${v.movil} ${v.marca} ${v.modelo} ${v.placa} ${conductorObj.nombres} ${conductorObj.apellidos} ${propietarioObj.nombres}`.toLowerCase()
     const matchesSearch = textTarget.includes(searchTerm.toLowerCase())
     const matchesTipo = tipoFilter === 'todos' || v.tipo === tipoFilter
     const matchesAseguradora = aseguradoraFilter === 'todos' || v.aseguradora === aseguradoraFilter
+    const matchesStatus = statusFilter === 'todos' ||
+      (statusFilter === 'activos' && v.estado) ||
+      (statusFilter === 'inactivos' && !v.estado)
 
-    return matchesSearch && matchesTipo && matchesAseguradora
+    return matchesSearch && matchesTipo && matchesAseguradora && matchesStatus
   })
 
   // Paginación
@@ -315,9 +377,9 @@ function Vehiculos() {
         </div>
       )}
 
-      {/* Contenido Principal */}
+      {/* Main Content Card */}
       <div className="content-card">
-        {/* Barra de Herramientas y Filtros */}
+        {/* Toolbar Superior */}
         <div className="toolbar">
           <div className="filter-group">
             <div className="search-box">
@@ -327,41 +389,51 @@ function Vehiculos() {
               </svg>
               <input
                 type="text"
-                placeholder="Buscar por móvil, placa, marca, modelo o conductor..."
+                placeholder="Buscar vehículo por móvil, placa, marca o conductor..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="search-input"
               />
             </div>
 
-            {/* Filtro Tipo */}
             <select
               value={tipoFilter}
               onChange={(e) => setTipoFilter(e.target.value)}
               className="filter-select"
             >
               <option value="todos">Todos los Tipos</option>
+              <option value="Sedán">Sedán</option>
               <option value="Minibús">Minibús</option>
-              <option value="Bus Cama">Bus Cama</option>
               <option value="Van">Van</option>
+              <option value="Bus Cama">Bus Cama</option>
               <option value="Omnibús">Omnibús</option>
             </select>
 
-            {/* Filtro Aseguradora */}
             <select
               value={aseguradoraFilter}
               onChange={(e) => setAseguradoraFilter(e.target.value)}
               className="filter-select"
             >
               <option value="todos">Todas las Aseguradoras</option>
+              <option value="La Boliviana">La Boliviana</option>
               <option value="Alianza Seguros">Alianza Seguros</option>
               <option value="BISA Seguros">BISA Seguros</option>
               <option value="Nacional Vida">Nacional Vida</option>
               <option value="Rímac Seguros">Rímac Seguros</option>
             </select>
+
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="filter-select"
+            >
+              <option value="todos">Todos los Estados</option>
+              <option value="activos">Activos</option>
+              <option value="inactivos">Inactivos</option>
+            </select>
           </div>
 
-          <button onClick={handleAddNew} className="add-btn">
+          <button className="add-btn" onClick={handleAddNew}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
@@ -387,96 +459,129 @@ function Vehiculos() {
                   <th>Placa</th>
                   <th>Marca / Modelo</th>
                   <th>Color / Tipo</th>
-                  <th>Conductor Asignado</th>
+                  <th>Conductor</th>
                   <th>Propietario</th>
                   <th>Asientos</th>
                   <th>SOAT / Seguro</th>
-                  <th>Acciones</th>
+                  <th>Estado</th>
+                  <th style={{ textAlign: 'right' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {paginatedVehiculos.map((v) => (
-                  <tr key={v.id}>
-                    <td>
-                      <span className="movil-badge">{v.movil}</span>
-                    </td>
-                    <td>
-                      <span className="placa-pill">{v.placa}</span>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ fontWeight: '700', color: 'var(--slate-900)' }}>{v.marca}</span>
-                        <span style={{ fontSize: '12px', color: '#64748b' }}>{v.modelo}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ fontWeight: '500' }}>{v.tipo}</span>
-                        <span style={{ fontSize: '12px', color: '#64748b' }}>{v.color}</span>
-                      </div>
-                    </td>
-                    <td>
-                      {v.conductor ? (
+                {paginatedVehiculos.map((v) => {
+                  const cond = getConductor(v.conductorId || v.conductor?.id)
+                  const prop = getConductor(v.propietarioId || v.propietario?.id)
+                  const asie = getAsientoObj(v.asientosId || v.asientos?.id)
+
+                  return (
+                    <tr key={v.id}>
+                      <td>
+                        <span className="movil-badge">M-{v.movil}</span>
+                      </td>
+                      <td>
+                        <span className="placa-pill">{v.placa}</span>
+                      </td>
+                      <td>
+                        <div>
+                          <strong style={{ color: 'var(--slate-900)' }}>{v.marca}</strong>
+                          <span style={{ display: 'block', fontSize: '12px', color: '#64748b' }}>{v.modelo}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div>
+                          <span style={{ fontSize: '13px', fontWeight: '600', color: '#334155' }}>{v.tipo}</span>
+                          <span style={{ display: 'block', fontSize: '12px', color: '#64748b' }}>{v.color}</span>
+                        </div>
+                      </td>
+                      <td>
                         <div className="vehicle-driver-info">
                           <div className="vehicle-driver-avatar">
-                            {v.conductor.nombres?.charAt(0)}{v.conductor.apellidos?.charAt(0)}
+                            {cond.nombres ? cond.nombres[0].toUpperCase() : 'C'}
                           </div>
-                          <span>{v.conductor.nombres} {v.conductor.apellidos}</span>
+                          <div>
+                            <span style={{ fontWeight: '600', fontSize: '13px', color: 'var(--slate-900)' }}>
+                              {cond.nombres} {cond.apellidos}
+                            </span>
+                            {cond.licencia && <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>Lic: {cond.licencia}</span>}
+                          </div>
                         </div>
-                      ) : '—'}
-                    </td>
-                    <td>
-                      {v.propietario ? (
-                        <span style={{ fontSize: '13px', fontWeight: '500', color: '#334155' }}>
-                          {v.propietario.nombres} {v.propietario.apellidos}
+                      </td>
+                      <td>
+                        <div className="vehicle-driver-info">
+                          <div className="vehicle-driver-avatar" style={{ background: '#fef3c7', color: '#b45309' }}>
+                            {prop.nombres ? prop.nombres[0].toUpperCase() : 'P'}
+                          </div>
+                          <div>
+                            <span style={{ fontWeight: '600', fontSize: '13px', color: 'var(--slate-900)' }}>
+                              {prop.nombres} {prop.apellidos}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="seats-badge">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <rect x="3" y="3" width="7" height="7" rx="1.5" />
+                            <rect x="14" y="3" width="7" height="7" rx="1.5" />
+                          </svg>
+                          {asie.nombre} ({asie.cantidad} as.)
                         </span>
-                      ) : '—'}
-                    </td>
-                    <td>
-                      {v.asientos ? (
-                        <div className="seats-badge" title={`${v.asientos.filas} filas - ID #${v.asientos.id}`}>
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <rect x="4" y="4" width="16" height="16" rx="2" />
-                            <path d="M4 9h16M9 4v16" />
-                          </svg>
-                          <span>{v.asientos.cantidad} as. ({v.asientos.filas} fil.)</span>
+                      </td>
+                      <td>
+                        <div>
+                          <span style={{ fontSize: '12px', fontWeight: '700', color: '#0369a1' }}>
+                            {v.soat || v.nroSoat}
+                          </span>
+                          <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>
+                            {v.aseguradora}
+                          </span>
                         </div>
-                      ) : '—'}
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <code style={{ fontSize: '11px', background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px' }}>{v.nroSoat}</code>
-                        <span style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>{v.aseguradora}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="action-buttons">
-                        <button
-                          onClick={() => handleEdit(v)}
-                          className="action-btn edit-btn"
-                          title="Editar Vehículo"
-                        >
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-                            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => handleDelete(v)}
-                          className="action-btn delete-btn"
-                          title="Eliminar Vehículo"
-                        >
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <polyline points="3 6 5 6 21 6" />
-                            <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-                            <line x1="10" y1="11" x2="10" y2="17" />
-                            <line x1="14" y1="11" x2="14" y2="17" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td>
+                        <span className={`status-badge ${v.estado !== false ? 'active' : 'inactive'}`}>
+                          {v.estado !== false ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <div className="action-buttons" style={{ justifyContent: 'flex-end' }}>
+                          <button
+                            onClick={() => toggleEstado(v)}
+                            className="action-btn edit-btn"
+                            title={v.estado !== false ? 'Desactivar Vehículo' : 'Activar Vehículo'}
+                            style={{ color: v.estado !== false ? '#10b981' : '#94a3b8' }}
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M18.36 6.64a9 9 0 11-12.73 0" />
+                              <line x1="12" y1="2" x2="12" y2="12" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleEdit(v)}
+                            className="action-btn edit-btn"
+                            title="Editar Vehículo"
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleDelete(v)}
+                            className="action-btn delete-btn"
+                            title="Eliminar Vehículo"
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <polyline points="3 6 5 6 21 6" />
+                              <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                              <line x1="10" y1="11" x2="10" y2="17" />
+                              <line x1="14" y1="11" x2="14" y2="17" />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           )}
@@ -488,7 +593,7 @@ function Vehiculos() {
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
               <h3>No se encontraron vehículos</h3>
-              <p>Intente buscando con otros filtros o placa/móvil</p>
+              <p>Intente ajustando el término de búsqueda o los filtros</p>
             </div>
           )}
         </div>
@@ -540,7 +645,7 @@ function Vehiculos() {
       {/* Modal Crear / Editar Vehículo */}
       {showAddModal && (
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
-          <div className="modal-content" style={{ width: '600px' }} onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>{editingVehicle ? 'Editar Vehículo' : 'Nuevo Vehículo'}</h2>
               <button className="modal-close" onClick={() => setShowAddModal(false)}>
@@ -560,7 +665,7 @@ function Vehiculos() {
                     value={formData.movil}
                     onChange={(e) => setFormData({ ...formData, movil: e.target.value })}
                     className="input-field"
-                    placeholder="Ej. M-05"
+                    placeholder="Ej. 101"
                     required
                   />
                 </div>
@@ -572,7 +677,7 @@ function Vehiculos() {
                     value={formData.placa}
                     onChange={(e) => setFormData({ ...formData, placa: e.target.value })}
                     className="input-field"
-                    placeholder="Ej. 4829-ABC"
+                    placeholder="Ej. ABC123"
                     required
                   />
                 </div>
@@ -598,7 +703,7 @@ function Vehiculos() {
                     value={formData.modelo}
                     onChange={(e) => setFormData({ ...formData, modelo: e.target.value })}
                     className="input-field"
-                    placeholder="Ej. Coaster"
+                    placeholder="Ej. Corolla"
                     required
                   />
                 </div>
@@ -612,7 +717,7 @@ function Vehiculos() {
                     value={formData.color}
                     onChange={(e) => setFormData({ ...formData, color: e.target.value })}
                     className="input-field"
-                    placeholder="Ej. Blanco / Azul"
+                    placeholder="Ej. Rojo"
                     required
                   />
                 </div>
@@ -624,15 +729,16 @@ function Vehiculos() {
                     onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
                     className="input-field"
                   >
+                    <option value="Sedán">Sedán</option>
                     <option value="Minibús">Minibús</option>
-                    <option value="Bus Cama">Bus Cama</option>
                     <option value="Van">Van</option>
+                    <option value="Bus Cama">Bus Cama</option>
                     <option value="Omnibús">Omnibús</option>
                   </select>
                 </div>
               </div>
 
-              {/* Selección de Objetos Estáticos para Conductor y Propietario */}
+              {/* Selección de Conductor y Propietario desde 'api/conductores' */}
               <div className="form-grid-2">
                 <div className="input-group">
                   <label className="input-label">Conductor Asignado</label>
@@ -640,9 +746,12 @@ function Vehiculos() {
                     value={formData.conductorId}
                     onChange={(e) => setFormData({ ...formData, conductorId: e.target.value })}
                     className="input-field"
+                    required
                   >
-                    {STATIC_CONDUCTORES.map(c => (
-                      <option key={c.id} value={c.id}>{c.nombres} {c.apellidos} (Lic. {c.licencia})</option>
+                    {conductores.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.nombres} {c.apellidos} {c.licencia ? `(Lic: ${c.licencia})` : ''}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -653,39 +762,33 @@ function Vehiculos() {
                     value={formData.propietarioId}
                     onChange={(e) => setFormData({ ...formData, propietarioId: e.target.value })}
                     className="input-field"
+                    required
                   >
-                    {STATIC_CONDUCTORES.map(c => (
-                      <option key={c.id} value={c.id}>{c.nombres} {c.apellidos}</option>
+                    {conductores.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.nombres} {c.apellidos}
+                      </option>
                     ))}
                   </select>
                 </div>
               </div>
 
-              {/* Plantilla de Asientos (Objeto Estático: id, filas, cantidad) */}
-              <div className="input-group">
-                <label className="input-label">Distribución de Asientos (Objeto Estático)</label>
-                <select
-                  value={formData.asientosId}
-                  onChange={(e) => setFormData({ ...formData, asientosId: e.target.value })}
-                  className="input-field"
-                >
-                  {STATIC_ASIENTOS.map(a => (
-                    <option key={a.id} value={a.id}>{a.nombre} - [id: {a.id}, filas: {a.filas}, cantidad: {a.cantidad}]</option>
-                  ))}
-                </select>
-              </div>
-
+              {/* Selección de Asientos desde 'api/asientos' */}
               <div className="form-grid-2">
                 <div className="input-group">
-                  <label className="input-label">N° de SOAT</label>
-                  <input
-                    type="text"
-                    value={formData.nroSoat}
-                    onChange={(e) => setFormData({ ...formData, nroSoat: e.target.value })}
+                  <label className="input-label">Distribución de Asientos ('api/asientos')</label>
+                  <select
+                    value={formData.asientosId}
+                    onChange={(e) => setFormData({ ...formData, asientosId: e.target.value })}
                     className="input-field"
-                    placeholder="Ej. SOAT-9840192"
                     required
-                  />
+                  >
+                    {asientosList.map(a => (
+                      <option key={a.id} value={a.id}>
+                        {a.nombre} ({a.cantidad} asientos, {a.filas} filas)
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="input-group">
@@ -695,11 +798,43 @@ function Vehiculos() {
                     onChange={(e) => setFormData({ ...formData, aseguradora: e.target.value })}
                     className="input-field"
                   >
+                    <option value="La Boliviana">La Boliviana</option>
                     <option value="Alianza Seguros">Alianza Seguros</option>
                     <option value="BISA Seguros">BISA Seguros</option>
                     <option value="Nacional Vida">Nacional Vida</option>
                     <option value="Rímac Seguros">Rímac Seguros</option>
                   </select>
+                </div>
+              </div>
+
+              <div className="form-grid-2">
+                <div className="input-group">
+                  <label className="input-label">SOAT</label>
+                  <input
+                    type="text"
+                    value={formData.soat}
+                    onChange={(e) => setFormData({ ...formData, soat: e.target.value })}
+                    className="input-field"
+                    placeholder="Ej. SOAT2026"
+                    required
+                  />
+                </div>
+
+                <div className="input-group">
+                  <label className="input-label">Estado Inicial</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px' }}>
+                    <label className="switch">
+                      <input
+                        type="checkbox"
+                        checked={formData.estado}
+                        onChange={(e) => setFormData({ ...formData, estado: e.target.checked })}
+                      />
+                      <span className="switch-slider"></span>
+                    </label>
+                    <span style={{ fontSize: '14px', fontWeight: '600', color: formData.estado ? '#10b981' : '#64748b' }}>
+                      {formData.estado ? 'Activo' : 'Inactivo'}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -740,7 +875,7 @@ function Vehiculos() {
             </div>
             <div style={{ padding: '24px 28px' }}>
               <p style={{ color: 'var(--slate-700)', fontSize: '15px', lineHeight: '1.6', margin: 0 }}>
-                ¿Está seguro que desea eliminar el vehículo <strong>{vehicleToDelete.movil} ({vehicleToDelete.placa})</strong>?
+                ¿Está seguro que desea eliminar el vehículo <strong>M-{vehicleToDelete.movil} ({vehicleToDelete.placa})</strong>?
               </p>
             </div>
             <div className="modal-actions" style={{ padding: '20px 28px' }}>

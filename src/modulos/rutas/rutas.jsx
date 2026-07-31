@@ -1,35 +1,23 @@
 import { useState, useEffect } from 'react'
-import './horarios.css'
+import './rutas.css'
 
-const BASE_URL_HORARIOS = 'http://localhost:5093/api/horarios'
 const BASE_URL_RUTAS = 'http://localhost:5093/api/rutas'
-const BASE_URL_VEHICULOS = 'http://localhost:5093/api/vehiculos'
 const BASE_URL_PUNTOS = 'http://localhost:5093/api/puntos-venta'
 
+const DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+
 export const MOCK_PUNTOS_VENTA = [
-  { id: 1, nombre: 'Tarija', telefono: '78784737' },
-  { id: 2, nombre: 'El puente', telefono: '76179676' },
-  { id: 3, nombre: 'Tupiza', telefono: '71239847' },
-  { id: 4, nombre: 'Villazón', telefono: '68291049' }
+  { id: 1, nombre: 'Tarija', direccion: 'tarija parada del norte caseta 4', telefono: '78784737' },
+  { id: 2, nombre: 'El puente', direccion: 'El puente calle Anicento Arce y Belgrano', telefono: '76179676 - 78987877' },
+  { id: 3, nombre: 'Tupiza', direccion: 'Av. 16 de Julio N° 45', telefono: '71239847' },
+  { id: 4, nombre: 'Villazón', direccion: 'Calle Antofagasta esquina Bolivia', telefono: '68291049' }
 ]
 
 export const MOCK_RUTAS = [
   { id: 1, origenId: 1, destinoId: 2, dias: 'Lunes,Martes,Viernes', estado: true, tarifa: 15 },
-  { id: 2, origenId: 1, destinoId: 3, dias: 'Lunes,Miércoles,Viernes', estado: true, tarifa: 45 },
-  { id: 3, origenId: 3, destinoId: 4, dias: 'Martes,Jueves,Sábado', estado: true, tarifa: 25 }
-]
-
-export const MOCK_VEHICULOS = [
-  { id: 10, movil: '101', placa: 'ABC123', marca: 'Toyota', modelo: 'Corolla', tipo: 'Sedán' },
-  { id: 20, movil: '102', placa: '1029-XYZ', marca: 'Mercedes-Benz', modelo: 'Sprinter 515', tipo: 'Van' },
-  { id: 30, movil: '103', placa: '3810-FGT', marca: 'Volvo', modelo: 'Paradiso 1200', tipo: 'Bus Cama' }
-]
-
-export const MOCK_HORARIOS = [
-  { id: 1, fecha: '2026-08-01', hora: '08:30', estado: true, rutaId: 1, vehiculoId: 10 },
-  { id: 2, fecha: '2026-08-01', hora: '10:00', estado: true, rutaId: 2, vehiculoId: 20 },
-  { id: 3, fecha: '2026-08-02', hora: '14:30', estado: true, rutaId: 3, vehiculoId: 30 },
-  { id: 4, fecha: '2026-08-03', hora: '18:00', estado: false, rutaId: 1, vehiculoId: 10 }
+  { id: 2, origenId: 1, destinoId: 3, dias: 'Lunes,Miércoles,Viernes,Domingo', estado: true, tarifa: 45 },
+  { id: 3, origenId: 2, destinoId: 4, dias: 'Martes,Jueves,Sábado', estado: true, tarifa: 30 },
+  { id: 4, origenId: 3, destinoId: 4, dias: 'Lunes,Martes,Miércoles,Jueves,Viernes,Sábado,Domingo', estado: false, tarifa: 25 }
 ]
 
 function getToken() {
@@ -48,14 +36,12 @@ function authHeaders() {
   }
 }
 
-function Horarios() {
-  const [horarios, setHorarios] = useState(MOCK_HORARIOS)
+function Rutas() {
   const [rutas, setRutas] = useState(MOCK_RUTAS)
-  const [vehiculos, setVehiculos] = useState(MOCK_VEHICULOS)
   const [puntosVenta, setPuntosVenta] = useState(MOCK_PUNTOS_VENTA)
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
-  const [rutaFilter, setRutaFilter] = useState('todos')
+  const [diaFilter, setDiaFilter] = useState('todos')
   const [statusFilter, setStatusFilter] = useState('todos')
 
   // Paginación
@@ -64,18 +50,18 @@ function Horarios() {
 
   // Modales y Notificaciones
   const [showAddModal, setShowAddModal] = useState(false)
-  const [editingHorario, setEditingHorario] = useState(null)
+  const [editingRuta, setEditingRuta] = useState(null)
   const [notification, setNotification] = useState(null)
-  const [horarioToDelete, setHorarioToDelete] = useState(null)
+  const [rutaToDelete, setRutaToDelete] = useState(null)
   const [saving, setSaving] = useState(false)
 
   // Formulario
   const [formData, setFormData] = useState({
-    fecha: '2026-08-01',
-    hora: '08:30',
+    origenId: MOCK_PUNTOS_VENTA[0].id,
+    destinoId: MOCK_PUNTOS_VENTA[1]?.id || MOCK_PUNTOS_VENTA[0].id,
+    dias: 'Lunes,Martes,Viernes',
     estado: true,
-    rutaId: MOCK_RUTAS[0].id,
-    vehiculoId: MOCK_VEHICULOS[0].id
+    tarifa: 15
   })
 
   const showNotification = (message, type = 'success') => {
@@ -83,225 +69,224 @@ function Horarios() {
     setTimeout(() => setNotification(null), 3500)
   }
 
-  // ── GET Datasets Auxiliares ──────────────────────────────────────────────────
-  const fetchAuxiliaryData = async () => {
+  // ── GET Puntos de Venta ──────────────────────────────────────────────────────
+  const fetchPuntosVenta = async () => {
     try {
-      const resPuntos = await fetch(BASE_URL_PUNTOS, { headers: authHeaders() })
-      if (resPuntos.ok) {
-        const dataP = await resPuntos.json()
-        if (Array.isArray(dataP) && dataP.length > 0) setPuntosVenta(dataP)
-      }
-
-      const resRutas = await fetch(BASE_URL_RUTAS, { headers: authHeaders() })
-      if (resRutas.ok) {
-        const dataR = await resRutas.json()
-        if (Array.isArray(dataR) && dataR.length > 0) setRutas(dataR)
-      }
-
-      const resVeh = await fetch(BASE_URL_VEHICULOS, { headers: authHeaders() })
-      if (resVeh.ok) {
-        const dataV = await resVeh.json()
-        if (Array.isArray(dataV) && dataV.length > 0) setVehiculos(dataV)
+      const res = await fetch(BASE_URL_PUNTOS, { headers: authHeaders() })
+      if (res.ok) {
+        const data = await res.json()
+        if (Array.isArray(data) && data.length > 0) setPuntosVenta(data)
       }
     } catch (err) {
-      console.log('Usando datos auxiliares locales para Horarios:', err.message)
+      console.log('Usando lista local de puntos de venta:', err.message)
     }
   }
 
-  // ── GET Horarios ('api/horarios') ───────────────────────────────────────────
-  const fetchHorarios = async () => {
+  // ── GET Rutas ────────────────────────────────────────────────────────────────
+  const fetchRutas = async () => {
     setLoading(true)
     try {
-      const res = await fetch(BASE_URL_HORARIOS, { headers: authHeaders() })
+      const res = await fetch(BASE_URL_RUTAS, { headers: authHeaders() })
       if (res.ok) {
         const data = await res.json()
-        if (Array.isArray(data) && data.length > 0) setHorarios(data)
+        if (Array.isArray(data) && data.length > 0) setRutas(data)
       }
     } catch (err) {
-      console.log('Usando datos locales de horarios para pruebas:', err.message)
+      console.log('Usando lista local de rutas:', err.message)
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchAuxiliaryData()
-    fetchHorarios()
+    fetchPuntosVenta()
+    fetchRutas()
   }, [])
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, rutaFilter, statusFilter, itemsPerPage])
+  }, [searchTerm, diaFilter, statusFilter, itemsPerPage])
 
-  const getPunto = (id) => puntosVenta.find(p => Number(p.id) === Number(id)) || { nombre: `Punto #${id}` }
-
-  const getRutaObj = (id) => {
-    const r = rutas.find(item => Number(item.id) === Number(id))
-    if (!r) return { origenNombre: 'Origen N/A', destinoNombre: 'Destino N/A', tarifa: 0 }
-
-    const origenObj = getPunto(r.origenId || r.origen?.id)
-    const destinoObj = getPunto(r.destinoId || r.destino?.id)
-
-    return {
-      ...r,
-      origenNombre: origenObj.nombre,
-      destinoNombre: destinoObj.nombre,
-      tarifa: r.tarifa ?? 0
-    }
-  }
-
-  const getVehiculoObj = (id) => {
-    const v = vehiculos.find(item => Number(item.id) === Number(id))
-    if (!v) return { movil: `${id}`, placa: 'N/A', marca: 'Vehículo', modelo: '' }
-    return v
-  }
+  // Helper resolver punto de venta
+  const getPunto = (id) => puntosVenta.find(p => Number(p.id) === Number(id)) || { nombre: `Punto #${id}`, telefono: 'Sin tel.' }
 
   // ── Toggle Estado Rápido ──────────────────────────────────────────────────────
-  const toggleEstado = async (horario) => {
-    const nuevoEstado = !horario.estado
-    setHorarios(prev => prev.map(h => h.id === horario.id ? { ...h, estado: nuevoEstado } : h))
+  const toggleEstado = async (ruta) => {
+    const nuevoEstado = !ruta.estado
+    setRutas(prev => prev.map(r => r.id === ruta.id ? { ...r, estado: nuevoEstado } : r))
 
     try {
-      await fetch(`${BASE_URL_HORARIOS}/${horario.id}`, {
+      await fetch(`${BASE_URL_RUTAS}/${ruta.id}`, {
         method: 'PUT',
         headers: authHeaders(),
-        body: JSON.stringify({ ...horario, estado: nuevoEstado })
+        body: JSON.stringify({ ...ruta, estado: nuevoEstado })
       })
     } catch (err) {
-      console.log('PUT backend horarios no disponible:', err.message)
+      console.log('PUT backend rutas no disponible:', err.message)
     }
 
-    showNotification(`Horario ${horario.fecha} ${horario.hora} actualizado a ${nuevoEstado ? 'Activo' : 'Inactivo'}`, 'success')
+    const origenObj = getPunto(ruta.origenId || ruta.origen?.id)
+    const destinoObj = getPunto(ruta.destinoId || ruta.destino?.id)
+    showNotification(`Estado de ruta ${origenObj.nombre} → ${destinoObj.nombre} actualizado a ${nuevoEstado ? 'Activo' : 'Inactivo'}`, 'success')
   }
 
   // ── Modales ──────────────────────────────────────────────────────────────────
   const handleAddNew = () => {
-    const today = new Date().toISOString().split('T')[0]
+    const defaultOrigen = puntosVenta[0]?.id || 1
+    const defaultDestino = puntosVenta[1]?.id || puntosVenta[0]?.id || 2
     setFormData({
-      fecha: today || '2026-08-01',
-      hora: '08:30',
+      origenId: defaultOrigen,
+      destinoId: defaultDestino,
+      dias: 'Lunes,Martes,Viernes',
       estado: true,
-      rutaId: rutas[0]?.id || 1,
-      vehiculoId: vehiculos[0]?.id || 10
+      tarifa: 15
     })
-    setEditingHorario(null)
+    setEditingRuta(null)
     setShowAddModal(true)
   }
 
-  const handleEdit = (horario) => {
+  const handleEdit = (ruta) => {
     setFormData({
-      fecha: horario.fecha || '2026-08-01',
-      hora: horario.hora || '08:30',
-      estado: horario.estado ?? true,
-      rutaId: horario.rutaId || horario.ruta?.id || rutas[0]?.id || 1,
-      vehiculoId: horario.vehiculoId || horario.vehiculo?.id || vehiculos[0]?.id || 10
+      origenId: ruta.origenId || ruta.origen?.id || puntosVenta[0]?.id || 1,
+      destinoId: ruta.destinoId || ruta.destino?.id || puntosVenta[1]?.id || 2,
+      dias: ruta.dias || 'Lunes',
+      estado: ruta.estado ?? true,
+      tarifa: ruta.tarifa ?? 0
     })
-    setEditingHorario(horario)
+    setEditingRuta(ruta)
     setShowAddModal(true)
+  }
+
+  // Alternar días
+  const toggleDia = (dia) => {
+    const diasArray = formData.dias ? formData.dias.split(',').filter(Boolean) : []
+    let updatedArray
+    if (diasArray.includes(dia)) {
+      updatedArray = diasArray.filter(d => d !== dia)
+    } else {
+      updatedArray = [...diasArray, dia]
+    }
+    setFormData(prev => ({
+      ...prev,
+      dias: updatedArray.join(',')
+    }))
   }
 
   // ── Guardar ──────────────────────────────────────────────────────────────────
   const handleSave = async (e) => {
     e.preventDefault()
+
+    if (Number(formData.origenId) === Number(formData.destinoId)) {
+      showNotification('El origen y el destino no pueden ser el mismo punto de venta', 'error')
+      return
+    }
+
+    if (!formData.dias || formData.dias.trim() === '') {
+      showNotification('Debe seleccionar al menos un día de operación', 'error')
+      return
+    }
+
     setSaving(true)
 
     const payload = {
-      fecha: formData.fecha,
-      hora: formData.hora,
+      origenId: Number(formData.origenId),
+      destinoId: Number(formData.destinoId),
+      dias: formData.dias,
       estado: Boolean(formData.estado),
-      rutaId: Number(formData.rutaId),
-      vehiculoId: Number(formData.vehiculoId)
+      tarifa: Number(formData.tarifa)
     }
 
     try {
-      if (editingHorario) {
+      if (editingRuta) {
         try {
-          await fetch(`${BASE_URL_HORARIOS}/${editingHorario.id}`, {
+          await fetch(`${BASE_URL_RUTAS}/${editingRuta.id}`, {
             method: 'PUT',
             headers: authHeaders(),
-            body: JSON.stringify({ ...payload, id: editingHorario.id })
+            body: JSON.stringify({ ...payload, id: editingRuta.id })
           })
         } catch (err) {
-          console.log('PUT backend horarios no disponible:', err.message)
+          console.log('PUT backend rutas no disponible:', err.message)
         }
 
-        setHorarios(prev => prev.map(h => h.id === editingHorario.id ? { ...payload, id: editingHorario.id } : h))
-        showNotification('Horario actualizado exitosamente')
+        setRutas(prev => prev.map(r => r.id === editingRuta.id ? { ...payload, id: editingRuta.id } : r))
+        showNotification('Ruta actualizada exitosamente')
       } else {
         const newId = Date.now()
-        const newHorario = { ...payload, id: newId }
+        const newRuta = { ...payload, id: newId }
         try {
-          const res = await fetch(BASE_URL_HORARIOS, {
+          const res = await fetch(BASE_URL_RUTAS, {
             method: 'POST',
             headers: authHeaders(),
             body: JSON.stringify(payload)
           })
           if (res.ok) {
             const data = await res.json()
-            newHorario.id = data.id || newId
+            newRuta.id = data.id || newId
           }
         } catch (err) {
-          console.log('POST backend horarios no disponible:', err.message)
+          console.log('POST backend rutas no disponible:', err.message)
         }
 
-        setHorarios(prev => [newHorario, ...prev])
-        showNotification('Nuevo horario programado exitosamente')
+        setRutas(prev => [newRuta, ...prev])
+        showNotification('Nueva ruta registrada exitosamente')
       }
 
       setShowAddModal(false)
-      setEditingHorario(null)
+      setEditingRuta(null)
     } catch (err) {
-      showNotification('Error al guardar horario: ' + err.message, 'error')
+      showNotification('Error al guardar la ruta: ' + err.message, 'error')
     } finally {
       setSaving(false)
     }
   }
 
   // ── Eliminar ─────────────────────────────────────────────────────────────────
-  const handleDelete = (horario) => setHorarioToDelete(horario)
+  const handleDelete = (ruta) => setRutaToDelete(ruta)
 
   const confirmDelete = async () => {
-    if (!horarioToDelete) return
-    setHorarios(prev => prev.filter(h => h.id !== horarioToDelete.id))
+    if (!rutaToDelete) return
+    setRutas(prev => prev.filter(r => r.id !== rutaToDelete.id))
 
     try {
-      await fetch(`${BASE_URL_HORARIOS}/${horarioToDelete.id}`, {
+      await fetch(`${BASE_URL_RUTAS}/${rutaToDelete.id}`, {
         method: 'DELETE',
         headers: authHeaders()
       })
     } catch (err) {
-      console.log('DELETE backend horarios no disponible:', err.message)
+      console.log('DELETE backend rutas no disponible:', err.message)
     }
 
-    showNotification('Horario eliminado del sistema', 'error')
-    setHorarioToDelete(null)
+    showNotification('Ruta eliminada del sistema', 'error')
+    setRutaToDelete(null)
   }
 
   // ── Filtrado ─────────────────────────────────────────────────────────────────
-  const filteredHorarios = horarios.filter(h => {
-    const rutaObj = getRutaObj(h.rutaId || h.ruta?.id)
-    const vehObj = getVehiculoObj(h.vehiculoId || h.vehiculo?.id)
+  const filteredRutas = rutas.filter(r => {
+    const origenObj = getPunto(r.origenId || r.origen?.id)
+    const destinoObj = getPunto(r.destinoId || r.destino?.id)
 
-    const textTarget = `${h.fecha} ${h.hora} ${rutaObj.origenNombre} ${rutaObj.destinoNombre} ${vehObj.movil} ${vehObj.placa} ${vehObj.marca}`.toLowerCase()
+    const textTarget = `${origenObj.nombre} ${destinoObj.nombre} ${r.dias}`.toLowerCase()
     const matchesSearch = textTarget.includes(searchTerm.toLowerCase())
 
-    const matchesRuta = rutaFilter === 'todos' || Number(h.rutaId || h.ruta?.id) === Number(rutaFilter)
+    const matchesDia = diaFilter === 'todos' || (r.dias && r.dias.includes(diaFilter))
 
     const matchesStatus = statusFilter === 'todos' ||
-      (statusFilter === 'activos' && h.estado) ||
-      (statusFilter === 'inactivos' && !h.estado)
+      (statusFilter === 'activos' && r.estado) ||
+      (statusFilter === 'inactivos' && !r.estado)
 
-    return matchesSearch && matchesRuta && matchesStatus
+    return matchesSearch && matchesDia && matchesStatus
   })
 
   // Paginación
-  const totalItems = filteredHorarios.length
+  const totalItems = filteredRutas.length
   const totalPages = Math.ceil(totalItems / itemsPerPage) || 1
   const startIndex = (currentPage - 1) * itemsPerPage
-  const paginatedHorarios = filteredHorarios.slice(startIndex, startIndex + itemsPerPage)
+  const paginatedRutas = filteredRutas.slice(startIndex, startIndex + itemsPerPage)
+
+  const selectedDiasList = formData.dias ? formData.dias.split(',').filter(Boolean) : []
 
   return (
-    <div className="horarios-view">
+    <div className="rutas-view">
       {/* Toast Notification */}
       {notification && (
         <div className={`notification ${notification.type}`}>
@@ -332,7 +317,7 @@ function Horarios() {
               </svg>
               <input
                 type="text"
-                placeholder="Buscar horario por fecha, ruta o vehículo..."
+                placeholder="Buscar por origen, destino o día de operación..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="search-input"
@@ -340,19 +325,14 @@ function Horarios() {
             </div>
 
             <select
-              value={rutaFilter}
-              onChange={(e) => setRutaFilter(e.target.value)}
+              value={diaFilter}
+              onChange={(e) => setDiaFilter(e.target.value)}
               className="filter-select"
             >
-              <option value="todos">Todas las Rutas</option>
-              {rutas.map(r => {
-                const rObj = getRutaObj(r.id)
-                return (
-                  <option key={r.id} value={r.id}>
-                    {rObj.origenNombre} → {rObj.destinoNombre}
-                  </option>
-                )
-              })}
+              <option value="todos">Todos los Días</option>
+              {DIAS_SEMANA.map(d => (
+                <option key={d} value={d}>{d}</option>
+              ))}
             </select>
 
             <select
@@ -371,91 +351,77 @@ function Horarios() {
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-            Nuevo Horario
+            Nueva Ruta
           </button>
         </div>
 
-        {/* Tabla de Horarios */}
+        {/* Tabla */}
         <div className="table-container">
           {loading ? (
             <div className="empty-state">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: 'spin 1s linear infinite' }}>
                 <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
               </svg>
-              <h3>Cargando horarios...</h3>
+              <h3>Cargando rutas...</h3>
             </div>
           ) : (
             <table className="roles-table">
               <thead>
                 <tr>
-                  <th>Fecha</th>
-                  <th>Hora</th>
-                  <th>Ruta Programada</th>
-                  <th>Vehículo Asignado</th>
+                  <th>Origen</th>
+                  <th>Destino</th>
+                  <th>Días de Operación</th>
+                  <th>Tarifa</th>
                   <th>Estado</th>
                   <th style={{ textAlign: 'right' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {paginatedHorarios.map((h) => {
-                  const rutaInfo = getRutaObj(h.rutaId || h.ruta?.id)
-                  const vehInfo = getVehiculoObj(h.vehiculoId || h.vehiculo?.id)
+                {paginatedRutas.map((ruta) => {
+                  const origen = getPunto(ruta.origenId || ruta.origen?.id)
+                  const destino = getPunto(ruta.destinoId || ruta.destino?.id)
+                  const diasArray = ruta.dias ? ruta.dias.split(',').filter(Boolean) : []
 
                   return (
-                    <tr key={h.id}>
+                    <tr key={ruta.id}>
                       <td>
-                        <span className="date-pill">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                            <line x1="16" y1="2" x2="16" y2="6" />
-                            <line x1="8" y1="2" x2="8" y2="6" />
-                            <line x1="3" y1="10" x2="21" y2="10" />
-                          </svg>
-                          {h.fecha}
+                        <div>
+                          <strong style={{ color: 'var(--slate-900)' }}>{origen.nombre}</strong>
+                          <span className="pv-phone">Tel: {origen.telefono}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div>
+                          <strong style={{ color: 'var(--slate-900)' }}>{destino.nombre}</strong>
+                          <span className="pv-phone">Tel: {destino.telefono}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="dias-badge-group">
+                          {diasArray.map((dia, idx) => (
+                            <span key={idx} className="dia-pill">
+                              {dia}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td>
+                        <span className="tarifa-badge">
+                          Bs. {Number(ruta.tarifa).toFixed(2)}
                         </span>
                       </td>
                       <td>
-                        <div className="time-pill">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <circle cx="12" cy="12" r="10" />
-                            <polyline points="12 6 12 12 16 14" />
-                          </svg>
-                          {h.hora}
-                        </div>
-                      </td>
-                      <td>
-                        <div className="route-chip">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <circle cx="6" cy="19" r="3" />
-                            <path d="M9 19h8.5a3.5 3.5 0 000-7h-11a3.5 3.5 0 010-7H15" />
-                            <circle cx="18" cy="5" r="3" />
-                          </svg>
-                          <span>{rutaInfo.origenNombre} → {rutaInfo.destinoNombre}</span>
-                          <span style={{ fontSize: '11px', color: '#16a34a', fontWeight: '700', marginLeft: '4px' }}>
-                            (Bs. {Number(rutaInfo.tarifa).toFixed(2)})
-                          </span>
-                        </div>
-                      </td>
-                      <td>
-                        <div className="vehicle-chip">
-                          <span style={{ background: '#166534', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '11px' }}>
-                            M-{vehInfo.movil}
-                          </span>
-                          <span>{vehInfo.placa} ({vehInfo.marca} {vehInfo.modelo})</span>
-                        </div>
-                      </td>
-                      <td>
-                        <span className={`status-badge ${h.estado ? 'active' : 'inactive'}`}>
-                          {h.estado ? 'Activo' : 'Inactivo'}
+                        <span className={`status-badge ${ruta.estado ? 'active' : 'inactive'}`}>
+                          {ruta.estado ? 'Activo' : 'Inactivo'}
                         </span>
                       </td>
                       <td style={{ textAlign: 'right' }}>
                         <div className="action-buttons" style={{ justifyContent: 'flex-end' }}>
                           <button
-                            onClick={() => toggleEstado(h)}
+                            onClick={() => toggleEstado(ruta)}
                             className="action-btn edit-btn"
-                            title={h.estado ? 'Desactivar Horario' : 'Activar Horario'}
-                            style={{ color: h.estado ? '#10b981' : '#94a3b8' }}
+                            title={ruta.estado ? 'Desactivar Ruta' : 'Activar Ruta'}
+                            style={{ color: ruta.estado ? '#10b981' : '#94a3b8' }}
                           >
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                               <path d="M18.36 6.64a9 9 0 11-12.73 0" />
@@ -463,9 +429,9 @@ function Horarios() {
                             </svg>
                           </button>
                           <button
-                            onClick={() => handleEdit(h)}
+                            onClick={() => handleEdit(ruta)}
                             className="action-btn edit-btn"
-                            title="Editar Horario"
+                            title="Editar Ruta"
                           >
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                               <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
@@ -473,9 +439,9 @@ function Horarios() {
                             </svg>
                           </button>
                           <button
-                            onClick={() => handleDelete(h)}
+                            onClick={() => handleDelete(ruta)}
                             className="action-btn delete-btn"
-                            title="Eliminar Horario"
+                            title="Eliminar Ruta"
                           >
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                               <polyline points="3 6 5 6 21 6" />
@@ -493,23 +459,23 @@ function Horarios() {
             </table>
           )}
 
-          {!loading && filteredHorarios.length === 0 && (
+          {!loading && filteredRutas.length === 0 && (
             <div className="empty-state">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
-              <h3>No se encontraron horarios programados</h3>
-              <p>Intente ajustando la búsqueda o los filtros</p>
+              <h3>No se encontraron rutas registradas</h3>
+              <p>Intente ajustando los términos de búsqueda o filtros</p>
             </div>
           )}
         </div>
 
         {/* Paginación */}
-        {!loading && filteredHorarios.length > 0 && (
+        {!loading && filteredRutas.length > 0 && (
           <div className="pagination-container">
             <div className="pagination-info">
-              Mostrando {startIndex + 1} a {Math.min(startIndex + itemsPerPage, totalItems)} de {totalItems} horarios
+              Mostrando {startIndex + 1} a {Math.min(startIndex + itemsPerPage, totalItems)} de {totalItems} rutas
               <select
                 value={itemsPerPage}
                 onChange={(e) => setItemsPerPage(Number(e.target.value))}
@@ -549,12 +515,12 @@ function Horarios() {
         )}
       </div>
 
-      {/* Modal Crear / Editar Horario */}
+      {/* Modal Crear / Editar Ruta */}
       {showAddModal && (
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>{editingHorario ? 'Editar Horario' : 'Nuevo Horario'}</h2>
+              <h2>{editingRuta ? 'Editar Ruta' : 'Nueva Ruta'}</h2>
               <button className="modal-close" onClick={() => setShowAddModal(false)}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <line x1="18" y1="6" x2="6" y2="18" />
@@ -566,67 +532,76 @@ function Horarios() {
             <form onSubmit={handleSave} className="modal-form">
               <div className="form-grid-2">
                 <div className="input-group">
-                  <label className="input-label">Fecha de Salida</label>
-                  <input
-                    type="date"
+                  <label className="input-label">Punto de Origen</label>
+                  <select
+                    value={formData.origenId}
+                    onChange={(e) => setFormData({ ...formData, origenId: e.target.value })}
                     className="input-field"
-                    value={formData.fecha}
-                    onChange={(e) => setFormData({ ...formData, fecha: e.target.value })}
                     required
-                  />
+                  >
+                    {puntosVenta.map(pv => (
+                      <option key={pv.id} value={pv.id}>
+                        {pv.nombre} - Tel: {pv.telefono}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="input-group">
-                  <label className="input-label">Hora de Salida</label>
-                  <input
-                    type="text"
+                  <label className="input-label">Punto de Destino</label>
+                  <select
+                    value={formData.destinoId}
+                    onChange={(e) => setFormData({ ...formData, destinoId: e.target.value })}
                     className="input-field"
-                    placeholder="Ej. 08:30"
-                    value={formData.hora}
-                    onChange={(e) => setFormData({ ...formData, hora: e.target.value })}
                     required
-                  />
+                  >
+                    {puntosVenta.map(pv => (
+                      <option key={pv.id} value={pv.id}>
+                        {pv.nombre} - Tel: {pv.telefono}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
-              {/* Ruta Asignada (rutaId) */}
+              {/* Días de Operación */}
               <div className="input-group">
-                <label className="input-label">Ruta Programada</label>
-                <select
-                  className="input-field"
-                  value={formData.rutaId}
-                  onChange={(e) => setFormData({ ...formData, rutaId: e.target.value })}
-                  required
-                >
-                  {rutas.map(r => {
-                    const rObj = getRutaObj(r.id)
+                <label className="input-label">Días de Operación</label>
+                <div className="dias-selector">
+                  {DIAS_SEMANA.map(dia => {
+                    const isSelected = selectedDiasList.includes(dia)
                     return (
-                      <option key={r.id} value={r.id}>
-                        {rObj.origenNombre} → {rObj.destinoNombre} (Tarifa: Bs. {Number(rObj.tarifa).toFixed(2)}) {r.dias ? `- Días: ${r.dias}` : ''}
-                      </option>
+                      <button
+                        type="button"
+                        key={dia}
+                        className={`dia-toggle-btn ${isSelected ? 'selected' : ''}`}
+                        onClick={() => toggleDia(dia)}
+                      >
+                        {dia}
+                      </button>
                     )
                   })}
-                </select>
-              </div>
-
-              {/* Vehículo Asignado (vehiculoId) */}
-              <div className="input-group">
-                <label className="input-label">Vehículo Asignado</label>
-                <select
-                  className="input-field"
-                  value={formData.vehiculoId}
-                  onChange={(e) => setFormData({ ...formData, vehiculoId: e.target.value })}
-                  required
-                >
-                  {vehiculos.map(v => (
-                    <option key={v.id} value={v.id}>
-                      Móvil {v.movil} - Placa {v.placa} ({v.marca} {v.modelo} - {v.tipo})
-                    </option>
-                  ))}
-                </select>
+                </div>
+                <span style={{ fontSize: '12px', color: '#64748b', marginTop: '6px', display: 'block' }}>
+                  Seleccionados: {formData.dias || 'Ninguno'}
+                </span>
               </div>
 
               <div className="form-grid-2">
+                <div className="input-group">
+                  <label className="input-label">Tarifa (Bs.)</label>
+                  <input
+                    type="number"
+                    step="0.50"
+                    min="0"
+                    className="input-field"
+                    placeholder="Ej. 15.00"
+                    value={formData.tarifa}
+                    onChange={(e) => setFormData({ ...formData, tarifa: e.target.value })}
+                    required
+                  />
+                </div>
+
                 <div className="input-group">
                   <label className="input-label">Estado Inicial</label>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px' }}>
@@ -655,7 +630,7 @@ function Horarios() {
                   Cancelar
                 </button>
                 <button type="submit" className="save-btn" disabled={saving}>
-                  {saving ? 'Guardando...' : (editingHorario ? 'Actualizar' : 'Crear') + ' Horario'}
+                  {saving ? 'Guardando...' : (editingRuta ? 'Actualizar' : 'Crear') + ' Ruta'}
                 </button>
               </div>
             </form>
@@ -664,8 +639,8 @@ function Horarios() {
       )}
 
       {/* Modal Confirmar Eliminación */}
-      {horarioToDelete && (
-        <div className="modal-overlay" onClick={() => setHorarioToDelete(null)}>
+      {rutaToDelete && (
+        <div className="modal-overlay" onClick={() => setRutaToDelete(null)}>
           <div
             className="modal-content confirmation-modal"
             style={{ maxWidth: '420px' }}
@@ -673,7 +648,7 @@ function Horarios() {
           >
             <div className="modal-header">
               <h2>Confirmar Eliminación</h2>
-              <button className="modal-close" onClick={() => setHorarioToDelete(null)}>
+              <button className="modal-close" onClick={() => setRutaToDelete(null)}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <line x1="18" y1="6" x2="6" y2="18" />
                   <line x1="6" y1="6" x2="18" y2="18" />
@@ -682,11 +657,11 @@ function Horarios() {
             </div>
             <div style={{ padding: '24px 28px' }}>
               <p style={{ color: 'var(--slate-700)', fontSize: '15px', lineHeight: '1.6', margin: 0 }}>
-                ¿Está seguro que desea eliminar el horario programado para el <strong>{horarioToDelete.fecha} a las {horarioToDelete.hora}</strong>?
+                ¿Está seguro de que desea eliminar la ruta entre <strong>{getPunto(rutaToDelete.origenId || rutaToDelete.origen?.id).nombre}</strong> y <strong>{getPunto(rutaToDelete.destinoId || rutaToDelete.destino?.id).nombre}</strong>?
               </p>
             </div>
             <div className="modal-actions" style={{ padding: '20px 28px' }}>
-              <button className="cancel-btn" onClick={() => setHorarioToDelete(null)}>
+              <button className="cancel-btn" onClick={() => setRutaToDelete(null)}>
                 Cancelar
               </button>
               <button
@@ -704,4 +679,4 @@ function Horarios() {
   )
 }
 
-export default Horarios
+export default Rutas

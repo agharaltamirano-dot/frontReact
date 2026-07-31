@@ -1,0 +1,101 @@
+/* ===== RUTAS MODULE SPECIFIC STYLES ===== */
+@import '../usuarios/usuarios.css';
+
+.rutas-view {
+  width: 100%;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.route-endpoint-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background: #f1f5f9;
+  color: #1e293b;
+  font-weight: 600;
+  font-size: 13px;
+  border: 1px solid #e2e8f0;
+}
+
+.route-endpoint-pill svg {
+  width: 14px;
+  height: 14px;
+  color: var(--primary);
+}
+
+.route-arrow {
+  display: inline-flex;
+  align-items: center;
+  color: #94a3b8;
+  margin: 0 4px;
+}
+
+.dias-badge-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.dia-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: #e0e7ff;
+  color: #3730a3;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.tarifa-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: #dcfce7;
+  color: #15803d;
+  font-weight: 700;
+  font-size: 13px;
+  border: 1px solid #bbf7d0;
+}
+
+/* Selector de Días interactivo en el Formulario */
+.dias-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.dia-toggle-btn {
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dia-toggle-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: white;
+}
+
+.dia-toggle-btn.selected {
+  background: var(--primary-gradient, linear-gradient(135deg, #6366f1 0%, #4f46e5 100%));
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.3);
+}
+
+.pv-phone {
+  font-size: 11px;
+  color: #64748b;
+  display: block;
+}

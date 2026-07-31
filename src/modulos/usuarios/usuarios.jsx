@@ -126,7 +126,8 @@ function Usuarios() {
       usuario1: user.usuario1 || '',
       clave: '',
       rol: rolActual,
-      acceso: user.acceso ?? false
+      acceso: user.acceso ?? false,
+      PuntoVentaId: user.puntoVenta.id || 1
     })
     setEditingUser(user)
     setShowAddModal(true)
@@ -514,7 +515,7 @@ function Usuarios() {
               <div className="input-group">
                 <label className="input-label">Punto de venta</label>
                 <select
-                  value={formData.puntoVenta}
+                  value={formData.PuntoVentaId}
                   onChange={(e) => {
                     const selected = puntosVenta.find(r => r.id === Number(e.target.value))
                     setFormData({ ...formData, PuntoVentaId: selected })

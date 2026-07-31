@@ -88,6 +88,21 @@ const ICON_SVG = {
       <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" />
     </svg>
   ),
+  'route': (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="6" cy="19" r="3" />
+      <path d="M9 19h8.5a3.5 3.5 0 000-7h-11a3.5 3.5 0 010-7H15" />
+      <circle cx="18" cy="5" r="3" />
+    </svg>
+  ),
+  'asientos': (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="3" y="3" width="7" height="7" rx="1.5" />
+      <rect x="14" y="3" width="7" height="7" rx="1.5" />
+      <rect x="14" y="14" width="7" height="7" rx="1.5" />
+      <rect x="3" y="14" width="7" height="7" rx="1.5" />
+    </svg>
+  ),
   'default': (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <circle cx="12" cy="12" r="10" />
@@ -104,7 +119,9 @@ const DEFAULT_FALLBACK_MENUS = [
   { id: 'm-usr', nombre: 'Usuarios', rutaAccion: '/usuarios', icono: 'users', tipo: 'menu', padreId: null, orden: 1 },
   { id: 'm-cond', nombre: 'Conductores', rutaAccion: '/conductores', icono: 'user-check', tipo: 'menu', padreId: null, orden: 2 },
   { id: 'm-veh', nombre: 'Vehículos', rutaAccion: '/vehiculos', icono: 'bus', tipo: 'menu', padreId: null, orden: 3 },
-  { id: 'm-hor', nombre: 'Horarios', rutaAccion: '/horarios', icono: 'clock', tipo: 'menu', padreId: null, orden: 4 }
+  { id: 'm-asi', nombre: 'Asientos', rutaAccion: '/asientos', icono: 'asientos', tipo: 'menu', padreId: null, orden: 4 },
+  { id: 'm-rut', nombre: 'Rutas', rutaAccion: '/rutas', icono: 'route', tipo: 'menu', padreId: null, orden: 5 },
+  { id: 'm-hor', nombre: 'Horarios', rutaAccion: '/horarios', icono: 'clock', tipo: 'menu', padreId: null, orden: 6 }
 ]
 
 /** Lee authData de sessionStorage de forma segura */

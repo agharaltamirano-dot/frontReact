@@ -7,6 +7,9 @@ import Conductores from './modulos/conductores/conductores'
 import Vehiculos from './modulos/vehiculos/vehiculos'
 import Horarios from './modulos/horarios/horarios'
 
+import Rutas from './modulos/rutas/rutas'
+import Asientos from './modulos/asientos/asientos'
+
 function App() {
   return (
     <Router>
@@ -19,6 +22,8 @@ function App() {
           <Route path="usuarios" element={<Usuarios />} />
           <Route path="conductores" element={<Conductores />} />
           <Route path="vehiculos" element={<Vehiculos />} />
+          <Route path="asientos" element={<Asientos />} />
+          <Route path="rutas" element={<Rutas />} />
           <Route path="horarios" element={<Horarios />} />
         </Route>
       </Routes>
