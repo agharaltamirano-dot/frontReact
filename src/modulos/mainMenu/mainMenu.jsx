@@ -3,6 +3,23 @@ import './mainMenu.css'
 
 // ─── Mapa de íconos (valor del campo "icono" devuelto por el back) ─────────────
 const ICON_SVG = {
+  'user-people': (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M23 21v-2a4 4 0 00-3-3.87" />
+      <path d="M16 3.13a4 4 0 010 7.75" />
+    </svg>
+  ),
+  'car': (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M5 16v-1a3 3 0 013-3h8a3 3 0 013 3v1" />
+      <path d="M19 16v-1a2 2 0 00-2-2H7a2 2 0 00-2 2v1" />
+      <circle cx="6.5" cy="16.5" r="2.5" />
+      <circle cx="17.5" cy="16.5" r="2.5" />
+      <path d="M5 16V6a1 1 0 011-1h12a1 1 0 011 1v10" />
+    </svg>
+  ),
   'users': (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
@@ -117,9 +134,9 @@ const getIcon = (icono) => ICON_SVG[icono] ?? ICON_SVG['default']
 /** Menús de respaldo en caso de que el backend aún no devuelva todos los módulos */
 const DEFAULT_FALLBACK_MENUS = [
   { id: 'm-usr', nombre: 'Usuarios', rutaAccion: '/usuarios', icono: 'users', tipo: 'menu', padreId: null, orden: 1 },
-  { id: 'm-cond', nombre: 'Conductores', rutaAccion: '/conductores', icono: 'user-check', tipo: 'menu', padreId: null, orden: 2 },
-  { id: 'm-veh', nombre: 'Vehículos', rutaAccion: '/vehiculos', icono: 'bus', tipo: 'menu', padreId: null, orden: 3 },
-  { id: 'm-asi', nombre: 'Asientos', rutaAccion: '/asientos', icono: 'asientos', tipo: 'menu', padreId: null, orden: 4 },
+  { id: 'm-cond', nombre: 'Conductores', rutaAccion: '/conductores', icono: 'user-people', tipo: 'menu', padreId: null, orden: 2 },
+  { id: 'm-veh', nombre: 'Vehículos', rutaAccion: '/vehiculos', icono: 'car', tipo: 'menu', padreId: null, orden: 3 },
+  { id: 'm-asi', nombre: 'Distribución de asientos', rutaAccion: '/asientos', icono: 'asientos', tipo: 'menu', padreId: null, orden: 4 },
   { id: 'm-rut', nombre: 'Rutas', rutaAccion: '/rutas', icono: 'route', tipo: 'menu', padreId: null, orden: 5 },
   { id: 'm-hor', nombre: 'Horarios', rutaAccion: '/horarios', icono: 'clock', tipo: 'menu', padreId: null, orden: 6 }
 ]

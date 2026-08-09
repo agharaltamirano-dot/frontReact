@@ -202,11 +202,15 @@ function Conductores() {
   }
 
   // ── Filtrado ─────────────────────────────────────────────────────────────────
+  // Normaliza texto para ignorar mayúsculas y acentos
+  const normalize = (str) => (str || '').toString().normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
+
+  // Lista dinámica de categorías extraídas de los conductores
+  const categoriesList = Array.from(new Set(conductores.map(c => c.categoria).filter(Boolean))).sort()
+
   const filteredConductores = conductores.filter(d => {
-    const fullName = `${d.nombres} ${d.apellidos}`.toLowerCase()
-    const matchesSearch = fullName.includes(searchTerm.toLowerCase()) ||
-      (d.licencia || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (d.telefono || '').includes(searchTerm)
+    const textTarget = `${d.nombres} ${d.apellidos} ${d.licencia || ''} ${d.telefono || ''}`
+    const matchesSearch = normalize(textTarget).includes(normalize(searchTerm))
 
     const matchesCategory = categoryFilter === 'todos' || d.categoria === categoryFilter
 
@@ -263,19 +267,19 @@ function Conductores() {
             </div>
 
             {/* Filtro Categoría */}
-            <select
+           <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
               className="filter-select"
             >
               <option value="todos">Todas las Categorías</option>
-              {CATEGORIAS_LICENCIA.map(c => (
+              {categoriesList.map(c => (
                 <option key={c} value={c}>{c}</option>
               ))}
             </select>
 
             {/* Filtro Estado */}
-            <select
+            {/*<select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="filter-select"
@@ -283,7 +287,7 @@ function Conductores() {
               <option value="todos">Todos los Estados</option>
               <option value="activos">Activos</option>
               <option value="inactivos">Inactivos</option>
-            </select>
+            </select> */}
           </div>
 
           <button onClick={handleAddNew} className="add-btn">

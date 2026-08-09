@@ -1,0 +1,48 @@
+.venta-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:60}
+.venta-panel{background:#fff;border-radius:8px;max-width:800px;width:90%;max-height:80%;overflow:auto;padding:18px;box-shadow:0 10px 30px rgba(2,6,23,0.2)}
+.venta-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.venta-header h2{margin:0}
+.venta-header .close{background:transparent;border:0;font-size:20px;cursor:pointer}
+.venta-body{font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';color:#0f172a}
+
+/* New screen layout */
+.venta-screen{padding:18px}
+.venta-columns{display:flex;gap:18px;align-items:flex-start}
+.card{background:#fff;border-radius:12px;padding:16px;box-shadow:0 8px 24px rgba(2,6,23,0.06);flex:1}
+.sell-card{max-width:420px;min-width:300px}
+.map-card{flex:1}
+.card h3{margin:0 0 12px 0}
+
+.horario-row{display:flex;gap:18px;align-items:center;margin-bottom:12px;padding:12px}
+.horario-item{font-size:14px;color:#0f172a}
+.asientos-title{display:flex;justify-content:space-between;align-items:center}
+.asientos-meta{font-size:13px;color:#475569;margin-left:12px;font-weight:600}
+
+.venta-screen .selected-list{display:flex;flex-direction:column;gap:10px}
+.venta-screen .selected-item{display:flex;align-items:flex-start;gap:10px;padding:8px;border-radius:8px;background:#f8fafc}
+.venta-screen .seat-badge{background:#0f172a;color:#fff;border-radius:8px;padding:8px 12px;font-weight:700;font-size:16px}
+.venta-screen .selected-meta{flex:1;display:flex;flex-direction:column;gap:8px}
+.venta-screen .input-small{padding:8px;border-radius:8px;border:1px solid #e5e7eb}
+.venta-screen .selected-actions{display:flex;flex-direction:column;gap:8px}
+.venta-screen .confirm-btn{background:#0ea5a4;color:#fff;border:0;padding:8px 10px;border-radius:8px;cursor:pointer}
+.venta-screen .remove-btn{background:transparent;border:1px solid #e5e7eb;padding:8px 10px;border-radius:8px;cursor:pointer}
+
+.venta-screen .seat-grid{display:flex;flex-direction:column;gap:10px;width:100%;overflow:hidden}
+.venta-screen .seat-row{display:flex;gap:8px;justify-content:flex-start;flex-wrap:wrap}
+.venta-screen .seat{flex:1 1 0;min-width:140px;height:64px;border-radius:8px;display:flex;flex-direction:row;align-items:center;justify-content:flex-start;cursor:pointer;box-shadow:inset 0 -3px 6px rgba(0,0,0,0.04);padding:8px 12px;box-sizing:border-box;overflow:hidden}
+.venta-screen .seat.empty-slot{background:transparent;border:2px dashed #e6eef6;cursor:default}
+.venta-screen .seat.available{background:linear-gradient(180deg,#ecfdf5,#d1fae5);border:1px solid #10b981}
+.venta-screen .seat.occupied{background:linear-gradient(180deg,#fff1f2,#fee2e2);border:1px solid #ef4444;cursor:default}
+.venta-screen .seat.selected{background:linear-gradient(180deg,#e0f2fe,#bae6fd);border:1px solid #0284c7}
+.venta-screen .seat-num{font-weight:800;font-size:14px;margin:0;margin-right:12px;flex:0 0 48px;text-align:center}
+.venta-screen .seat-pass{font-size:13px;color:#334155;margin-top:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.legend{margin-top:12px;display:flex;gap:12px;flex-wrap:wrap}
+.legend-item{display:flex;align-items:center;gap:6px;color:#475569}
+.dot{display:inline-block;width:12px;height:12px;border-radius:6px}
+.dot.available{background:#10b981}
+.dot.occupied{background:#ef4444}
+.dot.empty{background:transparent;border:2px solid #cbd5e1}
+.dot.selected{background:#0284c7}
+
+.empty{color:#64748b;padding:8px}

@@ -1,93 +1,13 @@
 import { useState, useEffect } from 'react'
 import './vehiculos.css'
+import { getVehiculos, createVehiculo, updateVehiculo, deleteVehiculo, getConductores } from './vehiculoService'
+import { getDistribuciones } from './asientosService'
 
-const BASE_URL_VEHICULOS = 'http://localhost:5093/api/vehiculos'
-const BASE_URL_CONDUCTORES = 'http://localhost:5093/api/conductores'
-const BASE_URL_ASIENTOS = 'http://localhost:5093/api/asientos'
-
-export const STATIC_CONDUCTORES = [
-  { id: 1, nombres: 'Carlos Alberto', apellidos: 'Mamani Quispe', licencia: '4892019' },
-  { id: 2, nombres: 'Juan Pablo', apellidos: 'Fernández Flores', licencia: '5829104' },
-  { id: 3, nombres: 'Roberto', apellidos: 'Vargas Gutierrez', licencia: '3920192' },
-  { id: 4, nombres: 'Luis Enrique', apellidos: 'Salazar Choque', licencia: '8201928' }
-]
-
-export const STATIC_ASIENTOS = [
-  { id: 1, filas: 4, cantidad: 16, nombre: 'Van compacta', esminibus: true, estado: true },
-  { id: 2, filas: 6, cantidad: 24, nombre: 'Minibús clásico', esminibus: true, estado: true },
-  { id: 3, filas: 8, cantidad: 32, nombre: 'Bus Cama Ejecutivo', esminibus: false, estado: true },
-  { id: 4, filas: 10, cantidad: 40, nombre: 'Bus estándar', esminibus: false, estado: true },
-  { id: 5, filas: 2, cantidad: 5, nombre: 'Sedán ejecutivo', esminibus: false, estado: true }
-]
-
-export const MOCK_VEHICULOS = [
-  {
-    id: 1,
-    movil: '101',
-    placa: 'ABC123',
-    marca: 'Toyota',
-    modelo: 'Corolla',
-    color: 'Rojo',
-    tipo: 'Sedán',
-    soat: 'SOAT2026',
-    aseguradora: 'La Boliviana',
-    conductorId: 1,
-    propietarioId: 2,
-    estado: true,
-    asientosId: 5
-  },
-  {
-    id: 2,
-    movil: '102',
-    placa: '1029-XYZ',
-    marca: 'Mercedes-Benz',
-    modelo: 'Sprinter 515',
-    color: 'Gris Plata',
-    tipo: 'Van',
-    soat: 'SOAT-3819204',
-    aseguradora: 'BISA Seguros',
-    conductorId: 2,
-    propietarioId: 3,
-    estado: true,
-    asientosId: 1
-  },
-  {
-    id: 3,
-    movil: '103',
-    placa: '3810-FGT',
-    marca: 'Volvo',
-    modelo: 'Paradiso 1200',
-    color: 'Azul Marino',
-    tipo: 'Bus Cama',
-    soat: 'SOAT-5729103',
-    aseguradora: 'Nacional Vida',
-    conductorId: 3,
-    propietarioId: 1,
-    estado: true,
-    asientosId: 3
-  }
-]
-
-function getToken() {
-  try {
-    const authData = JSON.parse(sessionStorage.getItem('authData') || '{}')
-    return authData.token || ''
-  } catch {
-    return ''
-  }
-}
-
-function authHeaders() {
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${getToken()}`
-  }
-}
 
 function Vehiculos() {
-  const [vehiculos, setVehiculos] = useState(MOCK_VEHICULOS)
-  const [conductores, setConductores] = useState(STATIC_CONDUCTORES)
-  const [asientosList, setAsientosList] = useState(STATIC_ASIENTOS)
+  const [vehiculos, setVehiculos] = useState([])
+  const [conductores, setConductores] = useState([])
+  const [distribucionesList, setDistribucionesList] = useState([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [tipoFilter, setTipoFilter] = useState('todos')
@@ -111,12 +31,12 @@ function Vehiculos() {
     marca: '',
     modelo: '',
     color: '',
-    tipo: 'Sedán',
+    tipo: '',
     soat: '',
-    aseguradora: 'La Boliviana',
-    conductorId: STATIC_CONDUCTORES[0].id,
-    propietarioId: STATIC_CONDUCTORES[0].id,
-    asientosId: 5,
+    aseguradora: '',
+    conductorId: null,
+    propietarioId: null,
+    distribucionId: distribucionesList[0]?.id || 5,
     estado: true
   })
 
@@ -128,26 +48,20 @@ function Vehiculos() {
   // ── GET Conductores ('api/conductores') ─────────────────────────────────────
   const fetchConductores = async () => {
     try {
-      const res = await fetch(BASE_URL_CONDUCTORES, { headers: authHeaders() })
-      if (res.ok) {
-        const data = await res.json()
-        if (Array.isArray(data) && data.length > 0) setConductores(data)
-      }
+      const data = await getConductores()
+      if (Array.isArray(data) && data.length > 0) setConductores(data)
     } catch (err) {
       console.log('Usando conductores locales para pruebas:', err.message)
     }
   }
 
   // ── GET Asientos ('api/asientos') ───────────────────────────────────────────
-  const fetchAsientos = async () => {
+  const fetchDistribuciones = async () => {
     try {
-      const res = await fetch(BASE_URL_ASIENTOS, { headers: authHeaders() })
-      if (res.ok) {
-        const data = await res.json()
-        if (Array.isArray(data) && data.length > 0) setAsientosList(data)
-      }
+      const data = await getDistribuciones()
+      if (Array.isArray(data) && data.length > 0) setDistribucionesList(data)
     } catch (err) {
-      console.log('Usando lista de asientos local para pruebas:', err.message)
+      console.log('Usando lista local de distribuciones para pruebas:', err.message)
     }
   }
 
@@ -155,11 +69,9 @@ function Vehiculos() {
   const fetchVehiculos = async () => {
     setLoading(true)
     try {
-      const res = await fetch(BASE_URL_VEHICULOS, { headers: authHeaders() })
-      if (res.ok) {
-        const data = await res.json()
-        if (Array.isArray(data) && data.length > 0) setVehiculos(data)
-      }
+      const data = await getVehiculos()
+      if (Array.isArray(data) && data.length > 0) setVehiculos(data)
+      console.log('Vehículos obtenidos del backend:', data)
     } catch (err) {
       console.log('Usando lista local de vehículos para pruebas:', err.message)
     } finally {
@@ -169,7 +81,7 @@ function Vehiculos() {
 
   useEffect(() => {
     fetchConductores()
-    fetchAsientos()
+    fetchDistribuciones()
     fetchVehiculos()
   }, [])
 
@@ -185,8 +97,8 @@ function Vehiculos() {
   }
 
   // Helper resolver distribución de asientos
-  const getAsientoObj = (id) => {
-    const a = asientosList.find(item => Number(item.id) === Number(id))
+  const getDistribucionObj = (id) => {
+    const a = distribucionesList.find(item => Number(item.id) === Number(id))
     if (!a) return { nombre: `Distribución #${id}`, cantidad: '?' }
     return a
   }
@@ -197,11 +109,7 @@ function Vehiculos() {
     setVehiculos(prev => prev.map(v => v.id === vehicle.id ? { ...v, estado: nuevoEstado } : v))
 
     try {
-      await fetch(`${BASE_URL_VEHICULOS}/${vehicle.id}`, {
-        method: 'PUT',
-        headers: authHeaders(),
-        body: JSON.stringify({ ...vehicle, estado: nuevoEstado })
-      })
+      await updateVehiculo(vehicle.id, { ...vehicle, estado: nuevoEstado })
     } catch (err) {
       console.log('PUT backend vehiculos no disponible:', err.message)
     }
@@ -213,19 +121,19 @@ function Vehiculos() {
   const handleAddNew = () => {
     const firstCondId = conductores[0]?.id || 1
     const secondCondId = conductores[1]?.id || firstCondId
-    const firstAsientoId = asientosList[0]?.id || 5
+    const firstDistribucionId = distribucionesList[0]?.id || 5
     setFormData({
       movil: '',
       placa: '',
       marca: '',
       modelo: '',
       color: '',
-      tipo: 'Sedán',
+      tipo: '',
       soat: '',
-      aseguradora: 'La Boliviana',
+      aseguradora: '',
       conductorId: firstCondId,
       propietarioId: secondCondId,
-      asientosId: firstAsientoId,
+      distribucionId: firstDistribucionId,
       estado: true
     })
     setEditingVehicle(null)
@@ -239,12 +147,12 @@ function Vehiculos() {
       marca: vehicle.marca || '',
       modelo: vehicle.modelo || '',
       color: vehicle.color || '',
-      tipo: vehicle.tipo || 'Sedán',
+      tipo: vehicle.tipo || '',
       soat: vehicle.soat || vehicle.nroSoat || '',
-      aseguradora: vehicle.aseguradora || 'La Boliviana',
+      aseguradora: vehicle.aseguradora || '',
       conductorId: vehicle.conductorId || vehicle.conductor?.id || conductores[0]?.id || 1,
       propietarioId: vehicle.propietarioId || vehicle.propietario?.id || conductores[0]?.id || 1,
-      asientosId: vehicle.asientosId || vehicle.asientos?.id || asientosList[0]?.id || 5,
+      distribucionId: vehicle.asientosId || vehicle.asientos?.id || vehicle.distribucion?.id || distribucionesList[0]?.id || 5,
       estado: vehicle.estado ?? true
     })
     setEditingVehicle(vehicle)
@@ -255,6 +163,31 @@ function Vehiculos() {
   const handleSave = async (e) => {
     e.preventDefault()
     setSaving(true)
+
+    // Validaciones cliente
+    if (!formData.movil || !formData.placa || !formData.marca || !formData.modelo || !formData.color || !formData.tipo || !formData.soat || !formData.aseguradora || !formData.conductorId || !formData.propietarioId || !formData.distribucionId) {
+      showNotification('Complete todos los campos obligatorios (*)', 'error')
+      setSaving(false)
+      return
+    }
+
+    if ((formData.color || '').length > 10) {
+      showNotification('El campo Color no debe superar 10 caracteres', 'error')
+      setSaving(false)
+      return
+    }
+
+    if ((formData.aseguradora || '').length > 20) {
+      showNotification('El campo Aseguradora no debe superar 20 caracteres', 'error')
+      setSaving(false)
+      return
+    }
+
+    if ((formData.soat || '').length > 20) {
+      showNotification('El campo SOAT no debe superar 20 caracteres', 'error')
+      setSaving(false)
+      return
+    }
 
     const payload = {
       movil: formData.movil,
@@ -268,17 +201,13 @@ function Vehiculos() {
       conductorId: Number(formData.conductorId),
       propietarioId: Number(formData.propietarioId),
       estado: Boolean(formData.estado),
-      asientosId: Number(formData.asientosId)
+      distribucionId: Number(formData.distribucionId)
     }
 
     try {
       if (editingVehicle) {
         try {
-          await fetch(`${BASE_URL_VEHICULOS}/${editingVehicle.id}`, {
-            method: 'PUT',
-            headers: authHeaders(),
-            body: JSON.stringify({ ...payload, id: editingVehicle.id })
-          })
+          await updateVehiculo(editingVehicle.id, { ...payload, id: editingVehicle.id })
         } catch (err) {
           console.log('PUT backend vehiculos no disponible:', err.message)
         }
@@ -289,15 +218,8 @@ function Vehiculos() {
         const newId = Date.now()
         const newVehicle = { ...payload, id: newId }
         try {
-          const res = await fetch(BASE_URL_VEHICULOS, {
-            method: 'POST',
-            headers: authHeaders(),
-            body: JSON.stringify(payload)
-          })
-          if (res.ok) {
-            const data = await res.json()
-            newVehicle.id = data.id || newId
-          }
+          const data = await createVehiculo(payload)
+          if (data && data.id) newVehicle.id = data.id
         } catch (err) {
           console.log('POST backend vehiculos no disponible:', err.message)
         }
@@ -323,10 +245,7 @@ function Vehiculos() {
     setVehiculos(prev => prev.filter(v => v.id !== vehicleToDelete.id))
 
     try {
-      await fetch(`${BASE_URL_VEHICULOS}/${vehicleToDelete.id}`, {
-        method: 'DELETE',
-        headers: authHeaders()
-      })
+      await deleteVehiculo(vehicleToDelete.id)
     } catch (err) {
       console.log('DELETE backend vehiculos no disponible:', err.message)
     }
@@ -336,12 +255,22 @@ function Vehiculos() {
   }
 
   // ── Filtrado ─────────────────────────────────────────────────────────────────
-  const filteredVehiculos = vehiculos.filter(v => {
-    const conductorObj = getConductor(v.conductorId || v.conductor?.id)
-    const propietarioObj = getConductor(v.propietarioId || v.propietario?.id)
+  const normalize = (str) => (str || '').toString().normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
 
-    const textTarget = `${v.movil} ${v.marca} ${v.modelo} ${v.placa} ${conductorObj.nombres} ${conductorObj.apellidos} ${propietarioObj.nombres}`.toLowerCase()
-    const matchesSearch = textTarget.includes(searchTerm.toLowerCase())
+  const filteredVehiculos = vehiculos.filter(v => {
+    const _conductorFromGet = getConductor(v.conductorId || v.conductor?.id)
+    const isPlaceholder = (c) => !c || !c.nombres || /^Conductor #/.test(String(c.nombres))
+    const conductorObj = (!isPlaceholder(_conductorFromGet))
+      ? _conductorFromGet
+      : (v.conductor && (v.conductor.nombres || v.conductor.apellidos) ? v.conductor : { nombres: '', apellidos: '' })
+
+    const _propFromGet = getConductor(v.propietarioId || v.propietario?.id)
+    const propietarioObj = (!isPlaceholder(_propFromGet))
+      ? _propFromGet
+      : (v.propietario && (v.propietario.nombres || v.propietario.apellidos) ? v.propietario : { nombres: '', apellidos: '' })
+
+    const textTarget = `${v.movil} ${v.marca} ${v.modelo} ${v.placa} ${conductorObj.nombres} ${conductorObj.apellidos} ${propietarioObj.nombres} ${propietarioObj.apellidos}`
+    const matchesSearch = normalize(textTarget).includes(normalize(searchTerm))
     const matchesTipo = tipoFilter === 'todos' || v.tipo === tipoFilter
     const matchesAseguradora = aseguradoraFilter === 'todos' || v.aseguradora === aseguradoraFilter
     const matchesStatus = statusFilter === 'todos' ||
@@ -350,7 +279,6 @@ function Vehiculos() {
 
     return matchesSearch && matchesTipo && matchesAseguradora && matchesStatus
   })
-
   // Paginación
   const totalItems = filteredVehiculos.length
   const totalPages = Math.ceil(totalItems / itemsPerPage) || 1
@@ -396,7 +324,7 @@ function Vehiculos() {
               />
             </div>
 
-            <select
+            {/* <select
               value={tipoFilter}
               onChange={(e) => setTipoFilter(e.target.value)}
               className="filter-select"
@@ -431,7 +359,8 @@ function Vehiculos() {
               <option value="activos">Activos</option>
               <option value="inactivos">Inactivos</option>
             </select>
-          </div>
+            */}
+          </div> 
 
           <button className="add-btn" onClick={handleAddNew}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -461,7 +390,7 @@ function Vehiculos() {
                   <th>Color / Tipo</th>
                   <th>Conductor</th>
                   <th>Propietario</th>
-                  <th>Asientos</th>
+                  <th>Distribución</th>
                   <th>SOAT / Seguro</th>
                   <th>Estado</th>
                   <th style={{ textAlign: 'right' }}>Acciones</th>
@@ -469,9 +398,9 @@ function Vehiculos() {
               </thead>
               <tbody>
                 {paginatedVehiculos.map((v) => {
-                  const cond = getConductor(v.conductorId || v.conductor?.id)
-                  const prop = getConductor(v.propietarioId || v.propietario?.id)
-                  const asie = getAsientoObj(v.asientosId || v.asientos?.id)
+                  const cond = v.conductor //getConductor(v.conductorId || v.conductor?.id)
+                  const prop = v.propietario //getConductor(v.propietarioId || v.propietario?.id)
+                  const dist = v.distribucion //getDistribucionObj(v.distribucionId || v.distribucion?.id)
 
                   return (
                     <tr key={v.id}>
@@ -524,7 +453,7 @@ function Vehiculos() {
                             <rect x="3" y="3" width="7" height="7" rx="1.5" />
                             <rect x="14" y="3" width="7" height="7" rx="1.5" />
                           </svg>
-                          {asie.nombre} ({asie.cantidad} as.)
+                          {dist.nombre}
                         </span>
                       </td>
                       <td>
@@ -544,7 +473,7 @@ function Vehiculos() {
                       </td>
                       <td style={{ textAlign: 'right' }}>
                         <div className="action-buttons" style={{ justifyContent: 'flex-end' }}>
-                          <button
+                          {/* <button
                             onClick={() => toggleEstado(v)}
                             className="action-btn edit-btn"
                             title={v.estado !== false ? 'Desactivar Vehículo' : 'Activar Vehículo'}
@@ -554,7 +483,7 @@ function Vehiculos() {
                               <path d="M18.36 6.64a9 9 0 11-12.73 0" />
                               <line x1="12" y1="2" x2="12" y2="12" />
                             </svg>
-                          </button>
+                          </button> */}
                           <button
                             onClick={() => handleEdit(v)}
                             className="action-btn edit-btn"
@@ -657,9 +586,10 @@ function Vehiculos() {
             </div>
 
             <form onSubmit={handleSave} className="modal-form">
+              <div className="required-note">Los que tienen <span className="required">*</span> son campos obligatorios</div>
               <div className="form-grid-2">
                 <div className="input-group">
-                  <label className="input-label">N° Móvil</label>
+                  <label className="input-label">N° Móvil <span className="required">*</span></label>
                   <input
                     type="text"
                     value={formData.movil}
@@ -671,7 +601,7 @@ function Vehiculos() {
                 </div>
 
                 <div className="input-group">
-                  <label className="input-label">Placa</label>
+                  <label className="input-label">Placa <span className="required">*</span></label>
                   <input
                     type="text"
                     value={formData.placa}
@@ -685,7 +615,7 @@ function Vehiculos() {
 
               <div className="form-grid-2">
                 <div className="input-group">
-                  <label className="input-label">Marca</label>
+                  <label className="input-label">Marca <span className="required">*</span></label>
                   <input
                     type="text"
                     value={formData.marca}
@@ -697,7 +627,7 @@ function Vehiculos() {
                 </div>
 
                 <div className="input-group">
-                  <label className="input-label">Modelo</label>
+                  <label className="input-label">Modelo <span className="required">*</span></label>
                   <input
                     type="text"
                     value={formData.modelo}
@@ -711,30 +641,28 @@ function Vehiculos() {
 
               <div className="form-grid-2">
                 <div className="input-group">
-                  <label className="input-label">Color</label>
+                  <label className="input-label">Color <span className="required">*</span></label>
                   <input
                     type="text"
                     value={formData.color}
+                    maxLength={10}
                     onChange={(e) => setFormData({ ...formData, color: e.target.value })}
                     className="input-field"
-                    placeholder="Ej. Rojo"
+                    placeholder="Ej. Rojo (máx 10 caracteres)"
                     required
                   />
                 </div>
 
                 <div className="input-group">
-                  <label className="input-label">Tipo de Vehículo</label>
-                  <select
+                  <label className="input-label">Tipo de Vehículo <span className="required">*</span></label>
+                  <input
+                    type="text"
                     value={formData.tipo}
                     onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
                     className="input-field"
-                  >
-                    <option value="Sedán">Sedán</option>
-                    <option value="Minibús">Minibús</option>
-                    <option value="Van">Van</option>
-                    <option value="Bus Cama">Bus Cama</option>
-                    <option value="Omnibús">Omnibús</option>
-                  </select>
+                    placeholder="Ej. Sedán, Minibús, Van..."
+                    required
+                  />
                 </div>
               </div>
 
@@ -775,35 +703,40 @@ function Vehiculos() {
 
               {/* Selección de Asientos desde 'api/asientos' */}
               <div className="form-grid-2">
-                <div className="input-group">
-                  <label className="input-label">Distribución de Asientos ('api/asientos')</label>
-                  <select
-                    value={formData.asientosId}
-                    onChange={(e) => setFormData({ ...formData, asientosId: e.target.value })}
-                    className="input-field"
-                    required
-                  >
-                    {asientosList.map(a => (
-                      <option key={a.id} value={a.id}>
-                        {a.nombre} ({a.cantidad} asientos, {a.filas} filas)
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <div className="input-group" style={{ gridColumn: '1 / -1' }}>
+                  <label className="input-label">Distribución de Asientos <span className="required">*</span></label>
+                  <div className="distrib-carousel" role="list" style={{ width: '100%' }}>
+                    {distribucionesList.map((d) => {
+                      const maxFila = d.asientos && d.asientos.length > 0 ? Math.max(...d.asientos.map(s => s.fila)) : 1
+                      const rows = maxFila
+                      const cols = 3
 
-                <div className="input-group">
-                  <label className="input-label">Aseguradora</label>
-                  <select
-                    value={formData.aseguradora}
-                    onChange={(e) => setFormData({ ...formData, aseguradora: e.target.value })}
-                    className="input-field"
-                  >
-                    <option value="La Boliviana">La Boliviana</option>
-                    <option value="Alianza Seguros">Alianza Seguros</option>
-                    <option value="BISA Seguros">BISA Seguros</option>
-                    <option value="Nacional Vida">Nacional Vida</option>
-                    <option value="Rímac Seguros">Rímac Seguros</option>
-                  </select>
+                      return (
+                        <div
+                          key={d.id}
+                          className={`dist-card ${Number(formData.distribucionId) === Number(d.id) ? 'selected' : ''}`}
+                          onClick={() => setFormData({ ...formData, distribucionId: Number(d.id) })}
+                          role="listitem"
+                          tabIndex={0}
+                        >
+                          <div className="dist-card-title">{d.nombre}</div>
+                          <div className="dist-seats-grid" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
+                            {Array.from({ length: rows }).map((_, rIdx) => (
+                              Array.from({ length: cols }).map((_, cIdx) => {
+                                const fila = rIdx + 1
+                                const columna = cIdx + 1
+                                const seat = d.asientos?.find(s => Number(s.fila) === fila && Number(s.columna) === columna)
+                                const filled = !!seat && seat.estado !== false
+                                return (
+                                  <div key={`${fila}-${columna}`} className={`seat ${filled ? 'filled' : ''}`} title={filled ? `Asiento ${seat?.numero || ''}` : ' '}></div>
+                                )
+                              })
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               </div>
 
@@ -813,28 +746,23 @@ function Vehiculos() {
                   <input
                     type="text"
                     value={formData.soat}
+                    maxLength={20}
                     onChange={(e) => setFormData({ ...formData, soat: e.target.value })}
                     className="input-field"
                     placeholder="Ej. SOAT2026"
-                    required
                   />
                 </div>
 
                 <div className="input-group">
-                  <label className="input-label">Estado Inicial</label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px' }}>
-                    <label className="switch">
-                      <input
-                        type="checkbox"
-                        checked={formData.estado}
-                        onChange={(e) => setFormData({ ...formData, estado: e.target.checked })}
-                      />
-                      <span className="switch-slider"></span>
-                    </label>
-                    <span style={{ fontSize: '14px', fontWeight: '600', color: formData.estado ? '#10b981' : '#64748b' }}>
-                      {formData.estado ? 'Activo' : 'Inactivo'}
-                    </span>
-                  </div>
+                  <label className="input-label">Aseguradora</label>
+                  <input
+                    type="text"
+                    value={formData.aseguradora}
+                    maxLength={20}
+                    onChange={(e) => setFormData({ ...formData, aseguradora: e.target.value })}
+                    className="input-field"
+                    placeholder="Nombre de la aseguradora (máx 20 caracteres)"
+                  />
                 </div>
               </div>
 

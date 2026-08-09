@@ -6,9 +6,10 @@ import Usuarios from './modulos/usuarios/usuarios'
 import Conductores from './modulos/conductores/conductores'
 import Vehiculos from './modulos/vehiculos/vehiculos'
 import Horarios from './modulos/horarios/horarios'
+import VentaPasajes from './modulos/horarios/VentaPasajes/ventaPasajes'
 
 import Rutas from './modulos/rutas/rutas'
-import Asientos from './modulos/asientos/asientos'
+import Asientos from './modulos/distribucionAsientos/asientos'
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
           <Route path="asientos" element={<Asientos />} />
           <Route path="rutas" element={<Rutas />} />
           <Route path="horarios" element={<Horarios />} />
+          <Route path="horarios/venta/:id" element={<VentaPasajes />} />
         </Route>
       </Routes>
     </Router>

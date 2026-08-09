@@ -69,3 +69,54 @@
     font-size: 11px;
     font-weight: 700;
 }
+
+/* Nota de campos obligatorios */
+.required-note {
+    margin: 6px 0 12px 0;
+    color: #b91c1c;
+    font-size: 13px;
+}
+.required {
+    color: #ef4444;
+    margin-left: 6px;
+    font-weight: 700;
+}
+
+/* Carrusel de distribuciones */
+.distrib-carousel {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap; /* permitir que las cards se ajusten en filas */
+    padding: 8px 4px;
+}
+.dist-card {
+    width: calc(33.333% - 8px);
+    background: white;
+    border: 1px solid #e6eef8;
+    border-radius: 8px;
+    padding: 8px;
+    box-shadow: 0 1px 4px rgba(2,6,23,0.04);
+    cursor: pointer;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+}
+.dist-card:hover { transform: translateY(-4px); box-shadow: 0 8px 20px rgba(2,6,23,0.08); }
+.dist-card.selected { border-color: #2563eb; box-shadow: 0 10px 30px rgba(37,99,235,0.12); }
+.dist-card-header { font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 6px; text-align: center; }
+.dist-seats-grid { display: grid; gap: 6px; width: 100%; }
+.seat { width: 100%; padding-top: 60%; background: #f1f5f9; border-radius: 6px; border: 1px dashed #e2e8f0; }
+.seat.filled { background: #d1fae5; border: 1px solid #10b981; }
+
+.dist-card-title { margin-top: 8px; font-size: 12px; color: #0f172a; font-weight: 700; text-align: center; white-space: normal; }
+
+@media (max-width: 980px) {
+    .dist-card { width: calc(50% - 8px); }
+}
+
+@media (max-width: 580px) {
+    .dist-card { width: 100%; }
+}
+

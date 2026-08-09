@@ -1,36 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import './horarios.css'
 
 const BASE_URL_HORARIOS = 'http://localhost:5093/api/horarios'
 const BASE_URL_RUTAS = 'http://localhost:5093/api/rutas'
 const BASE_URL_VEHICULOS = 'http://localhost:5093/api/vehiculos'
 const BASE_URL_PUNTOS = 'http://localhost:5093/api/puntos-venta'
-
-export const MOCK_PUNTOS_VENTA = [
-  { id: 1, nombre: 'Tarija', telefono: '78784737' },
-  { id: 2, nombre: 'El puente', telefono: '76179676' },
-  { id: 3, nombre: 'Tupiza', telefono: '71239847' },
-  { id: 4, nombre: 'Villazón', telefono: '68291049' }
-]
-
-export const MOCK_RUTAS = [
-  { id: 1, origenId: 1, destinoId: 2, dias: 'Lunes,Martes,Viernes', estado: true, tarifa: 15 },
-  { id: 2, origenId: 1, destinoId: 3, dias: 'Lunes,Miércoles,Viernes', estado: true, tarifa: 45 },
-  { id: 3, origenId: 3, destinoId: 4, dias: 'Martes,Jueves,Sábado', estado: true, tarifa: 25 }
-]
-
-export const MOCK_VEHICULOS = [
-  { id: 10, movil: '101', placa: 'ABC123', marca: 'Toyota', modelo: 'Corolla', tipo: 'Sedán' },
-  { id: 20, movil: '102', placa: '1029-XYZ', marca: 'Mercedes-Benz', modelo: 'Sprinter 515', tipo: 'Van' },
-  { id: 30, movil: '103', placa: '3810-FGT', marca: 'Volvo', modelo: 'Paradiso 1200', tipo: 'Bus Cama' }
-]
-
-export const MOCK_HORARIOS = [
-  { id: 1, fecha: '2026-08-01', hora: '08:30', estado: true, rutaId: 1, vehiculoId: 10 },
-  { id: 2, fecha: '2026-08-01', hora: '10:00', estado: true, rutaId: 2, vehiculoId: 20 },
-  { id: 3, fecha: '2026-08-02', hora: '14:30', estado: true, rutaId: 3, vehiculoId: 30 },
-  { id: 4, fecha: '2026-08-03', hora: '18:00', estado: false, rutaId: 1, vehiculoId: 10 }
-]
 
 function getToken() {
   try {
@@ -49,14 +24,19 @@ function authHeaders() {
 }
 
 function Horarios() {
-  const [horarios, setHorarios] = useState(MOCK_HORARIOS)
-  const [rutas, setRutas] = useState(MOCK_RUTAS)
-  const [vehiculos, setVehiculos] = useState(MOCK_VEHICULOS)
-  const [puntosVenta, setPuntosVenta] = useState(MOCK_PUNTOS_VENTA)
+
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [rutaFilter, setRutaFilter] = useState('todos')
+  const [origenFilter, setOrigenFilter] = useState('todos')
+  const [destinoFilter, setDestinoFilter] = useState('todos')
   const [statusFilter, setStatusFilter] = useState('todos')
+
+  // datasets
+  const [horarios, setHorarios] = useState([])
+  const [puntosVenta, setPuntosVenta] = useState([])
+  const [rutas, setRutas] = useState([])
+  const [vehiculos, setVehiculos] = useState([])
 
   // Paginación
   const [currentPage, setCurrentPage] = useState(1)
@@ -74,9 +54,62 @@ function Horarios() {
     fecha: '2026-08-01',
     hora: '08:30',
     estado: true,
-    rutaId: MOCK_RUTAS[0].id,
-    vehiculoId: MOCK_VEHICULOS[0].id
   })
+
+  // Selector de horas (buscable)
+  const [timeSearch, setTimeSearch] = useState('')
+  const [showTimeList, setShowTimeList] = useState(false)
+  const timeListRef = useRef(null)
+
+  // Selector de vehículos (buscable)
+  const [vehicleSearch, setVehicleSearch] = useState('')
+  const [showVehicleList, setShowVehicleList] = useState(false)
+  const vehicleListRef = useRef(null)
+
+  // generar lista de horas cada 30 minutos
+  const allTimes = []
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += 30) {
+      const hh = String(h).padStart(2, '0')
+      const mm = String(m).padStart(2, '0')
+      allTimes.push(`${hh}:${mm}`)
+    }
+  }
+
+  const filteredTimes = allTimes.filter(t => t.includes(timeSearch))
+  const filteredVehicles = vehiculos.filter(v => {
+    const normalize = (s = '') => String(s).normalize('NFD').replace(/\u0300-\u036f|[\u0300-\u036f]/g, '').replace(/\p{Diacritic}/gu, '').replace(/[\u0300-\u036f]/g, '').normalize().toLowerCase()
+    // fallback normalize without advanced regex if environment lacks \p support
+    const simpleNormalize = (s = '') => String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    const tryNormalize = (s) => {
+      try { return normalize(s) } catch { return simpleNormalize(s) }
+    }
+
+    const term = tryNormalize(vehicleSearch)
+    const fullname = tryNormalize(`${v.conductor?.nombres || ''} ${v.conductor?.apellidos || ''}`)
+    const placa = tryNormalize(v.placa || '')
+    const movil = tryNormalize(String(v.movil) || '')
+
+    return (
+      !term ||
+      placa.includes(term) ||
+      movil.includes(term) ||
+      fullname.includes(term)
+    )
+  })
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (timeListRef.current && !timeListRef.current.contains(e.target)) {
+        setShowTimeList(false)
+      }
+      if (vehicleListRef.current && !vehicleListRef.current.contains(e.target)) {
+        setShowVehicleList(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type })
@@ -131,7 +164,7 @@ function Horarios() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, rutaFilter, statusFilter, itemsPerPage])
+  }, [searchTerm, rutaFilter, origenFilter, destinoFilter, statusFilter, itemsPerPage])
 
   const getPunto = (id) => puntosVenta.find(p => Number(p.id) === Number(id)) || { nombre: `Punto #${id}` }
 
@@ -139,6 +172,27 @@ function Horarios() {
     const r = rutas.find(item => Number(item.id) === Number(id))
     if (!r) return { origenNombre: 'Origen N/A', destinoNombre: 'Destino N/A', tarifa: 0 }
 
+    // Si la ruta incluye un arreglo `destinos`, usar el primer/último según orden
+    if (Array.isArray(r.destinos) && r.destinos.length) {
+      const sorted = [...r.destinos].sort((a, b) => (a.orden || 0) - (b.orden || 0))
+      const first = sorted[0]
+      const last = sorted[sorted.length - 1]
+
+      const origenIdOrObj = first?.puntoVenta || first?.puntoVenta?.id || first?.puntoVenta
+      const destinoIdOrObj = last?.puntoVenta || last?.puntoVenta?.id || last?.puntoVenta
+
+      const origenObj = typeof origenIdOrObj === 'object' ? (origenIdOrObj) : getPunto(origenIdOrObj)
+      const destinoObj = typeof destinoIdOrObj === 'object' ? (destinoIdOrObj) : getPunto(destinoIdOrObj)
+
+      return {
+        ...r,
+        origenNombre: origenObj?.nombre || origenObj?.nombre || 'Origen N/A',
+        destinoNombre: destinoObj?.nombre || destinoObj?.nombre || 'Destino N/A',
+        tarifa: r.tarifa ?? 0
+      }
+    }
+
+    // Fallback a campos directos cuando no hay `destinos`
     const origenObj = getPunto(r.origenId || r.origen?.id)
     const destinoObj = getPunto(r.destinoId || r.destino?.id)
 
@@ -154,6 +208,30 @@ function Horarios() {
     const v = vehiculos.find(item => Number(item.id) === Number(id))
     if (!v) return { movil: `${id}`, placa: 'N/A', marca: 'Vehículo', modelo: '' }
     return v
+  }
+
+  const formatDate = (dateStr) => {
+    try {
+      if (!dateStr) return ''
+      const s = String(dateStr)
+
+      // If date is plain 'YYYY-MM-DD', construct local Date to avoid UTC shift
+      const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/)
+      let d
+      if (m) {
+        const y = Number(m[1])
+        const mo = Number(m[2]) - 1
+        const da = Number(m[3])
+        d = new Date(y, mo, da) // local midnight
+      } else {
+        d = new Date(s)
+      }
+
+      if (isNaN(d)) return dateStr
+      return new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' }).format(d)
+    } catch {
+      return dateStr
+    }
   }
 
   // ── Toggle Estado Rápido ──────────────────────────────────────────────────────
@@ -176,15 +254,22 @@ function Horarios() {
 
   // ── Modales ──────────────────────────────────────────────────────────────────
   const handleAddNew = () => {
-    const today = new Date().toISOString().split('T')[0]
+    const t = new Date()
+    const tomorrow = new Date(t)
+    tomorrow.setDate(t.getDate() + 1)
+    const tomorrowStr = tomorrow.toISOString().split('T')[0]
     setFormData({
-      fecha: today || '2026-08-01',
+      fecha: tomorrowStr || '2026-08-01',
       hora: '08:30',
       estado: true,
       rutaId: rutas[0]?.id || 1,
       vehiculoId: vehiculos[0]?.id || 10
     })
     setEditingHorario(null)
+    setTimeSearch('')
+    setVehicleSearch('')
+    setShowTimeList(false)
+    setShowVehicleList(false)
     setShowAddModal(true)
   }
 
@@ -197,6 +282,10 @@ function Horarios() {
       vehiculoId: horario.vehiculoId || horario.vehiculo?.id || vehiculos[0]?.id || 10
     })
     setEditingHorario(horario)
+    setTimeSearch('')
+    setVehicleSearch('')
+    setShowTimeList(false)
+    setShowVehicleList(false)
     setShowAddModal(true)
   }
 
@@ -204,6 +293,24 @@ function Horarios() {
   const handleSave = async (e) => {
     e.preventDefault()
     setSaving(true)
+
+    // Validaciones
+    const todayStr = new Date().toISOString().split('T')[0]
+    if (!formData.fecha || formData.fecha <= todayStr) {
+      showNotification('La fecha es obligatoria y debe ser mayor que hoy', 'error')
+      setSaving(false)
+      return
+    }
+    if (!formData.hora) {
+      showNotification('La hora es obligatoria', 'error')
+      setSaving(false)
+      return
+    }
+    if (!formData.vehiculoId) {
+      showNotification('Seleccione un vehículo válido', 'error')
+      setSaving(false)
+      return
+    }
 
     const payload = {
       fecha: formData.fecha,
@@ -285,13 +392,39 @@ function Horarios() {
     const textTarget = `${h.fecha} ${h.hora} ${rutaObj.origenNombre} ${rutaObj.destinoNombre} ${vehObj.movil} ${vehObj.placa} ${vehObj.marca}`.toLowerCase()
     const matchesSearch = textTarget.includes(searchTerm.toLowerCase())
 
+    // derive origin/destination from ruta.destinos when possible
+    const obtenerOrigenDestino = (hr) => {
+      // prefer ruta embebida
+      const rutaPayload = hr.ruta || null
+      let destinos = null
+
+      if (rutaPayload && Array.isArray(rutaPayload.destinos) && rutaPayload.destinos.length) {
+        destinos = rutaPayload.destinos
+      } else if (hr.rutaId) {
+        // intentar encontrar la ruta en el dataset `rutas` cuando solo hay rutaId
+        const rutaLocal = rutas.find(r => Number(r.id) === Number(hr.rutaId))
+        if (rutaLocal && Array.isArray(rutaLocal.destinos) && rutaLocal.destinos.length) destinos = rutaLocal.destinos
+      }
+
+      if (!destinos || destinos.length === 0) return { origen: null, destino: null }
+
+      const sorted = [...destinos].sort((a,b)=> (a.orden||0)-(b.orden||0))
+      const first = sorted[0]
+      const last = sorted[sorted.length -1]
+      return { origen: first?.puntoVenta?.id || first?.puntoVenta || null, destino: last?.puntoVenta?.id || last?.puntoVenta || null }
+    }
+
+    const { origen: hOrigen, destino: hDestino } = obtenerOrigenDestino(h)
+
     const matchesRuta = rutaFilter === 'todos' || Number(h.rutaId || h.ruta?.id) === Number(rutaFilter)
+    const matchesOrigen = origenFilter === 'todos' || (hOrigen && Number(hOrigen) === Number(origenFilter))
+    const matchesDestino = destinoFilter === 'todos' || (hDestino && Number(hDestino) === Number(destinoFilter))
 
     const matchesStatus = statusFilter === 'todos' ||
       (statusFilter === 'activos' && h.estado) ||
       (statusFilter === 'inactivos' && !h.estado)
 
-    return matchesSearch && matchesRuta && matchesStatus
+    return matchesSearch && matchesRuta && matchesOrigen && matchesDestino && matchesStatus
   })
 
   // Paginación
@@ -299,6 +432,9 @@ function Horarios() {
   const totalPages = Math.ceil(totalItems / itemsPerPage) || 1
   const startIndex = (currentPage - 1) * itemsPerPage
   const paginatedHorarios = filteredHorarios.slice(startIndex, startIndex + itemsPerPage)
+
+  const navigate = useNavigate()
+  const openVentaPasajes = (id) => navigate(`/horarios/venta/${id}`)
 
   return (
     <div className="horarios-view">
@@ -339,23 +475,21 @@ function Horarios() {
               />
             </div>
 
-            <select
-              value={rutaFilter}
-              onChange={(e) => setRutaFilter(e.target.value)}
-              className="filter-select"
-            >
-              <option value="todos">Todas las Rutas</option>
-              {rutas.map(r => {
-                const rObj = getRutaObj(r.id)
-                return (
-                  <option key={r.id} value={r.id}>
-                    {rObj.origenNombre} → {rObj.destinoNombre}
-                  </option>
-                )
-              })}
+            <select value={origenFilter} onChange={(e) => setOrigenFilter(e.target.value)} className="filter-select">
+              <option value="todos">Todos los Orígenes</option>
+              {puntosVenta.map(p => (
+                <option key={p.id} value={p.id}>{p.nombre}</option>
+              ))}
             </select>
 
-            <select
+            <select value={destinoFilter} onChange={(e) => setDestinoFilter(e.target.value)} className="filter-select">
+              <option value="todos">Todos los Destinos</option>
+              {puntosVenta.map(p => (
+                <option key={p.id} value={p.id}>{p.nombre}</option>
+              ))}
+            </select>
+
+            {/* <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="filter-select"
@@ -363,7 +497,7 @@ function Horarios() {
               <option value="todos">Todos los Estados</option>
               <option value="activos">Activos</option>
               <option value="inactivos">Inactivos</option>
-            </select>
+            </select> */}
           </div>
 
           <button className="add-btn" onClick={handleAddNew}>
@@ -388,70 +522,70 @@ function Horarios() {
             <table className="roles-table">
               <thead>
                 <tr>
+                  <th>#</th>
                   <th>Fecha</th>
                   <th>Hora</th>
-                  <th>Ruta Programada</th>
-                  <th>Vehículo Asignado</th>
-                  <th>Estado</th>
+                  <th>Origen</th>
+                  <th>Destino</th>
+                  <th>Movil</th>
+                  <th>Conductor</th>
+                  {/* <th>Estado</th> */}
                   <th style={{ textAlign: 'right' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {paginatedHorarios.map((h) => {
+                {paginatedHorarios.map((h, idx) => {
+                  const nro = startIndex + idx + 1;
                   const rutaInfo = getRutaObj(h.rutaId || h.ruta?.id)
                   const vehInfo = getVehiculoObj(h.vehiculoId || h.vehiculo?.id)
 
+                  // derive origin/destination names from h.ruta.destinos if available
+                  let origenName = rutaInfo.origenNombre || '';
+                  let destinoName = rutaInfo.destinoNombre || '';
+                  const rutaFromPayload = h.ruta || null;
+                  if (rutaFromPayload && Array.isArray(rutaFromPayload.destinos) && rutaFromPayload.destinos.length) {
+                    const sorted = [...rutaFromPayload.destinos].sort((a,b)=> (a.orden||0)-(b.orden||0));
+                    const first = sorted[0];
+                    const last = sorted[sorted.length-1];
+                    origenName = first?.puntoVenta?.nombre || first?.puntoVenta || origenName;
+                    destinoName = last?.puntoVenta?.nombre || last?.puntoVenta || destinoName;
+                  }
+
+                  const conductorFull = vehInfo?.conductor ? `${vehInfo.conductor.nombres || ''} ${vehInfo.conductor.apellidos || ''}`.trim() : '';
+
                   return (
-                    <tr key={h.id}>
+                    <tr key={h.id} onClick={() => openVentaPasajes(h.id)} style={{ cursor: 'pointer' }}>
+                      <td>{nro}</td>
                       <td>
-                        <span className="date-pill">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                            <line x1="16" y1="2" x2="16" y2="6" />
-                            <line x1="8" y1="2" x2="8" y2="6" />
-                            <line x1="3" y1="10" x2="21" y2="10" />
-                          </svg>
-                          {h.fecha}
-                        </span>
+                        <span className="date-pill">{formatDate(h.fecha)}</span>
                       </td>
                       <td>
-                        <div className="time-pill">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <circle cx="12" cy="12" r="10" />
-                            <polyline points="12 6 12 12 16 14" />
-                          </svg>
-                          {h.hora}
+                        <div className="time-pill">{h.hora}</div>
+                      </td>
+                      <td>
+                        <div>{origenName}</div>
+                      </td>
+                      <td>
+                        <div>{destinoName}</div>
+                      </td>
+                      <td>
+                        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                          <div style={{ background:'#0f172a', color:'#fff', borderRadius:8, padding:'6px 10px', fontSize:18, fontWeight:700 }}>
+                            {vehInfo?.movil ?? ''}
+                          </div>
                         </div>
                       </td>
                       <td>
-                        <div className="route-chip">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <circle cx="6" cy="19" r="3" />
-                            <path d="M9 19h8.5a3.5 3.5 0 000-7h-11a3.5 3.5 0 010-7H15" />
-                            <circle cx="18" cy="5" r="3" />
-                          </svg>
-                          <span>{rutaInfo.origenNombre} → {rutaInfo.destinoNombre}</span>
-                          <span style={{ fontSize: '11px', color: '#16a34a', fontWeight: '700', marginLeft: '4px' }}>
-                            (Bs. {Number(rutaInfo.tarifa).toFixed(2)})
-                          </span>
-                        </div>
+                        <div style={{ fontSize:14 }}>{conductorFull}</div>
                       </td>
-                      <td>
-                        <div className="vehicle-chip">
-                          <span style={{ background: '#166534', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '11px' }}>
-                            M-{vehInfo.movil}
-                          </span>
-                          <span>{vehInfo.placa} ({vehInfo.marca} {vehInfo.modelo})</span>
-                        </div>
-                      </td>
-                      <td>
+                      {/* <td>
                         <span className={`status-badge ${h.estado ? 'active' : 'inactive'}`}>
                           {h.estado ? 'Activo' : 'Inactivo'}
                         </span>
-                      </td>
+                      </td> */}
                       <td style={{ textAlign: 'right' }}>
                         <div className="action-buttons" style={{ justifyContent: 'flex-end' }}>
-                          <button
+                          {/* <button
                             onClick={() => toggleEstado(h)}
                             className="action-btn edit-btn"
                             title={h.estado ? 'Desactivar Horario' : 'Activar Horario'}
@@ -461,9 +595,9 @@ function Horarios() {
                               <path d="M18.36 6.64a9 9 0 11-12.73 0" />
                               <line x1="12" y1="2" x2="12" y2="12" />
                             </svg>
-                          </button>
+                          </button> */}
                           <button
-                            onClick={() => handleEdit(h)}
+                            onClick={(e) => { e.stopPropagation(); handleEdit(h) }}
                             className="action-btn edit-btn"
                             title="Editar Horario"
                           >
@@ -473,7 +607,7 @@ function Horarios() {
                             </svg>
                           </button>
                           <button
-                            onClick={() => handleDelete(h)}
+                            onClick={(e) => { e.stopPropagation(); handleDelete(h) }}
                             className="action-btn delete-btn"
                             title="Eliminar Horario"
                           >
@@ -576,16 +710,49 @@ function Horarios() {
                   />
                 </div>
 
-                <div className="input-group">
+                <div className="input-group" ref={timeListRef}>
                   <label className="input-label">Hora de Salida</label>
-                  <input
-                    type="text"
-                    className="input-field"
-                    placeholder="Ej. 08:30"
-                    value={formData.hora}
-                    onChange={(e) => setFormData({ ...formData, hora: e.target.value })}
-                    required
-                  />
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="text"
+                      className="input-field"
+                      placeholder={formData.hora || 'Buscar hora, ej. 08:30'}
+                      value={timeSearch}
+                      onChange={(e) => { setTimeSearch(e.target.value); setShowTimeList(true) }}
+                      onFocus={() => setShowTimeList(true)}
+                      aria-label="Buscar hora"
+                    />
+                    <input type="hidden" value={formData.hora} />
+
+                    {showTimeList && (
+                      <div style={{
+                        position: 'absolute',
+                        zIndex: 40,
+                        left: 0,
+                        right: 0,
+                        maxHeight: 200,
+                        overflow: 'auto',
+                        background: '#fff',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: 6,
+                        boxShadow: '0 6px 18px rgba(15,23,42,0.08)'
+                      }}>
+                        {(filteredTimes.length === 0) ? (
+                          <div style={{ padding: 10, color: '#64748b' }}>No hay horas</div>
+                        ) : (
+                          filteredTimes.map(t => (
+                            <div
+                              key={t}
+                              onClick={() => { setFormData({ ...formData, hora: t }); setShowTimeList(false); setTimeSearch('') }}
+                              style={{ padding: '8px 10px', cursor: 'pointer', background: formData.hora === t ? '#f1f5f9' : 'transparent' }}
+                            >
+                              {t}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -602,7 +769,7 @@ function Horarios() {
                     const rObj = getRutaObj(r.id)
                     return (
                       <option key={r.id} value={r.id}>
-                        {rObj.origenNombre} → {rObj.destinoNombre} (Tarifa: Bs. {Number(rObj.tarifa).toFixed(2)}) {r.dias ? `- Días: ${r.dias}` : ''}
+                        {rObj.origenNombre} → {rObj.destinoNombre} (Tarifa: Bs. {Number(rObj.tarifa).toFixed(2)})
                       </option>
                     )
                   })}
@@ -612,21 +779,56 @@ function Horarios() {
               {/* Vehículo Asignado (vehiculoId) */}
               <div className="input-group">
                 <label className="input-label">Vehículo Asignado</label>
-                <select
-                  className="input-field"
-                  value={formData.vehiculoId}
-                  onChange={(e) => setFormData({ ...formData, vehiculoId: e.target.value })}
-                  required
-                >
-                  {vehiculos.map(v => (
-                    <option key={v.id} value={v.id}>
-                      Móvil {v.movil} - Placa {v.placa} ({v.marca} {v.modelo} - {v.tipo})
-                    </option>
-                  ))}
-                </select>
+                <div ref={vehicleListRef} style={{ position: 'relative' }}>
+                  {(() => {
+                    const sel = getVehiculoObj(formData.vehiculoId)
+                    const selText = sel?.placa ? `Móvil ${sel.movil} - Placa ${sel.placa} ${sel.conductor ? `- ${sel.conductor.nombres || ''} ${sel.conductor.apellidos || ''}` : ''}` : ''
+                    return (
+                      <input
+                        type="text"
+                        className="input-field"
+                        placeholder={selText || 'Buscar vehículo por placa, móvil o conductor...'}
+                        value={vehicleSearch}
+                        onChange={(e) => { setVehicleSearch(e.target.value); setShowVehicleList(true) }}
+                        onFocus={() => setShowVehicleList(true)}
+                        aria-label="Buscar vehículo"
+                      />
+                    )
+                  })()}
+
+                  {showVehicleList && (
+                    <div style={{
+                      position: 'absolute',
+                      zIndex: 40,
+                      left: 0,
+                      right: 0,
+                      maxHeight: 220,
+                      overflow: 'auto',
+                      background: '#fff',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: 6,
+                      boxShadow: '0 6px 18px rgba(15,23,42,0.08)'
+                    }}>
+                      {(filteredVehicles.length === 0) ? (
+                        <div style={{ padding: 10, color: '#64748b' }}>No hay vehículos</div>
+                      ) : (
+                        filteredVehicles.map(v => (
+                          <div
+                            key={v.id}
+                            onClick={() => { setFormData({ ...formData, vehiculoId: v.id }); setShowVehicleList(false); setVehicleSearch('') }}
+                            style={{ padding: '8px 10px', cursor: 'pointer', background: Number(formData.vehiculoId) === Number(v.id) ? '#f1f5f9' : 'transparent' }}
+                          >
+                            <div style={{ fontWeight: 700 }}>{`Móvil ${v.movil} - Placa ${v.placa}`}</div>
+                            <div style={{ fontSize: 12, color: '#64748b' }}>{v.conductor ? `${v.conductor.nombres || ''} ${v.conductor.apellidos || ''}` : ''}</div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div className="form-grid-2">
+              {/* <div className="form-grid-2">
                 <div className="input-group">
                   <label className="input-label">Estado Inicial</label>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px' }}>
@@ -643,7 +845,7 @@ function Horarios() {
                     </span>
                   </div>
                 </div>
-              </div>
+              </div> */}
 
               <div className="modal-actions">
                 <button
@@ -681,8 +883,8 @@ function Horarios() {
               </button>
             </div>
             <div style={{ padding: '24px 28px' }}>
-              <p style={{ color: 'var(--slate-700)', fontSize: '15px', lineHeight: '1.6', margin: 0 }}>
-                ¿Está seguro que desea eliminar el horario programado para el <strong>{horarioToDelete.fecha} a las {horarioToDelete.hora}</strong>?
+                <p style={{ color: 'var(--slate-700)', fontSize: '15px', lineHeight: '1.6', margin: 0 }}>
+                ¿Está seguro que desea eliminar el horario programado para el <strong>{formatDate(horarioToDelete.fecha)} a las {horarioToDelete.hora}</strong>?
               </p>
             </div>
             <div className="modal-actions" style={{ padding: '20px 28px' }}>
@@ -700,6 +902,8 @@ function Horarios() {
           </div>
         </div>
       )}
+
+      {/* Venta de Pasajes ahora es una ruta: /horarios/venta/:id - navegamos en openVentaPasajes */}
     </div>
   )
 }

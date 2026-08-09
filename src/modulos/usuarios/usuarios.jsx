@@ -65,7 +65,6 @@ function Usuarios() {
       const res = await fetch(BASE_URL, { headers: authHeaders() })
       if (!res.ok) throw new Error(`Error ${res.status}`)
       const data = await res.json()
-      console.log('respuesta de usuarios: ', data)
       setUsuarios(data)
     } catch (err) {
       console.error(err)
@@ -80,7 +79,6 @@ function Usuarios() {
       const res = await fetch("http://localhost:5093/api/puntos-venta", { headers: authHeaders() })
       if (!res.ok) throw new Error(`Error ${res.status}`)
       const data = await res.json()
-      console.log('respuesta de puntos de venta: ', data)
       setPuntosVenta(data)
     } catch (err) {
       console.error(err)

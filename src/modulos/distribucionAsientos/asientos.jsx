@@ -1,33 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import './asientos.css'
+import { getDistribuciones, createDistribucion, updateDistribucion, deleteDistribucion } from './distribucionService'
 
-const BASE_URL_ASIENTOS = 'http://localhost:5093/api/asientos'
 
-export const MOCK_ASIENTOS = [
-  { id: 1, nombre: 'Van compacta', filas: 4, cantidad: 16, esminibus: true, estado: true },
-  { id: 2, nombre: 'Minibús clásico', filas: 6, cantidad: 24, esminibus: true, estado: true },
-  { id: 3, nombre: 'Bus Cama Ejecutivo', filas: 8, cantidad: 32, esminibus: false, estado: true },
-  { id: 4, nombre: 'Bus estándar', filas: 10, cantidad: 40, esminibus: false, estado: true }
-]
-
-function getToken() {
-  try {
-    const authData = JSON.parse(sessionStorage.getItem('authData') || '{}')
-    return authData.token || ''
-  } catch {
-    return ''
-  }
-}
-
-function authHeaders() {
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${getToken()}`
-  }
-}
 
 function Asientos() {
-  const [asientos, setAsientos] = useState(MOCK_ASIENTOS)
+  const [asientos, setAsientos] = useState([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [minibusFilter, setMinibusFilter] = useState('todos')
@@ -36,6 +14,9 @@ function Asientos() {
   // Paginación
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(5)
+  const [matrixRows, setMatrixRows] = useState(2)
+  const MAX_ROWS = 20
+  const originalSeatsRef = useRef({})
 
   // Modales y Notificaciones
   const [showAddModal, setShowAddModal] = useState(false)
@@ -47,10 +28,8 @@ function Asientos() {
   // Formulario
   const [formData, setFormData] = useState({
     nombre: '',
-    filas: 6,
-    cantidad: 24,
-    esminibus: false,
-    estado: true
+    estado: true,
+    asientos: []
   })
 
   const showNotification = (message, type = 'success') => {
@@ -62,15 +41,13 @@ function Asientos() {
   const fetchAsientos = async () => {
     setLoading(true)
     try {
-      const res = await fetch(BASE_URL_ASIENTOS, { headers: authHeaders() })
-      if (res.ok) {
-        const data = await res.json()
-        if (Array.isArray(data) && data.length > 0) {
-          setAsientos(data)
-        }
+      const data = await getDistribuciones()
+      console.log('Distribuciones obtenidas:', data)
+      if (Array.isArray(data) && data.length > 0) {
+        setAsientos(data)
       }
     } catch (err) {
-      console.log('Usando datos locales de asientos para pruebas:', err.message)
+      console.log('Error al obtener distribuciones:', err.message)
     } finally {
       setLoading(false)
     }
@@ -88,95 +65,120 @@ function Asientos() {
   const handleAddNew = () => {
     setFormData({
       nombre: '',
-      filas: 6,
-      cantidad: 24,
-      esminibus: false,
-      estado: true
+      estado: true,
+      asientos: []
     })
+    originalSeatsRef.current = {}
+    setMatrixRows(2)
     setEditingAsiento(null)
     setShowAddModal(true)
   }
 
   const handleEdit = (asiento) => {
+    const seats = Array.isArray(asiento.asientos) ? asiento.asientos : (asiento.asientos || [])
+    // build map of original seats to preserve ids when toggling
+    const map = {}
+    let maxFila = 0
+    seats.forEach(s => {
+      if (s && s.fila) {
+        map[`${s.fila}-${s.columna}`] = s
+        if (s.fila > maxFila) maxFila = s.fila
+      }
+    })
+    originalSeatsRef.current = map
+
+    const initialRows = Math.max(2, maxFila, Math.ceil((asiento.cantidad || 0) / 3))
+
     setFormData({
       nombre: asiento.nombre || '',
-      filas: asiento.filas ?? 6,
-      cantidad: asiento.cantidad ?? 24,
-      esminibus: asiento.esminibus ?? false,
-      estado: asiento.estado ?? true
+      estado: asiento.estado ?? true,
+      asientos: seats.map(s => ({ ...s }))
     })
+    setMatrixRows(initialRows)
     setEditingAsiento(asiento)
     setShowAddModal(true)
   }
 
-  // ── Toggle Estado Rápido ──────────────────────────────────────────────────────
-  const toggleEstado = async (asiento) => {
-    const nuevoEstado = !asiento.estado
-    setAsientos(prev => prev.map(a => a.id === asiento.id ? { ...a, estado: nuevoEstado } : a))
-
-    try {
-      await fetch(`${BASE_URL_ASIENTOS}/${asiento.id}`, {
-        method: 'PUT',
-        headers: authHeaders(),
-        body: JSON.stringify({ ...asiento, estado: nuevoEstado })
-      })
-    } catch (err) {
-      console.log('PUT backend asientos no disponible:', err.message)
-    }
-
-    showNotification(`Estado de "${asiento.nombre}" actualizado a ${nuevoEstado ? 'Activo' : 'Inactivo'}`, 'success')
+  const handleAddRow = () => {
+    setMatrixRows(r => Math.min(MAX_ROWS, r + 1))
   }
+
+  const handleSeatToggle = (fila, columna) => {
+    // conductor cell fixed at 1,1
+    if (fila === 1 && columna === 1) return
+
+    setFormData(prev => {
+      const key = `${fila}-${columna}`
+      const existsIndex = prev.asientos.findIndex(s => s.fila === fila && s.columna === columna)
+      let newAsientos = [...prev.asientos]
+
+      if (existsIndex !== -1) {
+        // remove and renumber
+        newAsientos.splice(existsIndex, 1)
+        newAsientos = newAsientos.map((s, idx) => ({ ...s, numero: idx + 1 }))
+      } else {
+        // add new seat, reuse original id if present; if editing an existing distribucion, attach its id
+        const original = originalSeatsRef.current[key]
+        const distribId = original?.distribucion_id || (editingAsiento ? editingAsiento.id : undefined)
+        const newSeat = {
+          id: original?.id,
+          distribucionId: distribId,
+          estado: true,
+          fila,
+          columna,
+          numero: newAsientos.length + 1
+        }
+        newAsientos.push(newSeat)
+      }
+
+      return { ...prev, asientos: newAsientos }
+    })
+  }
+
+  // (Estado toggle removed; use editar/eliminar según flujo)
 
   // ── Guardar ──────────────────────────────────────────────────────────────────
   const handleSave = async (e) => {
     e.preventDefault()
     setSaving(true)
 
+    const assignedSeats = formData.asientos || []
+    if ((assignedSeats.length || 0) < 4) {
+      showNotification('Debe asignar al menos 4 asientos antes de guardar', 'error')
+      setSaving(false)
+      return
+    }
     const payload = {
       nombre: formData.nombre,
-      filas: Number(formData.filas),
-      cantidad: Number(formData.cantidad),
-      esminibus: Boolean(formData.esminibus),
-      estado: Boolean(formData.estado)
+      estado: Boolean(formData.estado),
+      asientos: assignedSeats
     }
-
     try {
       if (editingAsiento) {
         try {
-          await fetch(`${BASE_URL_ASIENTOS}/${editingAsiento.id}`, {
-            method: 'PUT',
-            headers: authHeaders(),
-            body: JSON.stringify({ ...payload, id: editingAsiento.id })
-          })
+          const body =  { ...payload, id: editingAsiento.id }
+          const data = await updateDistribucion(editingAsiento.id, body)
+          setAsientos(prev => prev.map(a => a.id === editingAsiento.id ? data : a))
+          showNotification('Distribución de asientos actualizada exitosamente')
         } catch (err) {
-          console.log('PUT backend asientos no disponible:', err.message)
+          console.log('UPDATE distribucion error:', err)
+          const msg = err.message || 'Error al actualizar distribución'
+          showNotification(msg, 'error')
         }
-
-        setAsientos(prev => prev.map(a => a.id === editingAsiento.id ? { ...payload, id: editingAsiento.id } : a))
-        showNotification('Distribución de asientos actualizada exitosamente')
       } else {
-        const newId = Date.now()
-        const newAsiento = { ...payload, id: newId }
         try {
-          const res = await fetch(BASE_URL_ASIENTOS, {
-            method: 'POST',
-            headers: authHeaders(),
-            body: JSON.stringify(payload)
-          })
-          if (res.ok) {
-            const data = await res.json()
-            newAsiento.id = data.id || newId
-          }
+          const body = payload
+          const data = await createDistribucion(body)
+          setAsientos(prev => [data, ...prev])
+          showNotification('Nueva distribución de asientos creada exitosamente')
         } catch (err) {
-          console.log('POST backend asientos no disponible:', err.message)
+          const msg = err.message || 'Error al crear distribución'
+          showNotification(msg, 'error')
         }
-
-        setAsientos(prev => [newAsiento, ...prev])
-        showNotification('Nueva distribución de asientos creada exitosamente')
       }
-
       setShowAddModal(false)
       setEditingAsiento(null)
+      fetchAsientos()
     } catch (err) {
       showNotification('Error al guardar distribución: ' + err.message, 'error')
     } finally {
@@ -189,18 +191,16 @@ function Asientos() {
 
   const confirmDelete = async () => {
     if (!asientoToDelete) return
-    setAsientos(prev => prev.filter(a => a.id !== asientoToDelete.id))
-
+    // setAsientos(prev => prev.filter(a => a.id !== asientoToDelete.id))
+fetchAsientos()
     try {
-      await fetch(`${BASE_URL_ASIENTOS}/${asientoToDelete.id}`, {
-        method: 'DELETE',
-        headers: authHeaders()
-      })
+      await deleteDistribucion(asientoToDelete.id)
+      showNotification(`Distribución de asientos ${asientoToDelete.nombre} ${asientoToDelete.estado ? 'desactivada' : 'activada'}`, asientoToDelete.estado ? 'error' : 'success')
     } catch (err) {
-      console.log('DELETE backend asientos no disponible:', err.message)
+      const msg = err.message || 'Error al eliminar distribución'
+      console.log('DELETE distribucion error:', msg)
+      showNotification(msg, 'error')
     }
-
-    showNotification('Distribución de asientos eliminada', 'error')
     setAsientoToDelete(null)
   }
 
@@ -308,9 +308,7 @@ function Asientos() {
               <thead>
                 <tr>
                   <th>Nombre de Distribución</th>
-                  <th>N° de Filas</th>
-                  <th>Cantidad de Asientos</th>
-                  <th>¿Es Minibús?</th>
+                  <th>Cant. asientos</th>
                   <th>Estado</th>
                   <th style={{ textAlign: 'right' }}>Acciones</th>
                 </tr>
@@ -322,16 +320,8 @@ function Asientos() {
                       <strong style={{ color: 'var(--slate-900)', fontSize: '14px' }}>{a.nombre}</strong>
                     </td>
                     <td>
-                      <span style={{ fontWeight: '600', color: '#475569' }}>{a.filas} Filas</span>
-                    </td>
-                    <td>
                       <span className="seat-badge">
-                        {a.cantidad} Asientos
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`minibus-badge ${a.esminibus ? 'yes' : 'no'}`}>
-                        {a.esminibus ? 'Sí (Minibús)' : 'No (Bus / Otro)'}
+                        {(Array.isArray(a.asientos) ? a.asientos.length : (a.cantidad || 0))} Asientos
                       </span>
                     </td>
                     <td>
@@ -342,7 +332,7 @@ function Asientos() {
                     <td style={{ textAlign: 'right' }}>
                       <div className="action-buttons" style={{ justifyContent: 'flex-end' }}>
                         <button
-                          onClick={() => toggleEstado(a)}
+                          onClick={() => handleDelete(a)}
                           className="action-btn edit-btn"
                           title={a.estado ? 'Desactivar Distribución' : 'Activar Distribución'}
                           style={{ color: a.estado ? '#10b981' : '#94a3b8' }}
@@ -362,7 +352,7 @@ function Asientos() {
                             <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
                           </svg>
                         </button>
-                        <button
+                        {/* <button
                           onClick={() => handleDelete(a)}
                           className="action-btn delete-btn"
                           title="Eliminar Distribución"
@@ -373,7 +363,7 @@ function Asientos() {
                             <line x1="10" y1="11" x2="10" y2="17" />
                             <line x1="14" y1="11" x2="14" y2="17" />
                           </svg>
-                        </button>
+                        </button> */}
                       </div>
                     </td>
                   </tr>
@@ -441,7 +431,7 @@ function Asientos() {
       {/* Modal Crear / Editar */}
       {showAddModal && (
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ width: '95%', maxWidth: 760 }}>
             <div className="modal-header">
               <h2>{editingAsiento ? 'Editar Distribución de Asientos' : 'Nueva Distribución de Asientos'}</h2>
               <button className="modal-close" onClick={() => setShowAddModal(false)}>
@@ -465,67 +455,82 @@ function Asientos() {
                 />
               </div>
 
-              <div className="form-grid-2">
-                <div className="input-group">
-                  <label className="input-label">Número de Filas</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={formData.filas}
-                    onChange={(e) => setFormData({ ...formData, filas: e.target.value })}
-                    className="input-field"
-                    placeholder="Ej. 10"
-                    required
-                  />
+              {/* Sólo pedimos Nombre y Estado; filas/asientos se configuran con la matriz */}
+
+              {/* Matriz de Asientos (3 columnas por fila) */}
+              <div style={{ marginTop: 18 }}>
+                <label className="input-label">Configurar Asientos</label>
+                <div className="seat-matrix" style={{ marginTop: 8, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                  {Array.from({ length: matrixRows }, (_, rIndex) => {
+                    const fila = rIndex + 1
+                    return Array.from({ length: 3 }, (_, cIndex) => {
+                      const columna = cIndex + 1
+                      const seat = formData.asientos.find(s => s.fila === fila && s.columna === columna)
+                      const isConductor = fila === 1 && columna === 1
+                      return (
+                        <button
+                          key={`${fila}-${columna}`}
+                          type="button"
+                          onClick={() => handleSeatToggle(fila, columna)}
+                          className={`seat-cell ${seat ? 'assigned' : ''} ${isConductor ? 'conductor' : ''}`}
+                          style={{
+                            padding: '14px 12px',
+                            width: '100%',
+                            borderRadius: 8,
+                            border: '1px solid #e2e8f0',
+                            background: isConductor ? '#fef3c7' : (seat ? '#0ea5a4' : '#ffffff'),
+                            color: isConductor ? '#92400e' : (seat ? '#fff' : '#0f172a'),
+                            cursor: isConductor ? 'default' : 'pointer',
+                            minHeight: 48,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            boxShadow: seat ? '0 6px 18px rgba(6,165,164,0.12)' : 'none'
+                          }}
+                          title={isConductor ? 'Conductor' : (seat ? `Asiento #${seat.numero}` : 'Vacío')}
+                        >
+                          <span style={{ fontWeight: isConductor ? 700 : 600 }}>{isConductor ? 'Conductor' : (seat ? seat.numero : '')}</span>
+                        </button>
+                      )
+                    })
+                  })}
                 </div>
 
-                <div className="input-group">
-                  <label className="input-label">Cantidad de Asientos</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={formData.cantidad}
-                    onChange={(e) => setFormData({ ...formData, cantidad: e.target.value })}
-                    className="input-field"
-                    placeholder="Ej. 40"
-                    required
-                  />
+                <div style={{ marginTop: 8, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={handleAddRow}
+                    disabled={matrixRows >= MAX_ROWS}
+                    style={{
+                      background: '#0ea5a4',
+                      color: '#fff',
+                      padding: '10px 14px',
+                      borderRadius: 10,
+                      border: 'none',
+                      boxShadow: '0 6px 18px rgba(14,165,164,0.12)',
+                      cursor: matrixRows >= MAX_ROWS ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    + Agregar otra fila
+                  </button>
+                  <small style={{ color: '#64748b' }}>Filas actuales: {matrixRows} (máx {MAX_ROWS})</small>
                 </div>
               </div>
 
-              <div className="form-grid-2">
-                <div className="input-group">
-                  <label className="input-label">¿Es Minibús / Van?</label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px' }}>
-                    <label className="switch">
-                      <input
-                        type="checkbox"
-                        checked={formData.esminibus}
-                        onChange={(e) => setFormData({ ...formData, esminibus: e.target.checked })}
-                      />
-                      <span className="switch-slider"></span>
-                    </label>
-                    <span style={{ fontSize: '14px', fontWeight: '600', color: formData.esminibus ? '#b45309' : '#64748b' }}>
-                      {formData.esminibus ? 'Sí (Minibús)' : 'No (Bus Estándar)'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="input-group">
-                  <label className="input-label">Estado Inicial</label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px' }}>
-                    <label className="switch">
-                      <input
-                        type="checkbox"
-                        checked={formData.estado}
-                        onChange={(e) => setFormData({ ...formData, estado: e.target.checked })}
-                      />
-                      <span className="switch-slider"></span>
-                    </label>
-                    <span style={{ fontSize: '14px', fontWeight: '600', color: formData.estado ? '#10b981' : '#64748b' }}>
-                      {formData.estado ? 'Activo' : 'Inactivo'}
-                    </span>
-                  </div>
+              <div className="input-group" style={{ marginTop: 12 }}>
+                <label className="input-label">Estado Inicial</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px' }}>
+                  <label className="switch">
+                    <input
+                      type="checkbox"
+                      checked={formData.estado}
+                      onChange={(e) => setFormData({ ...formData, estado: e.target.checked })}
+                    />
+                    <span className="switch-slider"></span>
+                  </label>
+                  <span style={{ fontSize: '14px', fontWeight: '600', color: formData.estado ? '#10b981' : '#64748b' }}>
+                    {formData.estado ? 'Activo' : 'Inactivo'}
+                  </span>
                 </div>
               </div>
 
@@ -556,7 +561,7 @@ function Asientos() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header">
-              <h2>Confirmar Eliminación</h2>
+              <h2>Confirmar {asientoToDelete.estado ? 'Desactivación' : 'Activación'}</h2>
               <button className="modal-close" onClick={() => setAsientoToDelete(null)}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <line x1="18" y1="6" x2="6" y2="18" />
@@ -566,7 +571,7 @@ function Asientos() {
             </div>
             <div style={{ padding: '24px 28px' }}>
               <p style={{ color: 'var(--slate-700)', fontSize: '15px', lineHeight: '1.6', margin: 0 }}>
-                ¿Está seguro que desea eliminar la distribución de asientos <strong>{asientoToDelete.nombre} ({asientoToDelete.cantidad} asientos)</strong>?
+                ¿Está seguro que desea {asientoToDelete.estado ? 'desactivar' : 'activar'} la distribución de asientos <strong>{asientoToDelete.nombre} ({asientoToDelete.cantidad} asientos)</strong>?
               </p>
             </div>
             <div className="modal-actions" style={{ padding: '20px 28px' }}>
@@ -575,10 +580,10 @@ function Asientos() {
               </button>
               <button
                 className="save-btn"
-                style={{ background: '#ef4444', borderColor: '#ef4444', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)' }}
+                style={{ background: asientoToDelete.estado ? '#ef4444' : '#10b981', borderColor: asientoToDelete.estado ? '#ef4444' : '#10b981', boxShadow: asientoToDelete.estado ? '0 4px 12px rgba(239, 68, 68, 0.25)' : '0 4px 12px rgba(16, 185, 129, 0.25)' }}
                 onClick={confirmDelete}
               >
-                Eliminar
+                {asientoToDelete.estado ? 'Desactivar' : 'Activar'}
               </button>
             </div>
           </div>
