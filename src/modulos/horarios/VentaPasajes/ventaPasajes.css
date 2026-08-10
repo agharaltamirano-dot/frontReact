@@ -1,48 +1,429 @@
-.venta-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:60}
-.venta-panel{background:#fff;border-radius:8px;max-width:800px;width:90%;max-height:80%;overflow:auto;padding:18px;box-shadow:0 10px 30px rgba(2,6,23,0.2)}
-.venta-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
-.venta-header h2{margin:0}
-.venta-header .close{background:transparent;border:0;font-size:20px;cursor:pointer}
-.venta-body{font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';color:#0f172a}
+.venta-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+}
+.venta-panel {
+  background: #fff;
+  border-radius: 8px;
+  max-width: 800px;
+  width: 90%;
+  max-height: 80%;
+  overflow: auto;
+  padding: 18px;
+  box-shadow: 0 10px 30px rgba(2, 6, 23, 0.2);
+}
+.venta-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.venta-header h2 {
+  margin: 0;
+}
+.venta-header .close {
+  background: transparent;
+  border: 0;
+  font-size: 20px;
+  cursor: pointer;
+}
+.venta-body {
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    "Noto Sans",
+    "Apple Color Emoji",
+    "Segoe UI Emoji",
+    "Segoe UI Symbol";
+  color: #0f172a;
+}
 
 /* New screen layout */
-.venta-screen{padding:18px}
-.venta-columns{display:flex;gap:18px;align-items:flex-start}
-.card{background:#fff;border-radius:12px;padding:16px;box-shadow:0 8px 24px rgba(2,6,23,0.06);flex:1}
-.sell-card{max-width:420px;min-width:300px}
-.map-card{flex:1}
-.card h3{margin:0 0 12px 0}
+.venta-screen {
+  padding: 18px;
+}
+.venta-columns {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+}
+.card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 8px 24px rgba(2, 6, 23, 0.06);
+  flex: 1;
+}
+.sell-card {
+  max-width: 420px;
+  min-width: 300px;
+}
+.map-card {
+  flex: 1;
+}
+.card h3 {
+  margin: 0 0 12px 0;
+}
 
-.horario-row{display:flex;gap:18px;align-items:center;margin-bottom:12px;padding:12px}
-.horario-item{font-size:14px;color:#0f172a}
-.asientos-title{display:flex;justify-content:space-between;align-items:center}
-.asientos-meta{font-size:13px;color:#475569;margin-left:12px;font-weight:600}
+.horario-row {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 12px;
+}
+.horario-item {
+  font-size: 14px;
+  color: #0f172a;
+}
+.asientos-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.asientos-meta {
+  font-size: 13px;
+  color: #475569;
+  margin-left: 12px;
+  font-weight: 600;
+}
 
-.venta-screen .selected-list{display:flex;flex-direction:column;gap:10px}
-.venta-screen .selected-item{display:flex;align-items:flex-start;gap:10px;padding:8px;border-radius:8px;background:#f8fafc}
-.venta-screen .seat-badge{background:#0f172a;color:#fff;border-radius:8px;padding:8px 12px;font-weight:700;font-size:16px}
-.venta-screen .selected-meta{flex:1;display:flex;flex-direction:column;gap:8px}
-.venta-screen .input-small{padding:8px;border-radius:8px;border:1px solid #e5e7eb}
-.venta-screen .selected-actions{display:flex;flex-direction:column;gap:8px}
-.venta-screen .confirm-btn{background:#0ea5a4;color:#fff;border:0;padding:8px 10px;border-radius:8px;cursor:pointer}
-.venta-screen .remove-btn{background:transparent;border:1px solid #e5e7eb;padding:8px 10px;border-radius:8px;cursor:pointer}
+/* Emphasis styles for Fecha / Hora / Ruta / Móvil */
+.venta-screen .horario-row {
+  align-items: center;
+  gap: 12px;
+}
+.venta-screen .horario-item.fecha {
+  font-size: 13px;
+  color: #475569;
+  background: transparent;
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+.venta-screen .horario-item.hora {
+  font-size: 18px;
+  color: #065f46;
+  background: #ecfeff;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-weight: 800;
+  box-shadow: 0 6px 18px rgba(3, 105, 161, 0.06);
+}
+.venta-screen .movil-badge {
+  display: inline-block;
+  background: #000;
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 150%;
+  font-weight: 800;
+  margin: 0 6px;
+}
+.venta-screen .movil-label {
+  font-weight: 600;
+  margin-right: 6px;
+}
+.venta-screen .conductor-name {
+  font-weight: 600;
+  color: #0f172a;
+}
+.venta-screen .horario-item.ruta {
+  font-size: 15px;
+  color: #0b5b8a;
+  background: #f0f9ff;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-weight: 700;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.venta-screen .horario-item.tarifa {
+  font-size: 14px;
+  color: #0f172a;
+  background: transparent;
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+.venta-screen .asientos-meta.movil-meta {
+  font-size: 14px;
+  color: #5b21b6;
+  background: #f5f3ff;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-weight: 700;
+}
 
-.venta-screen .seat-grid{display:flex;flex-direction:column;gap:10px;width:100%;overflow:hidden}
-.venta-screen .seat-row{display:flex;gap:8px;justify-content:flex-start;flex-wrap:wrap}
-.venta-screen .seat{flex:1 1 0;min-width:140px;height:64px;border-radius:8px;display:flex;flex-direction:row;align-items:center;justify-content:flex-start;cursor:pointer;box-shadow:inset 0 -3px 6px rgba(0,0,0,0.04);padding:8px 12px;box-sizing:border-box;overflow:hidden}
-.venta-screen .seat.empty-slot{background:transparent;border:2px dashed #e6eef6;cursor:default}
-.venta-screen .seat.available{background:linear-gradient(180deg,#ecfdf5,#d1fae5);border:1px solid #10b981}
-.venta-screen .seat.occupied{background:linear-gradient(180deg,#fff1f2,#fee2e2);border:1px solid #ef4444;cursor:default}
-.venta-screen .seat.selected{background:linear-gradient(180deg,#e0f2fe,#bae6fd);border:1px solid #0284c7}
-.venta-screen .seat-num{font-weight:800;font-size:14px;margin:0;margin-right:12px;flex:0 0 48px;text-align:center}
-.venta-screen .seat-pass{font-size:13px;color:#334155;margin-top:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Make horario-row responsive */
+@media (max-width: 800px) {
+  .venta-screen .horario-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .venta-screen .horario-item.ruta {
+    flex: none;
+    width: 100%;
+  }
+}
 
-.legend{margin-top:12px;display:flex;gap:12px;flex-wrap:wrap}
-.legend-item{display:flex;align-items:center;gap:6px;color:#475569}
-.dot{display:inline-block;width:12px;height:12px;border-radius:6px}
-.dot.available{background:#10b981}
-.dot.occupied{background:#ef4444}
-.dot.empty{background:transparent;border:2px solid #cbd5e1}
-.dot.selected{background:#0284c7}
+.venta-screen .selected-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.venta-screen .selected-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+.venta-screen .seat-badge {
+  background: #0f172a;
+  color: #fff;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-weight: 700;
+  font-size: 16px;
+}
+.venta-screen .selected-meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.venta-screen .input-small {
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+.venta-screen .selected-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.venta-screen .confirm-btn {
+  background: #0ea5a4;
+  color: #fff;
+  border: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.venta-screen .remove-btn {
+  background: transparent;
+  border: 1px solid #e5e7eb;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
 
-.empty{color:#64748b;padding:8px}
+.venta-screen .seat-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  overflow: hidden;
+}
+.venta-screen .seat-row {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+.venta-screen .seat {
+  flex: 1 1 0;
+  min-width: 140px;
+  min-height: 96px;
+  height: auto;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: flex-start;
+  cursor: pointer;
+  box-shadow: inset 0 -3px 6px rgba(0, 0, 0, 0.04);
+  padding: 12px 16px;
+  box-sizing: border-box;
+  overflow: visible;
+  position: relative;
+}
+.venta-screen .seat.empty-slot {
+  background: transparent;
+  border: 2px dashed #e6eef6;
+  cursor: default;
+}
+.venta-screen .seat.available {
+  background: linear-gradient(180deg, #ecfdf5, #d1fae5);
+  border: 1px solid #10b981;
+}
+.venta-screen .seat.occupied {
+  background: linear-gradient(180deg, #fff1f2, #fee2e2);
+  border: 1px solid #ef4444;
+  cursor: default;
+}
+.venta-screen .seat.selected {
+  background: linear-gradient(180deg, #e0f2fe, #bae6fd);
+  border: 1px solid #0284c7;
+}
+.venta-screen .seat-num {
+  font-weight: 800;
+  font-size: 14px;
+  margin: 0;
+  margin-right: 12px;
+  flex: 0 0 60px;
+  text-align: center;
+}
+.venta-screen .seat-pass {
+  font-size: 13px;
+  color: #334155;
+  margin-top: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Content inside seat when occupied */
+.venta-screen .seat-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+  white-space: normal;
+}
+.venta-screen .seat-name {
+  font-weight: 700;
+  font-size: 13px;
+  color: #7f1d1d;
+  word-break: break-word;
+}
+.venta-screen .seat-phone {
+  font-size: 12px;
+  color: #7f1d1d;
+  opacity: 0.9;
+  word-break: break-word;
+}
+.venta-screen .seat-monto {
+  font-size: 13px;
+  color: #7f1d1d;
+  font-weight: 800;
+}
+
+/* Driver icon centered in special seat */
+.venta-screen .driver-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+}
+.venta-screen .driver-icon svg {
+  display: block;
+}
+.venta-screen .driver-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.venta-screen .driver-empty .driver-icon svg path {
+  fill: #000;
+}
+
+/* Reservation badge inside occupied seat */
+.venta-screen .reservation-badge {
+  position: absolute;
+  right: 10px;
+  top: 8px;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.venta-screen .reservation-badge svg path {
+  fill: #f59e0b;
+}
+
+/* Legend icon for reservations */
+.venta-screen .res-icon {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  background: transparent;
+  mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="black" d="M7 3h10v13l-5-2-5 2V3z"/></svg>')
+    center / contain no-repeat;
+  background-color: #f59e0b;
+  margin-right: 6px;
+  border-radius: 2px;
+}
+
+/* Bottom actions bar */
+.venta-screen .venta-actions{
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 12px 16px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(255,255,255,0.98));
+  box-shadow: 0 -6px 18px rgba(2,6,23,0.06);
+  z-index: 40;
+}
+.venta-screen .venta-actions .actions-row{display:flex;gap:12px;justify-content:center;align-items:center;flex-wrap:wrap}
+.venta-screen .action-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;border:0;color:#fff;font-weight:700;cursor:pointer;box-shadow:0 6px 18px rgba(2,6,23,0.06)}
+.venta-screen .action-btn svg{display:block}
+.venta-screen .action-btn.pagado{background:#10b981}
+.venta-screen .action-btn.reservar{background:#f59e0b}
+@media (max-width: 600px){
+  .venta-screen .actions-row{padding:6px}
+  .venta-screen .action-btn{flex:1 1 100%;justify-content:center}
+}
+
+.legend {
+  margin-top: 12px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #475569;
+}
+.dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 6px;
+}
+.dot.available {
+  background: #10b981;
+}
+.dot.occupied {
+  background: #ef4444;
+}
+.dot.empty {
+  background: transparent;
+  border: 2px solid #cbd5e1;
+}
+.dot.selected {
+  background: #0284c7;
+}
+
+.empty {
+  color: #64748b;
+  padding: 8px;
+}

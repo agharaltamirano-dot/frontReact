@@ -21,3 +21,30 @@ export async function getHorarioById(id) {
   if (!res.ok) throw new Error('Error fetching horario')
   return res.json()
 }
+
+const BASE_URL_PASAJES = '/api/pasajes'
+
+export async function postPasajesBatch(items) {
+  const res = await fetch(BASE_URL_PASAJES, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(items)
+  })
+  if (!res.ok) {
+    const txt = await res.text()
+    throw new Error(`Error posting pasajes: ${res.status} ${txt}`)
+  }
+  return res.json()
+}
+
+export async function deletePasaje(id) {
+  const res = await fetch(`${BASE_URL_PASAJES}/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders()
+  })
+  if (!res.ok) {
+    const txt = await res.text()
+    throw new Error(`Error deleting pasaje: ${res.status} ${txt}`)
+  }
+  return res.json()
+}
