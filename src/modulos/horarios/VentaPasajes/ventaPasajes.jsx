@@ -1,7 +1,7 @@
 import React, { useEffect, useState, Fragment } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Box, Stack, Button, Dialog, DialogTitle, DialogContent, DialogActions, List, ListItem, ListItemText, ListItemAvatar, Avatar, Chip, Grid, Divider, Typography } from '@mui/material'
-import { getHorarioById, postPasajesBatch, deletePasaje } from './ventaPasajesSevice'
+import { Box, Stack, Button, Dialog, DialogTitle, DialogContent, DialogActions, List, ListItem, ListItemText, ListItemAvatar, Avatar, Chip, Grid, Divider, Typography, Snackbar, Alert } from '@mui/material'
+import { getHorarioById, postPasajesBatch, deletePasaje, getHojaRuta } from './ventaPasajesSevice'
 import './ventaPasajes.css'
 
 export default function VentaPasajes() {
@@ -13,6 +13,19 @@ export default function VentaPasajes() {
 
   const openPasajes = () => setPasajesOpen(true)
   const closePasajes = () => setPasajesOpen(false)
+
+  // Snackbar / Alert state
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' })
+  const showSnackbar = (message, severity = 'info') => {
+    setSnackbar({ open: true, message: message || '', severity })
+  }
+  const closeSnackbar = () => setSnackbar(prev => ({ ...prev, open: false }))
+
+  // Confirmación para anular pasaje
+  const [confirmAnular, setConfirmAnular] = useState({ open: false, pasajeId: null })
+  const requestAnular = (pasajeId) => setConfirmAnular({ open: true, pasajeId })
+  const cancelAnular = () => setConfirmAnular({ open: false, pasajeId: null })
+
 
   const destinosOptions = (horario?.ruta?.destinos || []).map(d => {
     const pv = d.puntoVenta || {}
@@ -42,7 +55,9 @@ export default function VentaPasajes() {
     if (exists) {
       setSelectedSeats(prev => prev.filter(s => Number(s.id) !== Number(seat.id)))
     } else {
-      setSelectedSeats(prev => [...prev, { id: seat.id, numero: seat.numero, fila: seat.fila, columna: seat.columna, pasajero: '', monto: '', ci: '', telefono: '', destinoId: '' }])
+      // default monto to tarifa for this horario's route
+      const tarifaDefault = horario?.ruta?.tarifa ?? ''
+      setSelectedSeats(prev => [...prev, { id: seat.id, numero: seat.numero, fila: seat.fila, columna: seat.columna, pasajero: '', monto: tarifaDefault, ci: '', telefono: '', destinoId: '' }])
     }
   }
 
@@ -56,12 +71,16 @@ export default function VentaPasajes() {
     const sel = selectedSeats.find(s => Number(s.id) === Number(id))
     if (!sel) return
     if (!sel.pasajero) {
-      alert('Ingrese nombre del pasajero')
+      showSnackbar('Ingrese nombre del pasajero', 'warning')
+      return
+    }
+    if (!sel.destinoId) {
+      showSnackbar('Seleccione el destino para el pasajero', 'warning')
       return
     }
     const montoNum = parseFloat(String(sel.monto).replace(',', '.'))
     if (isNaN(montoNum) || montoNum <= 0) {
-      alert('Ingrese un monto válido mayor a 0')
+      showSnackbar('Ingrese un monto válido mayor a 0', 'warning')
       return
     }
     // marcar asiento como vendido en el horario local
@@ -104,6 +123,125 @@ export default function VentaPasajes() {
     }
   }
 
+  const getAuthToken = () => {
+    try {
+      const raw = sessionStorage.getItem('authData')
+      if (!raw) return null
+      const parsed = JSON.parse(raw)
+      return parsed?.token || parsed?.accessToken || parsed?.authToken || null
+    } catch {
+      return null
+    }
+  }
+
+  const reimprimirPasaje = async (pasajeId) => {
+    if (!pasajeId) return showSnackbar('ID de pasaje inválido', 'warning')
+    showSnackbar('Generando ticket...', 'info')
+    try {
+      const token = getAuthToken()
+      const headers = token ? { Authorization: `Bearer <${token}>` } : {}
+      const resp = await fetch(`http://localhost:5093/api/ticket/${pasajeId}`, { method: 'GET', headers })
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+      const blob = await resp.blob()
+      const blobUrl = URL.createObjectURL(blob)
+
+      // Cargar el PDF en un iframe oculto y abrir SOLO el diálogo de impresión
+      showSnackbar('Preparando ticket para imprimir...', 'info')
+      try {
+        const iframe = document.createElement('iframe')
+        iframe.style.position = 'fixed'
+        iframe.style.right = '0'
+        iframe.style.bottom = '0'
+        iframe.style.width = '0'
+        iframe.style.height = '0'
+        iframe.style.border = '0'
+        iframe.style.opacity = '0'
+        iframe.src = blobUrl
+        iframe.onload = () => {
+          try {
+            // Algunos navegadores requieren foco y un pequeño retraso
+            iframe.contentWindow.focus()
+            setTimeout(() => {
+              try { iframe.contentWindow.print() } catch (e) { console.warn('print() en iframe falló:', e) }
+              // limpiar
+              setTimeout(() => {
+                try { document.body.removeChild(iframe) } catch (_) {}
+                try { URL.revokeObjectURL(blobUrl) } catch (_) {}
+              }, 900)
+            }, 500)
+          } catch (e) {
+            console.warn('Error al invocar print en iframe:', e)
+            // fallback: abrir en nueva pestaña para que el usuario imprima manualmente
+            const a = document.createElement('a')
+            a.href = blobUrl
+            a.target = '_blank'
+            a.rel = 'noopener'
+            a.click()
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 60000)
+          }
+        }
+        document.body.appendChild(iframe)
+      } catch (e) {
+        console.error('No se pudo crear iframe para imprimir:', e)
+        // fallback: navegar a la URL del blob en la misma pestaña
+        window.location.href = blobUrl
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 60000)
+      }
+    } catch (err) {
+      console.error('Error reimprimiendo pasaje', err)
+      showSnackbar('Error al generar ticket: ' + (err.message || ''), 'error')
+    }
+  }
+
+  const openHojaRuta = async () => {
+    if (!horario?.id) return showSnackbar('Horario inválido', 'warning')
+    showSnackbar('Generando hoja de ruta...', 'info')
+    try {
+      const blob = await getHojaRuta(horario.id)
+      const blobUrl = URL.createObjectURL(blob)
+      showSnackbar('Preparando hoja para imprimir...', 'info')
+      try {
+        const iframe = document.createElement('iframe')
+        iframe.style.position = 'fixed'
+        iframe.style.right = '0'
+        iframe.style.bottom = '0'
+        iframe.style.width = '0'
+        iframe.style.height = '0'
+        iframe.style.border = '0'
+        iframe.style.opacity = '0'
+        iframe.src = blobUrl
+        iframe.onload = () => {
+          try {
+            iframe.contentWindow.focus()
+            setTimeout(() => {
+              try { iframe.contentWindow.print() } catch (e) { console.warn('print() en iframe falló:', e) }
+              setTimeout(() => {
+                try { document.body.removeChild(iframe) } catch (_) {}
+                try { URL.revokeObjectURL(blobUrl) } catch (_) {}
+              }, 900)
+            }, 500)
+          } catch (e) {
+            console.warn('Error al invocar print en iframe:', e)
+            const a = document.createElement('a')
+            a.href = blobUrl
+            a.target = '_blank'
+            a.rel = 'noopener'
+            a.click()
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 60000)
+          }
+        }
+        document.body.appendChild(iframe)
+      } catch (e) {
+        console.error('No se pudo crear iframe para imprimir hoja:', e)
+        window.location.href = blobUrl
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 60000)
+      }
+    } catch (err) {
+      console.error('Error generando hoja de ruta', err)
+      showSnackbar('Error al generar hoja: ' + (err.message || ''), 'error')
+    }
+  }
+
   const getDestinoName = (destinoId) => {
     try {
       const dests = Array.isArray(horario?.ruta?.destinos) ? horario.ruta.destinos : []
@@ -121,7 +259,7 @@ export default function VentaPasajes() {
 
   const handleAction = async (isReserva) => {
     if (!selectedSeats || selectedSeats.length === 0) {
-      alert('No hay asientos seleccionados')
+      showSnackbar('No hay asientos seleccionados', 'warning')
       return
     }
 
@@ -129,12 +267,16 @@ export default function VentaPasajes() {
     const items = []
     for (const s of selectedSeats) {
       if (!s.pasajero) {
-        alert(`Ingrese nombre para asiento ${s.numero}`)
+        showSnackbar(`Ingrese nombre para asiento ${s.numero}`, 'warning')
+        return
+      }
+      if (!s.destinoId) {
+        showSnackbar(`Seleccione destino para asiento ${s.numero}`, 'warning')
         return
       }
       const montoNum = parseFloat(String(s.monto).replace(',', '.'))
       if (isNaN(montoNum) || montoNum <= 0) {
-        alert(`Monto inválido en asiento ${s.numero}`)
+        showSnackbar(`Monto inválido en asiento ${s.numero}`, 'warning')
         return
       }
       const destinoName = getDestinoName(s.destinoId)
@@ -172,35 +314,44 @@ export default function VentaPasajes() {
       setHorario(prev => ({ ...prev, pasajes: merged }))
       // clear selected
       setSelectedSeats([])
-      alert('Operación realizada con éxito')
+      showSnackbar('Operación realizada con éxito', 'success')
+      // small delay to allow snackbar to be visible, then refresh horario from API
+      setTimeout(async () => {
+        try {
+          const fresh = await getHorarioById(horario?.id ?? id)
+          setHorario(fresh)
+        } catch (err) {
+          console.warn('No se pudo refrescar horario tras crear pasajes:', err)
+        }
+      }, 100)
     } catch (err) {
       console.error('Error enviando pasajes:', err)
-      alert('Error al enviar los pasajes: ' + (err.message || ''))
+      showSnackbar('Error al enviar los pasajes: ' + (err.message || ''), 'error')
     }
   }
 
-  const handleAnular = async (pasajeId) => {
-    if (!pasajeId) return
-    if (!confirm('Confirma anular este pasaje?')) return
+  const performAnular = async () => {
+    const pasajeId = confirmAnular.pasajeId
+    if (!pasajeId) return cancelAnular()
     try {
       await deletePasaje(pasajeId)
-      // marcar localmente y luego refrescar horario desde el servidor (para reflejar cambios globales)
       setHorario(prev => {
         if (!prev) return prev
         const nuevos = (prev.pasajes || []).map(p => p.id === pasajeId ? { ...p, estado: false } : p)
         return { ...prev, pasajes: nuevos }
       })
-      // refrescar horario desde API para obtener el estado definitivo (asientos limpios si aplica)
       try {
         const fresh = await getHorarioById(horario?.id ?? id)
         setHorario(fresh)
       } catch (fetchErr) {
         console.warn('No se pudo refrescar horario tras anular:', fetchErr)
       }
-      alert('Pasaje anulado')
+      showSnackbar('Pasaje anulado', 'success')
     } catch (err) {
       console.error('Error anulando pasaje', err)
-      alert('Error al anular: ' + (err.message || ''))
+      showSnackbar('Error al anular: ' + (err.message || ''), 'error')
+    } finally {
+      cancelAnular()
     }
   }
 
@@ -251,10 +402,17 @@ export default function VentaPasajes() {
                       </svg>
                     </div>
                   )}
-                  <div className="seat-info">
+                  <div className="seat-info" style={{display:'flex', flexDirection:'column', gap:1}}>
                     <div className="seat-name">{pasaje.cliente?.nombreCompleto || 'N/A'}</div>
                     <div className="seat-phone">{pasaje.cliente?.telefono || ''}</div>
                     <div className="seat-monto">Bs. {Number(pasaje.monto || 0).toFixed(2)}</div>
+                    <div className="seat-destino" style={{display:'flex',alignItems:'center',gap:6,marginTop:4}}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                        <path d="M12 2C8.134 2 5 5.134 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.866-3.134-7-7-7z" stroke="#0f172a" strokeWidth="1.2" fill="none"/>
+                        <circle cx="12" cy="9" r="2" fill="#0f172a"/>
+                      </svg>
+                      <span className="destino-name" style={{fontSize:'0.85rem', color:'#374151'}}>{pasaje.destino || (seat.pasajes?.destinoId ? getDestinoName(seat.pasajes.destinoId) : '')}</span>
+                    </div>
                   </div>
                 </>
               ) : (
@@ -285,6 +443,11 @@ export default function VentaPasajes() {
     }
     fetchData()
   }, [id])
+
+  const totalMonto = selectedSeats.reduce((sum, s) => {
+    const v = parseFloat(String(s.monto || 0).replace(',', '.'))
+    return sum + (isNaN(v) ? 0 : v)
+  }, 0)
 
   return (
     <div className="venta-screen">
@@ -355,8 +518,7 @@ export default function VentaPasajes() {
                       </select>
                     </div>
                     <div className="selected-actions">
-                      <button onClick={() => confirmSale(s.id)} className="confirm-btn">Vender</button>
-                      <button onClick={() => removeSelected(s.id)} className="remove-btn">Eliminar</button>
+                      <button onClick={() => removeSelected(s.id)} className="remove-btn" style={{background:'#dc2626', color:'#fff', border:'none'}} aria-label={`Quitar asiento ${s.numero}`}>Quitar</button>
                     </div>
                   </div>
                 ))}
@@ -390,39 +552,53 @@ export default function VentaPasajes() {
             </div>
             <Box className="venta-actions" role="region" aria-label="Acciones de venta" sx={{position: 'sticky', bottom: 0, bgcolor: 'background.paper', py:1}}>
               <Stack direction="row" spacing={2} sx={{width:'100%', alignItems: 'center', justifyContent: 'space-between'}}>
-                <Stack direction="row" spacing={1} sx={{display:'flex', alignItems:'center'}}>
-                  <Button
-                    variant="contained"
-                    color="success"
-                    onClick={() => handleAction(false)}
-                    startIcon={(
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-                        <path d="M21 7H3v10a2 2 0 002 2h14a2 2 0 002-2V7z" fill="#10b981"/>
-                        <path d="M8 12l2 2 6-6" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    )}
-                  >
-                    Pagado
-                  </Button>
+                <Box sx={{display:'flex', alignItems:'center', gap:2}}>
+                  <Box sx={{textAlign:'left'}}>
+                    <Typography variant="subtitle2" color="text.secondary">Total</Typography>
+                    <Typography variant="h6" sx={{fontWeight:700}}>Bs. {totalMonto.toFixed(2)}</Typography>
+                  </Box>
+                  <Stack direction="row" spacing={1} sx={{display:'flex', alignItems:'center'}}>
+                    <Button
+                      variant="contained"
+                      color="success"
+                      onClick={() => handleAction(false)}
+                      startIcon={(
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                          <path d="M21 7H3v10a2 2 0 002 2h14a2 2 0 002-2V7z" fill="#10b981"/>
+                          <path d="M8 12l2 2 6-6" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      )}
+                    >
+                      Pagado
+                    </Button>
 
-                  <Button
-                    variant="contained"
-                    sx={{background:'#f59e0b','&:hover':{background:'#d97706'}}}
-                    onClick={() => handleAction(true)}
-                    startIcon={(
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-                        <path d="M6 2h9l4 4v14a1 1 0 01-1 1H6a1 1 0 01-1-1V2z" fill="#f59e0b"/>
-                        <path d="M8 7h6" stroke="#fff" strokeWidth="1.6" strokeLinecap="round"/>
-                        <path d="M8 11h8" stroke="#fff" strokeWidth="1.6" strokeLinecap="round"/>
-                      </svg>
-                    )}
-                  >
-                    Reservar
-                  </Button>
-                </Stack>
+                    <Button
+                      variant="contained"
+                      sx={{background:'#f59e0b','&:hover':{background:'#d97706'}}}
+                      onClick={() => handleAction(true)}
+                      startIcon={(
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                          <path d="M6 2h9l4 4v14a1 1 0 01-1 1H6a1 1 0 01-1-1V2z" fill="#f59e0b"/>
+                          <path d="M8 7h6" stroke="#fff" strokeWidth="1.6" strokeLinecap="round"/>
+                          <path d="M8 11h8" stroke="#fff" strokeWidth="1.6" strokeLinecap="round"/>
+                        </svg>
+                      )}
+                    >
+                      Reservar
+                    </Button>
+                  </Stack>
+                </Box>
 
                 <Box>
-                      <Button onClick={openPasajes} variant="outlined" color="primary" sx={{textTransform:'none'}} startIcon={(
+                  <Button onClick={openHojaRuta} variant="outlined" color="primary" sx={{textTransform:'none', mr:1, background:'#2563eb', color:'#fff', borderColor:'transparent', '&:hover':{background:'#1e40af'}}} startIcon={(
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="#0f172a" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M14 2v6h6" stroke="#0f172a" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )}>
+                    HOJA DE RUTA
+                  </Button>
+                  <Button onClick={openPasajes} variant="outlined" color="primary" sx={{textTransform:'none', background:'#2563eb', color:'#fff', borderColor:'transparent', '&:hover':{background:'#1e40af'}}} startIcon={(
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
                       <path d="M3 6h18M3 12h18M3 18h18" stroke="#0f172a" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
@@ -440,58 +616,65 @@ export default function VentaPasajes() {
                     <List>
                       {(horario?.pasajes || []).map(p => (
                         <Fragment key={p.id}>
-                          <ListItem alignItems="flex-start" sx={{py:1}}>
+                          <ListItem alignItems="center" sx={{py:0.5, px:1}}>
                             <ListItemAvatar>
-                              <Avatar sx={{bgcolor: p.estado===false ? 'grey.500' : p.reserva ? '#f59e0b' : 'primary.main'}}>
-                                {p.estado===false ? (
-                                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M6 6l12 12M6 18L18 6" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                  </svg>
-                                ) : p.reserva ? (
-                                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M3 7h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" fill="#fff" opacity="0.12"/>
-                                    <path d="M7 10h6" stroke="#fff" strokeWidth="1.6" strokeLinecap="round"/>
-                                  </svg>
-                                ) : (
-                                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <circle cx="12" cy="12" r="5" fill="#fff"/>
-                                  </svg>
-                                )}
+                              <Avatar sx={{width:36,height:36,fontSize:14,bgcolor: p.estado===false ? 'grey.500' : p.reserva ? '#f59e0b' : 'primary.main'}}>
+                                {p.cliente?.nombreCompleto ? (p.cliente.nombreCompleto.split(' ').map(n=>n[0]).slice(0,2).join('')) : 'N/D'}
                               </Avatar>
                             </ListItemAvatar>
 
-                            <Box sx={{flex: 1}}>
-                              <Box sx={{display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap'}}>
-                                <Box sx={{flex: '1 1 66.666%', minWidth: 0}}>
-                                  <Typography variant="subtitle1" sx={{fontWeight:700}}>{p.cliente?.nombreCompleto || 'N/D'}</Typography>
-                                  <Typography variant="body2" color="text.secondary">Asiento: {p.asiento?.numero || p.asientoId || '-'}</Typography>
+                            <Box sx={{flex:1, minWidth:0, ml:1}}>
+                              <Box sx={{display:'flex', alignItems:'center', justifyContent:'space-between', gap:1}}>
+                                <Box sx={{minWidth:0}}>
+                                  <Typography variant="body1" sx={{fontWeight:700, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{p.cliente?.nombreCompleto || 'N/D'}</Typography>
+                                  <Typography variant="caption" color="text.secondary" sx={{display:'block'}}>
+                                    Asiento: {p.asiento?.numero || p.asientoId || '-'}{p.destino ? ` • ${p.destino}` : ''}{p.cliente?.telefono ? ` • ${p.cliente.telefono}` : ''}
+                                  </Typography>
                                 </Box>
-                                <Box sx={{flex: '0 0 33.333%', minWidth: 0, textAlign: { xs: 'left', sm: 'right' }}}>
-                                  <Typography variant="subtitle1" sx={{fontWeight:700}}>Bs. {Number(p.monto||0).toFixed(2)}</Typography>
+                                <Box sx={{textAlign:'right', ml:1}}>
+                                  <Typography variant="body2" sx={{fontWeight:700}}>Bs. {Number(p.monto||0).toFixed(2)}</Typography>
                                 </Box>
                               </Box>
-                              <Stack direction="row" spacing={1} sx={{mt:1, flexWrap:'wrap'}}>
+                              <Box sx={{mt:0.5, display:'flex', gap:0.5, flexWrap:'wrap'}}>
                                 {p.reserva && <Chip label="Reserva" size="small" sx={{bgcolor:'#f59e0b', color:'#fff', fontWeight:600}} />}
-                                {p.estado === false && <Chip label="ANULADO" size="small" color="default" sx={{bgcolor:'grey.600', color:'#fff', fontWeight:700}} />}
+                                {p.estado === false && <Chip label="ANULADO" size="small" sx={{bgcolor:'grey.600', color:'#fff', fontWeight:700}} />}
                                 {p.cliente?.telefono && <Chip label={`Tel: ${p.cliente.telefono}`} size="small" />}
                                 {p.cliente?.ci && <Chip label={`CI: ${p.cliente.ci}`} size="small" />}
-                              </Stack>
+                              </Box>
                             </Box>
 
-                            <Box sx={{ml:2, display:'flex', gap:1}}>
-                              <Button variant="outlined" size="small" onClick={() => alert('Reimprimir no implementado')} sx={{textTransform:'none'}}>Reimprimir</Button>
-                              <Button variant="contained" color="error" size="small" onClick={() => handleAnular(p.id)} disabled={p.estado===false} sx={{textTransform:'none'}}>Anular</Button>
+                            <Box sx={{ml:1, display:'flex', flexDirection:'column', gap:0.5}}>
+                              <Button variant="outlined" size="small" onClick={() => reimprimirPasaje(p.id)} sx={{textTransform:'none', minWidth:80}}>Imprimir</Button>
+                              <Button variant="contained" color="error" size="small" onClick={() => requestAnular(p.id)} disabled={p.estado===false} sx={{textTransform:'none', minWidth:80}}>Anular</Button>
                             </Box>
-                        </ListItem>
-                        <Divider component="li" />
-                    </Fragment>
-                  ))}
+                          </ListItem>
+                          <Divider component="li" />
+                        </Fragment>
+                      ))}
                     </List>
                   </DialogContent>
                   <DialogActions>
                     <Button onClick={closePasajes}>Cerrar</Button>
                   </DialogActions>
                 </Dialog>
+                  {/* Dialog de confirmación para anular */}
+                  <Dialog open={confirmAnular.open} onClose={cancelAnular}>
+                    <DialogTitle>Confirmar anulación</DialogTitle>
+                    <DialogContent>
+                      ¿Confirma que desea anular este pasaje?
+                    </DialogContent>
+                    <DialogActions>
+                      <Button onClick={cancelAnular}>Cancelar</Button>
+                      <Button onClick={performAnular} color="error" variant="contained">Anular</Button>
+                    </DialogActions>
+                  </Dialog>
+
+                  {/* Snackbar global */}
+                  <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={closeSnackbar} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+                    <Alert onClose={closeSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+                      {snackbar.message}
+                    </Alert>
+                  </Snackbar>
           </>
         )}
       </div>

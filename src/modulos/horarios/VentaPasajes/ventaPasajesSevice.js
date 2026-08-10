@@ -22,9 +22,10 @@ export async function getHorarioById(id) {
   return res.json()
 }
 
-const BASE_URL_PASAJES = '/api/pasajes'
+const BASE_URL_PASAJES = 'http://localhost:5093/api/pasajes'
 
 export async function postPasajesBatch(items) {
+    console.log('Posting pasajes batch:', items)  // Log the items being sent
   const res = await fetch(BASE_URL_PASAJES, {
     method: 'POST',
     headers: authHeaders(),
@@ -47,4 +48,16 @@ export async function deletePasaje(id) {
     throw new Error(`Error deleting pasaje: ${res.status} ${txt}`)
   }
   return res.json()
+}
+
+// Descargar hoja de ruta (PDF) para un horario
+export async function getHojaRuta(horarioId) {
+  const url = `http://localhost:5093/api/ticket/horarioHojaRuta/${horarioId}`
+  const headers = { 'Authorization': `Bearer ${getToken()}` }
+  const res = await fetch(url, { method: 'GET', headers })
+  if (!res.ok) {
+    const txt = await res.text()
+    throw new Error(`Error fetching hoja de ruta: ${res.status} ${txt}`)
+  }
+  return res.blob()
 }
