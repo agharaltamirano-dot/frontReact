@@ -1,0 +1,199 @@
+/* ===== MÓDULO PASAJES — REDISEÑO MUI ===== */
+
+.pasajes-screen-v2 {
+  padding: 4px 0 40px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ── KPI Cards ─────────────────────────────────────────────────────────────── */
+.pasajes-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.pasajes-kpi {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+  border-radius: 14px;
+  color: white;
+}
+
+.pasajes-kpi--blue   { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); box-shadow: 0 6px 20px rgba(37,99,235,.25); }
+.pasajes-kpi--green  { background: linear-gradient(135deg, #059669 0%, #047857 100%); box-shadow: 0 6px 20px rgba(5,150,105,.25); }
+.pasajes-kpi--red    { background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); box-shadow: 0 6px 20px rgba(220,38,38,.25); }
+.pasajes-kpi--purple { background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%); box-shadow: 0 6px 20px rgba(124,58,237,.25); }
+
+/* ── Filtros ───────────────────────────────────────────────────────────────── */
+.pasajes-filter-paper {
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 14px !important;
+  padding: 16px 20px !important;
+  background: #f8fafc !important;
+}
+
+/* ── Tabla ─────────────────────────────────────────────────────────────────── */
+.pasajes-table-paper {
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 14px !important;
+  overflow: hidden;
+}
+
+.pasajes-table-v2 thead th {
+  background: #f8fafc;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: #64748b;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 13px 14px;
+  white-space: nowrap;
+}
+
+.pasajes-table-v2 tbody td {
+  font-size: 13.5px;
+  padding: 11px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.pasajes-table-v2 tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.pasajes-table-v2 tbody tr:hover td {
+  background: #fafbff;
+}
+
+.row-anulado-v2 td {
+  opacity: 0.5;
+}
+
+/* ── Chips ─────────────────────────────────────────────────────────────────── */
+.chip-activo {
+  background: #dcfce7 !important;
+  color: #166534 !important;
+  font-weight: 700 !important;
+  font-size: 11px !important;
+  border: 1px solid #bbf7d0 !important;
+}
+
+.chip-anulado {
+  background: #fee2e2 !important;
+  color: #991b1b !important;
+  font-weight: 700 !important;
+  font-size: 11px !important;
+  border: 1px solid #fecaca !important;
+}
+
+.chip-monto {
+  background: linear-gradient(90deg, #ecfdf5, #f0fdf4) !important;
+  color: #065f46 !important;
+  font-weight: 800 !important;
+  font-size: 12px !important;
+  border: 1px solid #a7f3d0 !important;
+}
+
+.chip-reserva {
+  background: #fffbeb !important;
+  color: #92400e !important;
+  font-weight: 700 !important;
+  font-size: 10px !important;
+  border: 1px solid #fde68a !important;
+}
+
+/* ── Botones de acción en tabla ────────────────────────────────────────────── */
+.btn-action-print {
+  color: #2563eb !important;
+  background: #eff6ff !important;
+  border-radius: 8px !important;
+  transition: all 0.2s !important;
+}
+
+.btn-action-print:hover {
+  background: #dbeafe !important;
+  box-shadow: 0 3px 8px rgba(37,99,235,.2) !important;
+  transform: translateY(-1px);
+}
+
+.btn-action-cancel {
+  color: #dc2626 !important;
+  background: #fef2f2 !important;
+  border-radius: 8px !important;
+  transition: all 0.2s !important;
+}
+
+.btn-action-cancel:hover:not(:disabled) {
+  background: #fee2e2 !important;
+  box-shadow: 0 3px 8px rgba(220,38,38,.2) !important;
+  transform: translateY(-1px);
+}
+
+.btn-action-cancel:disabled {
+  color: #cbd5e1 !important;
+  background: #f1f5f9 !important;
+}
+
+/* ── Refresh btn ───────────────────────────────────────────────────────────── */
+.refresh-btn {
+  background: white !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 10px !important;
+  color: #64748b !important;
+  width: 38px !important;
+  height: 38px !important;
+  transition: all 0.2s !important;
+}
+
+.refresh-btn:hover {
+  border-color: #6366f1 !important;
+  color: #6366f1 !important;
+}
+
+/* ── Paginación ────────────────────────────────────────────────────────────── */
+.pasajes-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-top: 1px solid #f1f5f9;
+  background: #fafbfc;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ── Responsive ────────────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .pasajes-kpi-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .pasajes-table-v2 thead th:nth-child(6),
+  .pasajes-table-v2 tbody td:nth-child(6),
+  .pasajes-table-v2 thead th:nth-child(7),
+  .pasajes-table-v2 tbody td:nth-child(7) {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .pasajes-kpi-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .pasajes-filter-paper {
+    padding: 12px !important;
+  }
+
+  .pasajes-table-v2 thead th:nth-child(4),
+  .pasajes-table-v2 tbody td:nth-child(4) {
+    display: none;
+  }
+}

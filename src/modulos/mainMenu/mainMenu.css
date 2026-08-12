@@ -159,7 +159,7 @@
 .admin-main {
     flex: 1;
     margin-left: 250px;
-    padding: 40px 48px;
+    padding: 40px 10px 10px 48px;
     width: calc(100% - 280px);
     box-sizing: border-box;
 }
@@ -228,4 +228,103 @@
 
 .main-content-container {
     width: 100%;
+}
+
+/* =============================================
+   RESPONSIVE — TABLET & MOBILE
+   ============================================= */
+
+/* Botón hamburguesa: oculto en escritorio */
+.hamburger-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    color: #334155;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    transition: background 0.2s ease;
+    flex-shrink: 0;
+}
+
+.hamburger-btn:hover {
+    background: #f1f5f9;
+}
+
+/* Overlay oscuro detrás del sidebar en móvil */
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 99;
+}
+
+@media (max-width: 768px) {
+    /* El sidebar se oculta fuera de la pantalla por defecto */
+    .admin-sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 200;
+        width: 270px;
+    }
+
+    /* Cuando está abierto se desliza hacia adentro */
+    .admin-sidebar.sidebar-open {
+        transform: translateX(0);
+    }
+
+    /* El overlay aparece cuando el sidebar está abierto */
+    .sidebar-overlay {
+        display: block;
+    }
+
+    /* El contenido ocupa toda la pantalla */
+    .admin-main {
+        margin-left: 0 !important;
+        width: 100% !important;
+        padding: 20px 16px 20px 16px;
+    }
+
+    /* Mostrar el botón hamburguesa */
+    .hamburger-btn {
+        display: flex;
+    }
+
+    /* Header más compacto */
+    .admin-header {
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .page-title {
+        font-size: 22px;
+    }
+
+    .page-subtitle {
+        font-size: 13px;
+    }
+
+    /* Ocultar texto en user-info para ahorrar espacio */
+    .user-details {
+        display: none;
+    }
+
+    .user-info {
+        padding: 8px 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .admin-main {
+        padding: 16px 12px;
+    }
+
+    .page-title {
+        font-size: 18px;
+    }
 }

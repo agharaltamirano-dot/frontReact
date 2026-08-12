@@ -65,7 +65,8 @@ function Usuarios() {
       const res = await fetch(BASE_URL, { headers: authHeaders() })
       if (!res.ok) throw new Error(`Error ${res.status}`)
       const data = await res.json()
-      setUsuarios(data)
+      // Keep only active users (estado === true)
+      setUsuarios(Array.isArray(data) ? data.filter(u => u && u.estado === true) : [])
     } catch (err) {
       console.error(err)
       showNotification('Error al cargar usuarios: ' + err.message, 'error')

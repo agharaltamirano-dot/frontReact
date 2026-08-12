@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import RegistrarEncomienda from '../encomiendas/RegistrarEncomienda/registrarEncomienda'
 import './mainMenu.css'
 
 // ─── Mapa de íconos (valor del campo "icono" devuelto por el back) ─────────────
@@ -133,12 +135,16 @@ const getIcon = (icono) => ICON_SVG[icono] ?? ICON_SVG['default']
 
 /** Menús de respaldo en caso de que el backend aún no devuelva todos los módulos */
 const DEFAULT_FALLBACK_MENUS = [
+  { id: 'm-dash', nombre: 'Dashboard', rutaAccion: '/dashboard', icono: 'bar-chart', tipo: 'menu', padreId: null, orden: 0 },
   { id: 'm-usr', nombre: 'Usuarios', rutaAccion: '/usuarios', icono: 'users', tipo: 'menu', padreId: null, orden: 1 },
-  { id: 'm-cond', nombre: 'Conductores', rutaAccion: '/conductores', icono: 'user-people', tipo: 'menu', padreId: null, orden: 2 },
-  { id: 'm-veh', nombre: 'Vehículos', rutaAccion: '/vehiculos', icono: 'car', tipo: 'menu', padreId: null, orden: 3 },
-  { id: 'm-asi', nombre: 'Distribución de asientos', rutaAccion: '/asientos', icono: 'asientos', tipo: 'menu', padreId: null, orden: 4 },
-  { id: 'm-rut', nombre: 'Rutas', rutaAccion: '/rutas', icono: 'route', tipo: 'menu', padreId: null, orden: 5 },
-  { id: 'm-hor', nombre: 'Horarios', rutaAccion: '/horarios', icono: 'clock', tipo: 'menu', padreId: null, orden: 6 }
+  { id: 'm-cli', nombre: 'Clientes', rutaAccion: '/clientes', icono: 'user-check', tipo: 'menu', padreId: null, orden: 2 },
+  { id: 'm-cond', nombre: 'Conductores', rutaAccion: '/conductores', icono: 'user-people', tipo: 'menu', padreId: null, orden: 3 },
+  { id: 'm-veh', nombre: 'Vehículos', rutaAccion: '/vehiculos', icono: 'car', tipo: 'menu', padreId: null, orden: 4 },
+  { id: 'm-asi', nombre: 'Distribución de asientos', rutaAccion: '/asientos', icono: 'asientos', tipo: 'menu', padreId: null, orden: 5 },
+  { id: 'm-rut', nombre: 'Rutas', rutaAccion: '/rutas', icono: 'route', tipo: 'menu', padreId: null, orden: 6 },
+  { id: 'm-hor', nombre: 'Horarios', rutaAccion: '/horarios', icono: 'clock', tipo: 'menu', padreId: null, orden: 7 },
+  { id: 'm-pas', nombre: 'Pasajes', rutaAccion: '/pasajes', icono: 'bar-chart', tipo: 'menu', padreId: null, orden: 8 },
+  { id: 'm-enc', nombre: 'Encomiendas', rutaAccion: '/encomiendas', icono: 'truck', tipo: 'menu', padreId: null, orden: 9 }
 ]
 
 /** Lee authData de sessionStorage de forma segura */
@@ -162,6 +168,8 @@ const getInitials = (nombre = '') =>
 function MainMenu() {
   const navigate = useNavigate()
   const location = useLocation()
+  const [openRegisterModal, setOpenRegisterModal] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   // ── Sesión ────────────────────────────────────────────────────────────────────
   const authData = getAuthData()
@@ -209,15 +217,18 @@ function MainMenu() {
 
   return (
     <div className="admin-layout">
+      {/* Overlay oscuro para cerrar sidebar en móvil */}
+      {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
+
       {/* Sidebar */}
-      <aside className="admin-sidebar">
+      <aside className={`admin-sidebar${sidebarOpen ? ' sidebar-open' : ''}`}>
         <div className="sidebar-header">
           <div className="sidebar-logo">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
             </svg>
           </div>
-          <h2 className="sidebar-title">Transporte EDDA</h2>
+          <h2 className="sidebar-title">Rio San Juan de Oro</h2>
         </div>
 
         <nav className="sidebar-nav">
@@ -247,11 +258,50 @@ function MainMenu() {
       <main className="admin-main">
         {/* Header */}
         <header className="admin-header">
-          <div className="header-left">
-            <h1 className="page-title">{pageTitle}</h1>
-            <p className="page-subtitle">{pageSubtitle}</p>
+          <div className="header-left" style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            {/* Botón hamburguesa solo visible en móvil via CSS */}
+            <button
+              className="hamburger-btn"
+              onClick={() => setSidebarOpen(prev => !prev)}
+              aria-label="Abrir menú"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            </button>
+            <div>
+              <h1 className="page-title">{pageTitle}</h1>
+              <p className="page-subtitle">{pageSubtitle}</p>
+            </div>
           </div>
-          <div className="header-right">
+          <div className="header-right" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <button
+              onClick={() => setOpenRegisterModal(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 16px',
+                backgroundColor: '#2563eb',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '8px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                fontSize: '14px',
+                boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              <span>Encomienda</span>
+            </button>
+
             <div className="user-info">
               <div className="user-avatar">
                 <span>{getInitials(nombreUsuario)}</span>
@@ -263,6 +313,12 @@ function MainMenu() {
             </div>
           </div>
         </header>
+
+        {/* Modal independiente para Registrar Encomienda accesible desde cualquier lugar */}
+        <RegistrarEncomienda
+          open={openRegisterModal}
+          onClose={() => setOpenRegisterModal(false)}
+        />
 
         {/* Contenedor donde se renderizarán las pantallas hijas */}
         <div className="main-content-container">

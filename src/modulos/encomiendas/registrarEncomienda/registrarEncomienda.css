@@ -1,0 +1,58 @@
+/* ===== REGISTRAR ENCOMIENDA MODAL STYLES ===== */
+
+.registrar-encomienda-paper {
+  border-radius: 16px !important;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.15) !important;
+}
+
+.modal-section-title {
+  font-size: 0.825rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #475569;
+  margin-bottom: 12px !important;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.client-column-box {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  height: 100%;
+}
+
+.pagado-toggle-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f1f5f9;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+}
+
+.btn-pagado-toggle {
+  min-width: 140px !important;
+  font-weight: 700 !important;
+  border-radius: 10px !important;
+  text-transform: uppercase !important;
+  padding: 8px 16px !important;
+  transition: all 0.2s ease !important;
+}
+
+.btn-pagado-true {
+  background-color: #2e7d32 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(46, 125, 50, 0.25) !important;
+}
+
+.btn-pagado-false {
+  background-color: #ed6c02 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(237, 108, 2, 0.25) !important;
+}
