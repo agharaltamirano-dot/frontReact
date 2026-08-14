@@ -1,6 +1,6 @@
 import React, { useEffect, useState, Fragment } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Box, Stack, Button, Dialog, DialogTitle, DialogContent, DialogActions, List, ListItem, ListItemText, ListItemAvatar, Avatar, Chip, Grid, Divider, Typography, Snackbar, Alert } from '@mui/material'
+import { Box, Stack, Button, Dialog, DialogTitle, DialogContent, DialogActions, List, ListItem, ListItemText, ListItemAvatar, Avatar, Chip, Grid, Divider, Typography, Snackbar, Alert, TextField, Select, MenuItem, FormControl, InputLabel } from '@mui/material'
 import { getHorarioById, postPasajesBatch, deletePasaje, getHojaRuta } from './ventaPasajesSevice'
 import './ventaPasajes.css'
 
@@ -29,8 +29,15 @@ export default function VentaPasajes() {
 
   const destinosOptions = (horario?.ruta?.destinos || []).map(d => {
     const pv = d.puntoVenta || {}
-    return { id: pv.id || d.id || '', nombre: pv.nombre || pv || '' }
+    return {
+      id: pv.id || d.id || '',
+      nombre: pv.nombre || pv || '',
+      tarifa: d.tarifa ?? horario?.ruta?.tarifa ?? 0,
+      visiblePasajes: !!pv.visiblePasajes
+    }
   })
+  const selectDestinos = destinosOptions.filter(d => !d.visiblePasajes)
+  const quickDestinos = destinosOptions.filter(d => d.visiblePasajes)
 
   const formatDateLocal = (dateStr) => {
     if (!dateStr) return ''
@@ -65,6 +72,11 @@ export default function VentaPasajes() {
 
   const updateSelectedField = (id, field, value) => {
     setSelectedSeats(prev => prev.map(s => Number(s.id) === Number(id) ? { ...s, [field]: value } : s))
+  }
+
+  const selectDestino = (id, destino) => {
+    if (!destino) return
+    setSelectedSeats(prev => prev.map(s => Number(s.id) === Number(id) ? { ...s, destinoId: destino.id, monto: destino.tarifa } : s))
   }
 
   const confirmSale = (id) => {
@@ -414,6 +426,18 @@ export default function VentaPasajes() {
                       <span className="destino-name" style={{fontSize:'0.85rem', color:'#374151'}}>{pasaje.destino || (seat.pasajes?.destinoId ? getDestinoName(seat.pasajes.destinoId) : '')}</span>
                     </div>
                   </div>
+                  <button
+                    className="seat-print-btn"
+                    title="Reimprimir recibo"
+                    aria-label="Reimprimir recibo"
+                    onClick={(e) => { e.stopPropagation(); reimprimirPasaje(pasaje.id) }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                      <path d="M6 9V3h12v6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                      <rect x="4" y="9" width="16" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.8"/>
+                      <path d="M6 14h12v7H6z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
                 </>
               ) : (
                 <>
@@ -463,13 +487,24 @@ export default function VentaPasajes() {
             <div className="horario-row card">
               <div className="horario-item fecha"><strong>Fecha:</strong> {formatDateLocal(horario.fecha)}</div>
               <div className="horario-item hora"><strong>Hora:</strong> {horario.hora}</div>
-              <div className="horario-item ruta"><strong>Ruta:</strong> {(() => {
+              <div className="horario-item ruta-cards">{(() => {
                 const dests = Array.isArray(horario.ruta?.destinos) ? [...horario.ruta.destinos].sort((a,b)=> (a.orden||0)-(b.orden||0)) : []
-                const o = dests[0]?.puntoVenta?.nombre || ''
-                const d = dests[dests.length-1]?.puntoVenta?.nombre || ''
-                return `${o} → ${d}`
+                const origen = dests[0]
+                const restantes = dests.slice(1)
+                return (
+                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                    <Chip label={origen?.puntoVenta?.nombre || 'Origen'} className="chip-origen" />
+                    {restantes.map((d, idx) => (
+                      <Chip
+                        key={d.puntoVenta?.id || d.id || idx}
+                        label={`${d.puntoVenta?.nombre || '-'} · Bs. ${Number(d.tarifa || 0).toFixed(2)}`}
+                        variant="outlined"
+                        className="chip-destino"
+                      />
+                    ))}
+                  </Stack>
+                )
               })()}</div>
-              <div className="horario-item tarifa"><strong>Tarifa:</strong> Bs. {Number(horario.ruta?.tarifa || 0).toFixed(2)}</div>
             </div>
             <div className="venta-columns">
             <div className="card sell-card">
@@ -478,47 +513,72 @@ export default function VentaPasajes() {
                 {selectedSeats.length === 0 && <div className="empty">No hay asientos seleccionados</div>}
                 {selectedSeats.map(s => (
                   <div className="selected-item" key={s.id}>
-                    <div className="seat-badge">{s.numero}</div>
+                    <div className="seat-summary">
+                      <div className="seat-badge">{s.numero}</div>
+                      <TextField
+                        type="number"
+                        size="small"
+                        label="Monto"
+                        inputProps={{ step: '0.01', min: '0' }}
+                        value={s.monto || ''}
+                        onChange={(e) => updateSelectedField(s.id, 'monto', e.target.value)}
+                        className="monto-input"
+                      />
+                    </div>
                     <div className="selected-meta">
-                      <input
-                        type="text"
+                      <TextField
+                        size="small"
                         placeholder="Nombre del pasajero (obligatorio)"
                         value={s.pasajero || ''}
                         onChange={(e) => updateSelectedField(s.id, 'pasajero', e.target.value)}
-                        className="input-small"
+                        fullWidth
                       />
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        placeholder="Monto (Bs.) - obligatoria"
-                        value={s.monto || ''}
-                        onChange={(e) => updateSelectedField(s.id, 'monto', e.target.value)}
-                        className="input-small"
-                      />
-                      <input
-                        type="text"
-                        placeholder="CI (opcional)"
-                        value={s.ci || ''}
-                        onChange={(e) => updateSelectedField(s.id, 'ci', e.target.value)}
-                        className="input-small"
-                      />
-                      <input
-                        type="tel"
-                        placeholder="Teléfono (opcional)"
-                        value={s.telefono || ''}
-                        onChange={(e) => updateSelectedField(s.id, 'telefono', e.target.value)}
-                        className="input-small"
-                      />
-                      <select value={s.destinoId || ''} onChange={(e) => updateSelectedField(s.id, 'destinoId', e.target.value)} className="input-small">
-                        <option value="">Seleccionar destino</option>
-                        {destinosOptions.map(d => (
-                          <option key={d.id} value={d.id}>{d.nombre}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="selected-actions">
-                      <button onClick={() => removeSelected(s.id)} className="remove-btn" style={{background:'#dc2626', color:'#fff', border:'none'}} aria-label={`Quitar asiento ${s.numero}`}>Quitar</button>
+                      <Stack direction="row" spacing={1}>
+                        <TextField
+                          size="small"
+                          placeholder="CI (opcional)"
+                          value={s.ci || ''}
+                          onChange={(e) => updateSelectedField(s.id, 'ci', e.target.value)}
+                          fullWidth
+                        />
+                        <TextField
+                          size="small"
+                          type="tel"
+                          placeholder="Teléfono (opcional)"
+                          value={s.telefono || ''}
+                          onChange={(e) => updateSelectedField(s.id, 'telefono', e.target.value)}
+                          fullWidth
+                        />
+                      </Stack>
+                      <FormControl size="small" fullWidth>
+                        <InputLabel id={`destino-label-${s.id}`}>Destino</InputLabel>
+                        <Select
+                          labelId={`destino-label-${s.id}`}
+                          label="Destino"
+                          value={s.destinoId || ''}
+                          onChange={(e) => selectDestino(s.id, selectDestinos.find(d => String(d.id) === String(e.target.value)))}
+                        >
+                          <MenuItem value=""><em>Seleccionar destino</em></MenuItem>
+                          {selectDestinos.map(d => (
+                            <MenuItem key={d.id} value={d.id}>{d.nombre} · Bs. {Number(d.tarifa || 0).toFixed(2)}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      {quickDestinos.length > 0 && (
+                        <Stack direction="row" spacing={1} className="quick-destinos">
+                          {quickDestinos.map(d => (
+                            <Button
+                              key={d.id}
+                              size="small"
+                              variant={String(s.destinoId) === String(d.id) ? 'contained' : 'outlined'}
+                              onClick={() => selectDestino(s.id, d)}
+                              className="quick-destino-btn"
+                            >
+                              {d.nombre} · Bs. {Number(d.tarifa || 0).toFixed(2)}
+                            </Button>
+                          ))}
+                        </Stack>
+                      )}
                     </div>
                   </div>
                 ))}

@@ -13,6 +13,7 @@ import Pasajes from './modulos/pasajes/pasajes'
 import Encomiendas from './modulos/encomiendas/encomiendas'
 import Rutas from './modulos/rutas/rutas'
 import Asientos from './modulos/distribucionAsientos/asientos'
+import PuntoVenta from './modulos/puntoVenta/puntoVenta'
 
 function App() {
   return (
@@ -34,6 +35,7 @@ function App() {
           <Route path="horarios/venta/:id" element={<VentaPasajes />} />
           <Route path="pasajes" element={<Pasajes />} />
           <Route path="encomiendas" element={<Encomiendas />} />
+          <Route path="puntos-venta" element={<PuntoVenta />} />
         </Route>
       </Routes>
     </Router>

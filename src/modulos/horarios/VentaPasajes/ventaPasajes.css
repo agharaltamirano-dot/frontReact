@@ -137,24 +137,22 @@
   font-weight: 600;
   color: #0f172a;
 }
-.venta-screen .horario-item.ruta {
-  font-size: 15px;
-  color: #0b5b8a;
-  background: #f0f9ff;
-  padding: 8px 12px;
-  border-radius: 10px;
-  font-weight: 700;
+.venta-screen .horario-item.ruta-cards {
   flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 4px 0;
 }
-.venta-screen .horario-item.tarifa {
-  font-size: 14px;
-  color: #0f172a;
-  background: transparent;
-  padding: 6px 8px;
-  border-radius: 6px;
+.venta-screen .chip-origen {
+  background: #0f172a !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+}
+.venta-screen .chip-destino {
+  background: #f0f9ff !important;
+  border-color: #0284c7 !important;
+  color: #0369a1 !important;
+  font-weight: 600 !important;
 }
 .venta-screen .asientos-meta.movil-meta {
   font-size: 14px;
@@ -190,6 +188,13 @@
   border-radius: 8px;
   background: #f8fafc;
 }
+.venta-screen .seat-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
 .venta-screen .seat-badge {
   background: #0f172a;
   color: #fff;
@@ -197,12 +202,26 @@
   padding: 8px 12px;
   font-weight: 700;
   font-size: 16px;
+  text-align: center;
+}
+.venta-screen .monto-input {
+  width: 110px;
 }
 .venta-screen .selected-meta {
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+.venta-screen .quick-destinos {
+  flex-wrap: wrap;
+  row-gap: 8px !important;
+}
+.venta-screen .quick-destino-btn {
+  text-transform: none !important;
+  border-radius: 20px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
 }
 .venta-screen .input-small {
   padding: 8px;
@@ -355,6 +374,31 @@
 }
 .venta-screen .reservation-badge svg path {
   fill: #f59e0b;
+}
+
+/* Botón circular de reimpresión dentro del asiento ocupado */
+.venta-screen .seat-print-btn {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid rgba(127, 29, 29, 0.35);
+  background: #fff;
+  color: #7f1d1d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  transition: all 0.15s ease;
+  z-index: 2;
+}
+.venta-screen .seat-print-btn:hover {
+  background: #7f1d1d;
+  color: #fff;
+  transform: scale(1.08);
 }
 
 /* Legend icon for reservations */

@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import autoImg from '../../assets/auto.jpeg'
+import logoImg from '../../assets/logo9.png'
 import './login.css'
 
 function Login() {
@@ -61,7 +63,7 @@ function Login() {
     return (
 
         <div className="login-wrapper">
-            {/* Panel izquierdo - Imagen y olas */}
+            {/* Panel izquierdo - Animación con formulario */}
             <div className="login-visual">
                 <div className="waves-container">
                     <div className="wave wave-1"></div>
@@ -69,9 +71,10 @@ function Login() {
                     <div className="wave wave-3"></div>
                 </div>
                 <div className="visual-content">
+                    {/* Logo y título arriba */}
                     <div className="logo-container">
                         <img
-                            src="/assets/images.jfif"
+                            src={logoImg}
                             alt="Asociación de Transporte"
                             className="company-logo"
                             onError={(e) => {
@@ -85,18 +88,12 @@ function Login() {
                             </svg>
                         </div>
                     </div>
-                    <h2 className="visual-title">Empresa de Transporte Rio San Juan del Oro</h2>
-                    <p className="visual-description">
-                        Sistema de administracion de boletos y encomiendas
-                    </p>
-                </div>
-            </div>
+                    <h2 className="visual-title">Empresa Transporte Rio San Juan del Oro</h2>
 
-            {/* Panel derecho - Formulario */}
-            <div className="login-form-panel">
-                <div className="form-container">
+                    {/* Formulario elevado */}
+                    <div className="form-card">
                     <div className="form-header">
-                        <h1 className="form-title">Iniciar Sesión</h1>
+                        <h1 className="form-title">Bienvenido de Nuevo</h1>
                         <p className="form-subtitle">Ingrese sus credenciales para acceder al sistema</p>
                     </div>
 
@@ -198,7 +195,19 @@ function Login() {
                             )}
                         </button>
                     </form>
+                    </div>
+
+                    {/* Descripción abajo */}
+                    <p className="visual-description">
+                        Sistema de administracion de boletos y encomiendas
+                    </p>
                 </div>
+            </div>
+
+            {/* Panel derecho - Imagen */}
+            <div className="login-image-panel">
+                <img src={autoImg} alt="Bus de la empresa" className="side-image" />
+                <div className="image-overlay"></div>
             </div>
         </div>
     )

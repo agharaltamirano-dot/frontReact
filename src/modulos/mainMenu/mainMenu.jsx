@@ -122,6 +122,14 @@ const ICON_SVG = {
       <rect x="3" y="14" width="7" height="7" rx="1.5" />
     </svg>
   ),
+  'storefront': (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M3 9l1-5h16l1 5" />
+      <path d="M3 9a2 2 0 004 0 2 2 0 004 0 2 2 0 004 0 2 2 0 004 0" />
+      <path d="M4 9v10a1 1 0 001 1h14a1 1 0 001-1V9" />
+      <path d="M9 21v-6h6v6" />
+    </svg>
+  ),
   'default': (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <circle cx="12" cy="12" r="10" />
@@ -144,7 +152,8 @@ const DEFAULT_FALLBACK_MENUS = [
   { id: 'm-rut', nombre: 'Rutas', rutaAccion: '/rutas', icono: 'route', tipo: 'menu', padreId: null, orden: 6 },
   { id: 'm-hor', nombre: 'Horarios', rutaAccion: '/horarios', icono: 'clock', tipo: 'menu', padreId: null, orden: 7 },
   { id: 'm-pas', nombre: 'Pasajes', rutaAccion: '/pasajes', icono: 'bar-chart', tipo: 'menu', padreId: null, orden: 8 },
-  { id: 'm-enc', nombre: 'Encomiendas', rutaAccion: '/encomiendas', icono: 'truck', tipo: 'menu', padreId: null, orden: 9 }
+  { id: 'm-enc', nombre: 'Encomiendas', rutaAccion: '/encomiendas', icono: 'truck', tipo: 'menu', padreId: null, orden: 9 },
+  { id: 'm-pv', nombre: 'Puntos de Venta', rutaAccion: '/puntos-venta', icono: 'storefront', tipo: 'menu', padreId: null, orden: 10 }
 ]
 
 /** Lee authData de sessionStorage de forma segura */
@@ -165,11 +174,21 @@ const getInitials = (nombre = '') =>
     .map((w) => w[0]?.toUpperCase() ?? '')
     .join('') || 'US'
 
+/** Ítems del dropdown de reportes (aún sin ruta funcional) */
+const REPORTES_ITEMS = [
+  { id: 'rep-clientes', nombre: 'Reporte de clientes' },
+  { id: 'rep-horarios', nombre: 'Reporte de horarios' },
+  { id: 'rep-pasajes', nombre: 'Reporte de pasajes' },
+  { id: 'rep-encomiendas', nombre: 'Reporte de encomiendas' },
+  { id: 'rep-conductores', nombre: 'Reporte de conductores' }
+]
+
 function MainMenu() {
   const navigate = useNavigate()
   const location = useLocation()
   const [openRegisterModal, setOpenRegisterModal] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [reportesOpen, setReportesOpen] = useState(false)
 
   // ── Sesión ────────────────────────────────────────────────────────────────────
   const authData = getAuthData()
@@ -231,18 +250,46 @@ function MainMenu() {
           <h2 className="sidebar-title">Rio San Juan de Oro</h2>
         </div>
 
-        <nav className="sidebar-nav">
-          {menuItems.map((item) => (
-            <NavLink
-              key={item.id}
-              to={item.rutaAccion}
-              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+        <div className="sidebar-body">
+          <nav className="sidebar-nav">
+            {menuItems.map((item) => (
+              <NavLink
+                key={item.id}
+                to={item.rutaAccion}
+                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+              >
+                {getIcon(item.icono)}
+                <span>{item.nombre}</span>
+              </NavLink>
+            ))}
+          </nav>
+
+          {/* Dropdown de Reportes */}
+          <div className="reportes-dropdown">
+            <button
+              className={`reportes-toggle${reportesOpen ? ' open' : ''}`}
+              onClick={() => setReportesOpen(prev => !prev)}
+              aria-expanded={reportesOpen}
             >
-              {getIcon(item.icono)}
-              <span>{item.nombre}</span>
-            </NavLink>
-          ))}
-        </nav>
+              <span className="reportes-toggle-left">
+                {getIcon('bar-chart')}
+                <span>Reportes</span>
+              </span>
+              <svg className="reportes-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+            {reportesOpen && (
+              <div className="reportes-submenu">
+                {REPORTES_ITEMS.map((r) => (
+                  <button key={r.id} className="reportes-subitem" type="button">
+                    {r.nombre}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
 
         <button onClick={handleLogout} className="logout-btn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
