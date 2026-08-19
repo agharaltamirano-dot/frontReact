@@ -207,9 +207,31 @@ const MOCK_ENCOMIENDAS = [
   }
 ]
 
-export async function getEncomiendas() {
+export async function getEncomiendas(filters = {}) {
   try {
-    const res = await fetch(BASE_URL, { headers: authHeaders() })
+    // Construir query string con los filtros
+    const queryParams = new URLSearchParams()
+    if (filters.clienteRemitenteId) queryParams.append('clienteRemitenteId', filters.clienteRemitenteId)
+    if (filters.clienteConsignatarioId) queryParams.append('clienteConsignatarioId', filters.clienteConsignatarioId)
+    if (filters.destino) queryParams.append('destino', filters.destino)
+    if (filters.estado !== undefined && filters.estado !== null && filters.estado !== '') {
+      queryParams.append('estado', filters.estado)
+    }
+    if (filters.recepcionFechaDesde) queryParams.append('recepcionFechaDesde', filters.recepcionFechaDesde)
+    if (filters.recepcionFechaHasta) queryParams.append('recepcionFechaHasta', filters.recepcionFechaHasta)
+    if (filters.entregaFechaDesde) queryParams.append('entregaFechaDesde', filters.entregaFechaDesde)
+    if (filters.entregaFechaHasta) queryParams.append('entregaFechaHasta', filters.entregaFechaHasta)
+    if (filters.numero) queryParams.append('numero', filters.numero)
+    if (filters.pagado !== undefined && filters.pagado !== null && filters.pagado !== '') {
+      queryParams.append('pagado', filters.pagado)
+    }
+    if (filters.usuarioId) queryParams.append('usuarioId', filters.usuarioId)
+    if (filters.nombreUsuario) queryParams.append('nombreUsuario', filters.nombreUsuario)
+
+    const queryString = queryParams.toString()
+    const url = queryString ? `${BASE_URL}?${queryString}` : BASE_URL
+
+    const res = await fetch(url, { headers: authHeaders() })
     if (!res.ok) {
       console.warn(`API encomiendas respondió ${res.status}. Usando datos de respaldo.`)
       return MOCK_ENCOMIENDAS

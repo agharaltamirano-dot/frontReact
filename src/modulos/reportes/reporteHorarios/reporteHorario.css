@@ -1,0 +1,131 @@
+.reporte-horarios-screen {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.reporte-horarios-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.reporte-horarios-title {
+  font-weight: 700 !important;
+  color: #1e293b;
+  margin-bottom: 4px !important;
+}
+
+.reporte-horarios-subtitle {
+  color: #64748b;
+}
+
+.reporte-export-button {
+  text-transform: none !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+.reporte-horarios-filter-paper {
+  padding: 20px;
+  border-radius: 12px !important;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.reporte-horarios-filter-paper .MuiFormControl-root {
+  min-width: 180px;
+}
+
+.reporte-refresh-button {
+  color: #3b82f6 !important;
+}
+
+.reporte-error {
+  padding: 12px 16px;
+  background-color: #fee2e2;
+  color: #dc2626;
+  border-radius: 8px;
+  margin: 16px 0;
+  font-weight: 500;
+}
+
+.reporte-horarios-table-paper {
+  margin-top: 20px;
+  border-radius: 12px !important;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+}
+
+.reporte-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 60px 20px;
+}
+
+.reporte-horarios-table {
+  min-width: 650px;
+}
+
+.reporte-horarios-table thead {
+  background-color: #f8fafc;
+}
+
+.reporte-horarios-table th {
+  font-weight: 600 !important;
+  color: #475569;
+  border-bottom: 2px solid #e2e8f0 !important;
+}
+
+.reporte-horarios-table td {
+  border-bottom: 1px solid #f1f5f9 !important;
+}
+
+.reporte-horarios-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.reporte-row-inactive {
+  opacity: 0.5;
+  background-color: #fef2f2 !important;
+}
+
+.reporte-status {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  background-color: #dcfce7;
+  color: #16a34a;
+}
+
+.reporte-status--inactive {
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+
+@media (max-width: 768px) {
+  .reporte-horarios-screen {
+    padding: 16px;
+  }
+
+  .reporte-horarios-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .reporte-horarios-filter-paper {
+    flex-direction: column;
+  }
+
+  .reporte-horarios-filter-paper .MuiFormControl-root {
+    width: 100%;
+  }
+}

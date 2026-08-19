@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import RegistrarEncomienda from '../encomiendas/RegistrarEncomienda/registrarEncomienda'
 import './mainMenu.css'
@@ -189,6 +189,7 @@ function MainMenu() {
   const [openRegisterModal, setOpenRegisterModal] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [reportesOpen, setReportesOpen] = useState(false)
+  const [selectedReporte, setSelectedReporte] = useState(null)
 
   // ── Sesión ────────────────────────────────────────────────────────────────────
   const authData = getAuthData()
@@ -202,6 +203,33 @@ function MainMenu() {
   const nombreUsuario = usuario?.usuario1 ?? 'Usuario'
   const rol = usuario?.rol ?? {}
   const nombreRol = rol?.nombre ?? 'Administrador'
+
+  const handleReporteClick = (item) => {
+    const reportRoutes = {
+      'rep-clientes': '/reportes/clientes',
+      'rep-pasajes': '/reportes/pasajes',
+      'rep-encomiendas': '/reportes/encomiendas',
+      'rep-horarios': '/reportes/horarios',
+      'rep-conductores': '/reportes/conductores'
+    }
+    const route = reportRoutes[item.id]
+    if (!route) return
+    // No cerrar el dropdown al seleccionar; marcar la opción y navegar
+    setSelectedReporte(item.id)
+    navigate(route)
+  }
+
+  // Sincronizar selección con la ruta actual (por ejemplo, al navegar directamente)
+  useEffect(() => {
+    const routeToId = {
+      '/reportes/clientes': 'rep-clientes',
+      '/reportes/pasajes': 'rep-pasajes',
+      '/reportes/encomiendas': 'rep-encomiendas',
+      '/reportes/horarios': 'rep-horarios',
+      '/reportes/conductores': 'rep-conductores'
+    }
+    setSelectedReporte(routeToId[location.pathname] ?? null)
+  }, [location.pathname])
 
   // Menús recibidos del servidor
   const serverMenus = (rol?.menus ?? []).filter((m) => m.tipo === 'menu' && m.padreId === null)
@@ -282,7 +310,13 @@ function MainMenu() {
             {reportesOpen && (
               <div className="reportes-submenu">
                 {REPORTES_ITEMS.map((r) => (
-                  <button key={r.id} className="reportes-subitem" type="button">
+                  <button
+                    key={r.id}
+                    className={`reportes-subitem ${r.id === selectedReporte ? 'selected' : ''}`}
+                    type="button"
+                    onClick={() => handleReporteClick(r)}
+                    style={r.id === selectedReporte ? { backgroundColor: '#2563eb', color: '#fff' } : {}}
+                  >
                     {r.nombre}
                   </button>
                 ))}

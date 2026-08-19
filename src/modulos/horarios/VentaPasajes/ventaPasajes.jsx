@@ -473,6 +473,16 @@ export default function VentaPasajes() {
     return sum + (isNaN(v) ? 0 : v)
   }, 0)
 
+  // Suma de montos de todos los pasajes del horario (solo activos)
+  const sumaPasajes = (horario?.pasajes || []).reduce((acc, p) => {
+    if (!p || p.estado !== true) return acc
+    const m = parseFloat(String(p.monto || 0).replace(',', '.'))
+    return acc + (isNaN(m) ? 0 : m)
+  }, 0)
+
+  // Encomiendas (valor por defecto 0 si no viene en el horario)
+  const encomiendasBs = Number(horario?.encomiendasBs) || 0
+
   return (
     <div className="venta-screen">
       {/* <div className="venta-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -506,7 +516,7 @@ export default function VentaPasajes() {
                 )
               })()}</div>
             </div>
-            <div className="venta-columns">
+              <div className="venta-columns">
             <div className="card sell-card">
               <h3>Pasajes</h3>
               <div className="selected-list">
@@ -595,6 +605,9 @@ export default function VentaPasajes() {
                     <span className="movil-badge">{movil || '-'}</span>
                     {' — '}
                     <span className="conductor-name">{conductor || '-'}</span>
+                    {' '}
+                    <span className="pasajes-sum">Pasajes: Bs. {sumaPasajes.toFixed(2)}</span>
+                    <span className="pasajes-sum" style={{ marginLeft: 8 }}>Encomiendas: Bs. {encomiendasBs.toFixed(2)}</span>
                   </>
                 )
               })()}</span></h3>

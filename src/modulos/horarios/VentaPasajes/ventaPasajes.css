@@ -163,6 +163,18 @@
   font-weight: 700;
 }
 
+/* Pasajes total badge */
+.venta-screen .pasajes-sum {
+  display: inline-block;
+  background: linear-gradient(90deg,#2563eb,#1e40af);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-weight: 700;
+  margin-left: 10px;
+  font-size: 13px;
+}
+
 /* Make horario-row responsive */
 @media (max-width: 800px) {
   .venta-screen .horario-row {

@@ -11,6 +11,11 @@ import Horarios from './modulos/horarios/horarios'
 import VentaPasajes from './modulos/horarios/VentaPasajes/ventaPasajes'
 import Pasajes from './modulos/pasajes/pasajes'
 import Encomiendas from './modulos/encomiendas/encomiendas'
+import ReporteEncomiendas from './modulos/reportes/reporteEncomiendas/reporteEncomiendas'
+import ReporteClientes from './modulos/reportes/reporteClientes/reporteClientes'
+import ReportePasajes from './modulos/reportes/reportePasajes/reportePasajes'
+import ReporteHorarios from './modulos/reportes/reporteHorarios/reporteHorarios'
+import ReporteConductores from './modulos/reportes/reporteConductores/reporteConductores'
 import Rutas from './modulos/rutas/rutas'
 import Asientos from './modulos/distribucionAsientos/asientos'
 import PuntoVenta from './modulos/puntoVenta/puntoVenta'
@@ -35,6 +40,11 @@ function App() {
           <Route path="horarios/venta/:id" element={<VentaPasajes />} />
           <Route path="pasajes" element={<Pasajes />} />
           <Route path="encomiendas" element={<Encomiendas />} />
+          <Route path="reportes/encomiendas" element={<ReporteEncomiendas />} />
+          <Route path="reportes/clientes" element={<ReporteClientes />} />
+          <Route path="reportes/pasajes" element={<ReportePasajes />} />
+          <Route path="reportes/horarios" element={<ReporteHorarios />} />
+          <Route path="reportes/conductores" element={<ReporteConductores />} />
           <Route path="puntos-venta" element={<PuntoVenta />} />
         </Route>
       </Routes>
