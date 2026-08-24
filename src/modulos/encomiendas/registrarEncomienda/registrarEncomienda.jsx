@@ -18,7 +18,9 @@ import {
   CircularProgress,
   Snackbar,
   Alert,
-  IconButton
+  IconButton,
+  useMediaQuery,
+  useTheme
 } from '@mui/material'
 
 import { getClientes, getPuntosVenta, createEncomienda } from './registrarEncomiendaService'
@@ -60,7 +62,24 @@ const PersonIcon = (props) => (
   </svg>
 )
 
+const CheckCircleIcon = (props) => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+    <polyline points="22 4 12 14.01 9 11.01" />
+  </svg>
+)
+
+const ClockIcon = (props) => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <circle cx="12" cy="12" r="9" />
+    <polyline points="12 7 12 12 16 14" />
+  </svg>
+)
+
 export default function RegistrarEncomienda({ open, onClose, onSuccess }) {
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+
   // Carga de listas desde backend / mock
   const [clientesList, setClientesList] = useState([])
   const [puntosVentaList, setPuntosVentaList] = useState([])
@@ -184,9 +203,16 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess }) {
     }
   }
 
+  const submitWithPaymentStatus = async (status) => {
+    setPagado(status)
+
+    const syntheticEvent = { preventDefault: () => {} }
+    await handleSubmit(syntheticEvent, status)
+  }
+
   // Validar y enviar formulario
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  const handleSubmit = async (e, forcedPagado = pagado) => {
+    e?.preventDefault?.()
 
     if (!contenido.trim()) {
       setSnackbar({ open: true, message: 'Debe ingresar el contenido de la encomienda.', severity: 'warning' })
@@ -216,11 +242,9 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess }) {
       const tomorrow = new Date(now)
       tomorrow.setDate(tomorrow.getDate() + 1)
 
-      // Formato fecha sin 'T': "YYYY-MM-DD HH:mm:ss"
       const fechaRecepcion = formatDateTimeWithoutT(now)
-      const fechaEntrega = formatDateTimeWithoutT(tomorrow)
+      const fechaEntrega = ''//formatDateTimeWithoutT(tomorrow)
 
-      // Construcción del objeto a enviar
       const payload = {
         contenido: contenido.trim(),
         fechaRecepcion,
@@ -228,12 +252,11 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess }) {
         monto: Number(monto),
         numero,
         estado: true,
-        pagado,
+        pagado: forcedPagado,
         destino,
         usuarioId: getUsuarioId()
       }
 
-      // Remitente: ID si fue elegido de la lista, u objeto si es un cliente nuevo
       if (selectedRemitente && selectedRemitente.id) {
         payload.clienteRemitenteId = selectedRemitente.id
       } else {
@@ -245,7 +268,6 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess }) {
         }
       }
 
-      // Consignatario: ID si fue elegido de la lista, u objeto si es un cliente nuevo
       if (selectedConsignatario && selectedConsignatario.id) {
         payload.clienteConsignatarioId = selectedConsignatario.id
       } else {
@@ -259,7 +281,7 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess }) {
 
       await createEncomienda(payload)
 
-      setSnackbar({ open: true, message: `Encomienda ${numero} registrada con éxito!`, severity: 'success' })
+      setSnackbar({ open: true, message: `Encomienda registrada con éxito!`, severity: 'success' })
 
       if (onSuccess) {
         onSuccess(payload)
@@ -283,7 +305,8 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess }) {
         onClose={onClose}
         maxWidth="md"
         fullWidth
-        PaperProps={{ className: 'registrar-encomienda-paper' }}
+        fullScreen={isMobile}
+        slotProps={{ paper: { className: 'registrar-encomienda-paper' } }}
       >
         <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#f8fafc', py: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -304,17 +327,16 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess }) {
           </IconButton>
         </DialogTitle>
 
-        <DialogContent dividers sx={{ p: 3 }}>
+        <DialogContent dividers sx={{ p: { xs: 2, sm: 3 } }}>
           {loadingData ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 6 }}>
               <CircularProgress size={36} />
             </Box>
           ) : (
             <Box component="form" id="form-registrar-encomienda" onSubmit={handleSubmit}>
-              <Grid container spacing={2.5}>
-                {/* Fila 1: Remitente y Consignatario en 2 columnas */}
-                <Grid item xs={12} md={6}>
-                  <Box className="client-column-box">
+              <Grid container spacing={2.5} sx={{ alignItems: 'stretch' }}>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <Box className="client-column-box" sx={{ height: '100%' }}>
                     <Typography variant="subtitle2" className="modal-section-title">
                       <PersonIcon style={{ fontSize: 18 }} />
                       Cliente Remitente (Envía)
@@ -345,7 +367,7 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess }) {
                     />
 
                     <Grid container spacing={1.5}>
-                      <Grid item xs={6}>
+                      <Grid size={{ xs: 6 }}>
                         <TextField
                           label="C.I. Remitente"
                           size="small"
@@ -358,7 +380,7 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess }) {
                           sx={{ bgcolor: '#ffffff' }}
                         />
                       </Grid>
-                      <Grid item xs={6}>
+                      <Grid size={{ xs: 6 }}>
                         <TextField
                           label="Teléfono Remitente"
                           size="small"
@@ -375,8 +397,53 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess }) {
                   </Box>
                 </Grid>
 
-                <Grid item xs={12} md={6}>
-                  <Box className="client-column-box">
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, height: '100%' }}>
+                    <TextField
+                      label="Contenido del Paquete / Encomienda *"
+                      placeholder="Ej: Caja con repuestos, Sobre con documentos..."
+                      multiline
+                      rows={8}
+                      fullWidth
+                      size="small"
+                      value={contenido}
+                      onChange={(e) => setContenido(e.target.value)}
+                      sx={{ bgcolor: '#ffffff', flex: 1 }}
+                    />
+
+                    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 1.5 }}>
+                      <FormControl fullWidth size="small">
+                        <InputLabel id="select-destino-label">Destino *</InputLabel>
+                        <Select
+                          labelId="select-destino-label"
+                          value={destino}
+                          label="Destino *"
+                          onChange={(e) => setDestino(e.target.value)}
+                        >
+                          {puntosVentaList.map((pv) => (
+                            <MenuItem key={pv.id || pv.nombre} value={pv.nombre}>
+                              {pv.nombre}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+
+                      <TextField
+                        label="Monto (Bs.) *"
+                        type="number"
+                        size="small"
+                        fullWidth
+                        slotProps={{ htmlInput: { step: '0.50', min: '0' } }}
+                        value={monto}
+                        onChange={(e) => setMonto(e.target.value)}
+                        sx={{ minWidth: { sm: 150 } }}
+                      />
+                    </Box>
+                  </Box>
+                </Grid>
+
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <Box className="client-column-box" sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, height: '100%' }}>
                     <Typography variant="subtitle2" className="modal-section-title">
                       <PersonIcon style={{ fontSize: 18 }} />
                       Cliente Consignatario (Recibe)
@@ -407,7 +474,7 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess }) {
                     />
 
                     <Grid container spacing={1.5}>
-                      <Grid item xs={6}>
+                      <Grid size={{ xs: 6 }}>
                         <TextField
                           label="C.I. Consignatario"
                           size="small"
@@ -420,7 +487,7 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess }) {
                           sx={{ bgcolor: '#ffffff' }}
                         />
                       </Grid>
-                      <Grid item xs={6}>
+                      <Grid size={{ xs: 6 }}>
                         <TextField
                           label="Teléfono Consignatario"
                           size="small"
@@ -436,84 +503,62 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess }) {
                     </Grid>
                   </Box>
                 </Grid>
-
-                {/* Fila 2: Contenido, Destino y Monto */}
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    label="Contenido del Paquete / Encomienda *"
-                    placeholder="Ej: Caja con repuestos, Sobre con documentos..."
-                    multiline
-                    rows={2}
-                    fullWidth
-                    size="small"
-                    value={contenido}
-                    onChange={(e) => setContenido(e.target.value)}
-                  />
-                </Grid>
-
-                <Grid item xs={12} sm={6} md={3}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel id="select-destino-label">Destino *</InputLabel>
-                    <Select
-                      labelId="select-destino-label"
-                      value={destino}
-                      label="Destino *"
-                      onChange={(e) => setDestino(e.target.value)}
-                    >
-                      {puntosVentaList.map((pv) => (
-                        <MenuItem key={pv.id || pv.nombre} value={pv.nombre}>
-                          {pv.nombre}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
-
-                <Grid item xs={12} sm={6} md={3}>
-                  <TextField
-                    label="Monto (Bs.) *"
-                    type="number"
-                    size="small"
-                    fullWidth
-                    inputProps={{ step: '0.50', min: '0' }}
-                    value={monto}
-                    onChange={(e) => setMonto(e.target.value)}
-                  />
-                </Grid>
-
-                {/* Fila 3: Botón Estado de Pago al fondo */}
-                <Grid item xs={12}>
-                  <Box className="pagado-toggle-box">
-                    <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
-                      Estado del Pago:
-                    </Typography>
-                    <Button
-                      type="button"
-                      variant="contained"
-                      className={`btn-pagado-toggle ${pagado ? 'btn-pagado-true' : 'btn-pagado-false'}`}
-                      onClick={() => setPagado(!pagado)}
-                    >
-                      {pagado ? 'PAGADO (Verde)' : 'POR PAGAR (Naranja)'}
-                    </Button>
-                  </Box>
-                </Grid>
               </Grid>
             </Box>
           )}
         </DialogContent>
 
-        <DialogActions sx={{ p: 2.5, bgcolor: '#f8fafc' }}>
-          <Button onClick={onClose} color="inherit" disabled={submitting} sx={{ textTransform: 'none' }}>
+        <DialogActions
+          sx={{
+            p: 2.5,
+            bgcolor: '#f8fafc',
+            display: 'flex',
+            flexDirection: { xs: 'column-reverse', sm: 'row' },
+            justifyContent: 'flex-end',
+            gap: 1.5
+          }}
+        >
+          <Button onClick={onClose} color="inherit" disabled={submitting} sx={{ textTransform: 'none', width: { xs: '100%', sm: 'auto' } }}>
             Cancelar
           </Button>
+
           <Button
-            type="submit"
-            form="form-registrar-encomienda"
+            type="button"
             variant="contained"
+            startIcon={<CheckCircleIcon />}
             disabled={submitting || loadingData}
-            sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 700, px: 3 }}
+            onClick={() => submitWithPaymentStatus(true)}
+            sx={{
+              textTransform: 'none',
+              borderRadius: 2,
+              fontWeight: 700,
+              px: 2.5,
+              width: { xs: '100%', sm: 'auto' },
+              bgcolor: '#16a34a',
+              '&:hover': { bgcolor: '#15803d' }
+            }}
           >
-            {submitting ? 'Guardando...' : 'Registrar Encomienda'}
+            {submitting ? 'Guardando...' : 'PAGADO'}
+          </Button>
+
+          <Button
+            type="button"
+            variant="contained"
+            startIcon={<ClockIcon />}
+            disabled={submitting || loadingData}
+            onClick={() => submitWithPaymentStatus(false)}
+            sx={{
+              textTransform: 'none',
+              borderRadius: 2,
+              fontWeight: 700,
+              px: 2.5,
+              width: { xs: '100%', sm: 'auto' },
+              bgcolor: '#f59e0b',
+              color: '#fff',
+              '&:hover': { bgcolor: '#d97706' }
+            }}
+          >
+            {submitting ? 'Guardando...' : 'POR PAGAR'}
           </Button>
         </DialogActions>
       </Dialog>

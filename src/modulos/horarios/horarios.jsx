@@ -254,12 +254,9 @@ function Horarios() {
 
   // ── Modales ──────────────────────────────────────────────────────────────────
   const handleAddNew = () => {
-    const t = new Date()
-    const tomorrow = new Date(t)
-    tomorrow.setDate(t.getDate() + 1)
-    const tomorrowStr = tomorrow.toISOString().split('T')[0]
+    const todayStr = new Date().toLocaleDateString('en-CA') // YYYY-MM-DD in local time
     setFormData({
-      fecha: tomorrowStr || '2026-08-01',
+      fecha: todayStr,
       hora: '08:30',
       estado: true,
       rutaId: rutas[0]?.id || 1,
@@ -295,9 +292,9 @@ function Horarios() {
     setSaving(true)
 
     // Validaciones
-    const todayStr = new Date().toISOString().split('T')[0]
-    if (!formData.fecha || formData.fecha <= todayStr) {
-      showNotification('La fecha es obligatoria y debe ser mayor que hoy', 'error')
+    const todayStr = new Date().toLocaleDateString('en-CA') // YYYY-MM-DD local
+    if (!formData.fecha || formData.fecha < todayStr) {
+      showNotification('La fecha no puede ser anterior a hoy', 'error')
       setSaving(false)
       return
     }
@@ -308,6 +305,21 @@ function Horarios() {
     }
     if (!formData.vehiculoId) {
       showNotification('Seleccione un vehículo válido', 'error')
+      setSaving(false)
+      return
+    }
+
+    // Validar que no exista ya un horario con la misma fecha, hora y vehículo
+    const isDuplicate = horarios.some(h =>
+      h.fecha?.split('T')[0] === formData.fecha &&
+      h.hora === formData.hora &&
+      Number(h.vehiculoId || h.vehiculo?.id) === Number(formData.vehiculoId) &&
+      (!editingHorario || h.id !== editingHorario.id)
+    )
+    if (isDuplicate) {
+      const veh = vehiculos.find(v => Number(v.id) === Number(formData.vehiculoId))
+      const vehLabel = veh ? `M-${veh.movil} (${veh.placa})` : `Vehículo #${formData.vehiculoId}`
+      showNotification(`Ya existe un horario el ${formData.fecha} a las ${formData.hora} para ${vehLabel}`, 'error')
       setSaving(false)
       return
     }
@@ -705,6 +717,7 @@ function Horarios() {
                     type="date"
                     className="input-field"
                     value={formData.fecha}
+                    min={new Date().toLocaleDateString('en-CA')}
                     onChange={(e) => setFormData({ ...formData, fecha: e.target.value })}
                     required
                   />

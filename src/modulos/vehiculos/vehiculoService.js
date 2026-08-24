@@ -23,23 +23,39 @@ export async function getVehiculos() {
 }
 
 export async function createVehiculo(payload) {
+  const isFormData = payload instanceof FormData;
+  const headers = isFormData 
+    ? { 'Authorization': `Bearer ${getToken()}` }
+    : authHeaders();
+  
+  const body = isFormData ? payload : JSON.stringify(payload);
+
   const res = await fetch(BASE_URL, {
     method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify(payload)
+    headers,
+    body
   })
   if (!res.ok) throw new Error('Error creating vehiculo')
-  return res.json()
+  const text = await res.text()
+  return text ? JSON.parse(text) : {}
 }
 
 export async function updateVehiculo(id, payload) {
+  const isFormData = payload instanceof FormData;
+  const headers = isFormData 
+    ? { 'Authorization': `Bearer ${getToken()}` }
+    : authHeaders();
+  
+  const body = isFormData ? payload : JSON.stringify(payload);
+
   const res = await fetch(`${BASE_URL}/${id}`, {
     method: 'PUT',
-    headers: authHeaders(),
-    body: JSON.stringify(payload)
+    headers,
+    body
   })
   if (!res.ok) throw new Error('Error updating vehiculo')
-  return res.json()
+  const text = await res.text()
+  return text ? JSON.parse(text) : {}
 }
 
 export async function deleteVehiculo(id) {

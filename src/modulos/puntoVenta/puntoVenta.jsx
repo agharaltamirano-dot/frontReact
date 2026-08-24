@@ -402,7 +402,7 @@ export default function PuntoVenta() {
                   color="primary"
                 />
               }
-              label={<Typography variant="body2" color="#475569">Punto de venta activo</Typography>}
+              label={<Typography variant="body2" color="#475569">Es punto de venta?</Typography>}
             />
             <Box>
               <FormControlLabel

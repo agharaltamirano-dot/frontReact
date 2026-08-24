@@ -3,6 +3,12 @@ import './vehiculos.css'
 import { getVehiculos, createVehiculo, updateVehiculo, deleteVehiculo, getConductores } from './vehiculoService'
 import { getDistribuciones } from './asientosService'
 
+function getVehicleImageUrl(path) {
+  if (!path) return null
+  if (path.startsWith('http://') || path.startsWith('https://')) return path
+  const separator = path.startsWith('/') ? '' : '/'
+  return `http://localhost:5093/assets/vehiculos${separator}${path}`
+}
 
 function Vehiculos() {
   const [vehiculos, setVehiculos] = useState([])
@@ -24,6 +30,11 @@ function Vehiculos() {
   const [vehicleToDelete, setVehicleToDelete] = useState(null)
   const [saving, setSaving] = useState(false)
 
+  // Archivo seleccionado y su previsualización para el vehículo
+  const [selectedFile, setSelectedFile] = useState(null)
+  const [previewUrl, setPreviewUrl] = useState(null)
+  const [fullscreenImage, setFullscreenImage] = useState(null)
+
   // Estado del Formulario
   const [formData, setFormData] = useState({
     movil: '',
@@ -37,7 +48,8 @@ function Vehiculos() {
     conductorId: null,
     propietarioId: null,
     distribucionId: distribucionesList[0]?.id || 5,
-    estado: true
+    estado: true,
+    foto: ''
   })
 
   const showNotification = (message, type = 'success') => {
@@ -117,6 +129,27 @@ function Vehiculos() {
     showNotification(`Estado del vehículo M-${vehicle.movil} actualizado a ${nuevoEstado ? 'Activo' : 'Inactivo'}`, 'success')
   }
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      const allowedExtensions = ['png', 'jpg', 'jpeg']
+      const fileExtension = file.name.split('.').pop().toLowerCase()
+      if (!allowedExtensions.includes(fileExtension)) {
+        showNotification('Solo se permiten imágenes en formato PNG, JPG o JPEG', 'error')
+        e.target.value = ''
+        return
+      }
+      setSelectedFile(file)
+      setPreviewUrl(URL.createObjectURL(file))
+    }
+  }
+
+  const handleRemoveImage = () => {
+    setSelectedFile(null)
+    setPreviewUrl(null)
+    setFormData(prev => ({ ...prev, foto: '' }))
+  }
+
   // ── Modales ──────────────────────────────────────────────────────────────────
   const handleAddNew = () => {
     const firstCondId = conductores[0]?.id || 1
@@ -134,13 +167,17 @@ function Vehiculos() {
       conductorId: firstCondId,
       propietarioId: secondCondId,
       distribucionId: firstDistribucionId,
-      estado: true
+      estado: true,
+      foto: ''
     })
+    setSelectedFile(null)
+    setPreviewUrl(null)
     setEditingVehicle(null)
     setShowAddModal(true)
   }
 
   const handleEdit = (vehicle) => {
+    const vehicleFoto = vehicle.foto || vehicle.Foto || ''
     setFormData({
       movil: vehicle.movil || '',
       placa: vehicle.placa || '',
@@ -153,8 +190,11 @@ function Vehiculos() {
       conductorId: vehicle.conductorId || vehicle.conductor?.id || conductores[0]?.id || 1,
       propietarioId: vehicle.propietarioId || vehicle.propietario?.id || conductores[0]?.id || 1,
       distribucionId: vehicle.asientosId || vehicle.asientos?.id || vehicle.distribucion?.id || distribucionesList[0]?.id || 5,
-      estado: vehicle.estado ?? true
+      estado: vehicle.estado ?? true,
+      foto: vehicleFoto
     })
+    setSelectedFile(null)
+    setPreviewUrl(vehicleFoto ? getVehicleImageUrl(vehicleFoto) : null)
     setEditingVehicle(vehicle)
     setShowAddModal(true)
   }
@@ -189,39 +229,94 @@ function Vehiculos() {
       return
     }
 
-    const payload = {
-      movil: formData.movil,
-      placa: formData.placa,
-      marca: formData.marca,
-      modelo: formData.modelo,
-      color: formData.color,
-      tipo: formData.tipo,
-      soat: formData.soat,
-      aseguradora: formData.aseguradora,
-      conductorId: Number(formData.conductorId),
-      propietarioId: Number(formData.propietarioId),
-      estado: Boolean(formData.estado),
-      distribucionId: Number(formData.distribucionId)
+    // Crear FormData
+    const fd = new FormData()
+    fd.append('movil', formData.movil)
+    fd.append('placa', formData.placa)
+    fd.append('marca', formData.marca)
+    fd.append('modelo', formData.modelo)
+    fd.append('color', formData.color)
+    fd.append('tipo', formData.tipo)
+    fd.append('soat', formData.soat)
+    fd.append('aseguradora', formData.aseguradora)
+    fd.append('conductorId', formData.conductorId.toString())
+    fd.append('propietarioId', formData.propietarioId.toString())
+    fd.append('estado', formData.estado.toString())
+    fd.append('distribucionId', formData.distribucionId.toString())
+    fd.append('Foto', formData.foto || '')
+
+    if (selectedFile) {
+      fd.append('foto', selectedFile)
     }
+
+    // Resolver objetos anidados locales por si falla el back o faltan en el response
+    const conductorObj = conductores.find(c => Number(c.id) === Number(formData.conductorId)) || { nombres: `Conductor #${formData.conductorId}`, apellidos: '' }
+    const propietarioObj = conductores.find(c => Number(c.id) === Number(formData.propietarioId)) || { nombres: `Propietario #${formData.propietarioId}`, apellidos: '' }
+    const distribucionObj = distribucionesList.find(d => Number(d.id) === Number(formData.distribucionId)) || { nombre: `Distribución #${formData.distribucionId}` }
 
     try {
       if (editingVehicle) {
-        try {
-          await updateVehiculo(editingVehicle.id, { ...payload, id: editingVehicle.id })
-        } catch (err) {
-          console.log('PUT backend vehiculos no disponible:', err.message)
+        let updatedVehicle = {
+          id: editingVehicle.id,
+          movil: formData.movil,
+          placa: formData.placa,
+          marca: formData.marca,
+          modelo: formData.modelo,
+          color: formData.color,
+          tipo: formData.tipo,
+          soat: formData.soat,
+          aseguradora: formData.aseguradora,
+          conductorId: Number(formData.conductorId),
+          propietarioId: Number(formData.propietarioId),
+          estado: Boolean(formData.estado),
+          distribucionId: Number(formData.distribucionId),
+          foto: formData.foto,
+          conductor: conductorObj,
+          propietario: propietarioObj,
+          distribucion: distribucionObj
         }
 
-        setVehiculos(prev => prev.map(v => v.id === editingVehicle.id ? { ...payload, id: editingVehicle.id } : v))
+        try {
+          fd.append('id', editingVehicle.id)
+          const data = await updateVehiculo(editingVehicle.id, fd)
+          if (data && data.id) {
+            updatedVehicle = data
+          }
+        } catch (err) {
+          console.log('PUT backend vehiculos no disponible, actualizando local:', err.message)
+        }
+
+        setVehiculos(prev => prev.map(v => v.id === editingVehicle.id ? updatedVehicle : v))
         showNotification('Vehículo actualizado exitosamente')
       } else {
         const newId = Date.now()
-        const newVehicle = { ...payload, id: newId }
+        let newVehicle = {
+          id: newId,
+          movil: formData.movil,
+          placa: formData.placa,
+          marca: formData.marca,
+          modelo: formData.modelo,
+          color: formData.color,
+          tipo: formData.tipo,
+          soat: formData.soat,
+          aseguradora: formData.aseguradora,
+          conductorId: Number(formData.conductorId),
+          propietarioId: Number(formData.propietarioId),
+          estado: Boolean(formData.estado),
+          distribucionId: Number(formData.distribucionId),
+          foto: selectedFile ? URL.createObjectURL(selectedFile) : '',
+          conductor: conductorObj,
+          propietario: propietarioObj,
+          distribucion: distribucionObj
+        }
+
         try {
-          const data = await createVehiculo(payload)
-          if (data && data.id) newVehicle.id = data.id
+          const data = await createVehiculo(fd)
+          if (data && data.id) {
+            newVehicle = data
+          }
         } catch (err) {
-          console.log('POST backend vehiculos no disponible:', err.message)
+          console.log('POST backend vehiculos no disponible, agregando local:', err.message)
         }
 
         setVehiculos(prev => [newVehicle, ...prev])
@@ -230,6 +325,8 @@ function Vehiculos() {
 
       setShowAddModal(false)
       setEditingVehicle(null)
+      setSelectedFile(null)
+      setPreviewUrl(null)
     } catch (err) {
       showNotification('Error al guardar vehículo: ' + err.message, 'error')
     } finally {
@@ -384,6 +481,7 @@ function Vehiculos() {
             <table className="roles-table">
               <thead>
                 <tr>
+                  <th>Foto</th>
                   <th>Móvil</th>
                   <th>Placa</th>
                   <th>Marca / Modelo</th>
@@ -401,9 +499,23 @@ function Vehiculos() {
                   const cond = v.conductor //getConductor(v.conductorId || v.conductor?.id)
                   const prop = v.propietario //getConductor(v.propietarioId || v.propietario?.id)
                   const dist = v.distribucion //getDistribucionObj(v.distribucionId || v.distribucion?.id)
+                  const vehicleFoto = v.foto || v.Foto
 
                   return (
                     <tr key={v.id}>
+                      <td>
+                        <div 
+                          className="user-avatar-small"
+                          style={{ cursor: vehicleFoto ? 'pointer' : 'default' }}
+                          onClick={vehicleFoto ? () => setFullscreenImage(getVehicleImageUrl(vehicleFoto)) : undefined}
+                        >
+                          {vehicleFoto ? (
+                            <img src={getVehicleImageUrl(vehicleFoto)} alt="Vehículo" className="avatar-img" />
+                          ) : (
+                            <span style={{ fontSize: '9px', color: '#94a3b8', fontWeight: 'bold' }}>Sin foto</span>
+                          )}
+                        </div>
+                      </td>
                       <td>
                         <span className="movil-badge">M-{v.movil}</span>
                       </td>
@@ -766,6 +878,59 @@ function Vehiculos() {
                 </div>
               </div>
 
+              <div className="form-grid-2" style={{ gridTemplateColumns: '1fr' }}>
+                <div className="input-group">
+                  <label className="input-label">Foto del Vehículo (Opcional)</label>
+                  <div className="image-upload-wrapper">
+                    <div className="image-preview-container">
+                      {previewUrl ? (
+                        <div className="preview-image-wrapper">
+                          <img 
+                            src={previewUrl} 
+                            alt="Vista previa" 
+                            className="preview-image" 
+                            style={{ cursor: 'pointer' }}
+                            onClick={() => setFullscreenImage(previewUrl)}
+                          />
+                          <button type="button" className="remove-image-btn" onClick={handleRemoveImage} title="Quitar imagen">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <line x1="18" y1="6" x2="6" y2="18" />
+                              <line x1="6" y1="6" x2="18" y2="18" />
+                            </svg>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="upload-placeholder">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <polyline points="21 15 16 10 5 21" />
+                          </svg>
+                          <span>Sin foto</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="upload-btn-wrapper">
+                      <input
+                        type="file"
+                        id="foto_vehiculo"
+                        accept="image/png, image/jpeg, image/jpg"
+                        onChange={handleFileChange}
+                        style={{ display: 'none' }}
+                      />
+                      <label htmlFor="foto_vehiculo" className="upload-file-label">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                        <span>{previewUrl ? 'Cambiar Foto' : 'Seleccionar Foto'}</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="modal-actions">
                 <button
                   type="button"
@@ -818,6 +983,19 @@ function Vehiculos() {
                 Eliminar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {fullscreenImage && (
+        <div className="fullscreen-image-overlay" onClick={() => setFullscreenImage(null)}>
+          <div className="fullscreen-image-content" onClick={(e) => e.stopPropagation()}>
+            <button className="fullscreen-close-btn" onClick={() => setFullscreenImage(null)} title="Cerrar visor">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+            <img src={fullscreenImage} alt="Foto ampliada" className="fullscreen-image-img" />
           </div>
         </div>
       )}

@@ -5,15 +5,6 @@ const BASE_URL = 'http://localhost:5093/api/conductores'
 
 const CATEGORIAS_LICENCIA = ['A-I', 'A-IIa', 'A-IIb', 'A-IIIa', 'A-IIIb', 'A-IIIc']
 
-export const MOCK_CONDUCTORES = [
-  { id: 1, nombres: 'Carlos Alberto', apellidos: 'Mamani Quispe', telefono: '71234567', licencia: '4892019', categoria: 'A-IIIc', estado: true },
-  { id: 2, nombres: 'Juan Pablo', apellidos: 'Fernández Flores', telefono: '76543210', licencia: '5829104', categoria: 'A-IIIa', estado: true },
-  { id: 3, nombres: 'Roberto', apellidos: 'Vargas Gutierrez', telefono: '68912345', licencia: '3920192', categoria: 'A-IIb', estado: true },
-  { id: 4, nombres: 'Marcos Antonio', apellidos: 'Rios Mendoza', telefono: '74839201', licencia: '6748291', categoria: 'A-IIIc', estado: false },
-  { id: 5, nombres: 'Luis Enrique', apellidos: 'Salazar Choque', telefono: '79102938', licencia: '8201928', categoria: 'A-IIa', estado: true },
-  { id: 6, nombres: 'Hugo', apellidos: 'Alvarez Torrez', telefono: '67491029', licencia: '9102837', categoria: 'A-IIIb', estado: true }
-]
-
 function getToken() {
   try {
     const authData = JSON.parse(sessionStorage.getItem('authData') || '{}')
@@ -30,8 +21,15 @@ function authHeaders() {
   }
 }
 
+function getImageUrl(path) {
+  if (!path) return null
+  if (path.startsWith('http://') || path.startsWith('https://')) return path
+  const separator = path.startsWith('/') ? '' : '/'
+  return `http://localhost:5093/assets/licencias${separator}${path}`
+}
+
 function Conductores() {
-  const [conductores, setConductores] = useState(MOCK_CONDUCTORES)
+  const [conductores, setConductores] = useState([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('todos')
@@ -47,6 +45,11 @@ function Conductores() {
   const [driverToDelete, setDriverToDelete] = useState(null)
   const [saving, setSaving] = useState(false)
 
+  // Archivo seleccionado y su previsualización
+  const [selectedFile, setSelectedFile] = useState(null)
+  const [previewUrl, setPreviewUrl] = useState(null)
+  const [fullscreenImage, setFullscreenImage] = useState(null)
+
   // Formulario
   const [formData, setFormData] = useState({
     nombres: '',
@@ -54,7 +57,8 @@ function Conductores() {
     telefono: '',
     licencia: '',
     categoria: CATEGORIAS_LICENCIA[0],
-    estado: true
+    estado: true,
+    fotoLicencia: ''
   })
 
   const showNotification = (message, type = 'success') => {
@@ -86,6 +90,27 @@ function Conductores() {
     setCurrentPage(1)
   }, [searchTerm, categoryFilter, statusFilter, itemsPerPage])
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      const allowedExtensions = ['png', 'jpg', 'jpeg']
+      const fileExtension = file.name.split('.').pop().toLowerCase()
+      if (!allowedExtensions.includes(fileExtension)) {
+        showNotification('Solo se permiten imágenes en formato PNG, JPG o JPEG', 'error')
+        e.target.value = ''
+        return
+      }
+      setSelectedFile(file)
+      setPreviewUrl(URL.createObjectURL(file))
+    }
+  }
+
+  const handleRemoveImage = () => {
+    setSelectedFile(null)
+    setPreviewUrl(null)
+    setFormData(prev => ({ ...prev, fotoLicencia: '' }))
+  }
+
   // ── Modales ──────────────────────────────────────────────────────────────────
   const handleAddNew = () => {
     setFormData({
@@ -94,8 +119,11 @@ function Conductores() {
       telefono: '',
       licencia: '',
       categoria: CATEGORIAS_LICENCIA[0],
-      estado: true
+      estado: true,
+      fotoLicencia: ''
     })
+    setSelectedFile(null)
+    setPreviewUrl(null)
     setEditingDriver(null)
     setShowAddModal(true)
   }
@@ -107,8 +135,11 @@ function Conductores() {
       telefono: driver.telefono || '',
       licencia: driver.licencia || '',
       categoria: driver.categoria || CATEGORIAS_LICENCIA[0],
-      estado: driver.estado !== false
+      estado: driver.estado !== false,
+      fotoLicencia: driver.fotoLicencia || ''
     })
+    setSelectedFile(null)
+    setPreviewUrl(driver.fotoLicencia ? getImageUrl(driver.fotoLicencia) : null)
     setEditingDriver(driver)
     setShowAddModal(true)
   }
@@ -116,39 +147,91 @@ function Conductores() {
   // ── Guardar ──────────────────────────────────────────────────────────────────
   const handleSave = async (e) => {
     e.preventDefault()
+
+    // Validar duplicado de licencia
+    const isLicenseDuplicate = conductores.some(c =>
+      c.licencia?.trim().toLowerCase() === formData.licencia?.trim().toLowerCase() &&
+      (!editingDriver || c.id !== editingDriver.id)
+    );
+
+    if (isLicenseDuplicate) {
+      showNotification('El número de licencia ya está registrado para otro conductor', 'error')
+      return
+    }
+
+    // Validar foto de licencia obligatoria
+    if (!selectedFile && !formData.fotoLicencia) {
+      showNotification('La foto de la licencia es obligatoria', 'error')
+      return
+    }
+
     setSaving(true)
+
+    // Crear FormData para adjuntar el archivo y los campos
+    const fd = new FormData()
+    fd.append('nombres', formData.nombres)
+    fd.append('apellidos', formData.apellidos)
+    fd.append('telefono', formData.telefono)
+    fd.append('licencia', formData.licencia)
+    fd.append('categoria', formData.categoria)
+    fd.append('estado', formData.estado.toString())
+    fd.append('fotoLicencia', formData.fotoLicencia || '')
+
+    if (selectedFile) {
+      fd.append('foto_licencia', selectedFile)
+    }
 
     try {
       if (editingDriver) {
+        let updatedDriver = { ...formData, id: editingDriver.id }
         // Intento backend PUT
         try {
-          await fetch(`${BASE_URL}/${editingDriver.id}`, {
+          fd.append('id', editingDriver.id)
+          const res = await fetch(`${BASE_URL}/${editingDriver.id}`, {
             method: 'PUT',
-            headers: authHeaders(),
-            body: JSON.stringify({ ...formData, id: editingDriver.id })
+            headers: {
+              'Authorization': `Bearer ${getToken()}`
+            },
+            body: fd
           })
-        } catch {
-          console.log('PUT en backend no disponible, actualizando estado local')
+          if (res.ok) {
+            const text = await res.text()
+            if (text) {
+              const data = JSON.parse(text)
+              if (data) {
+                updatedDriver = data
+              }
+            }
+          }
+        } catch (err) {
+          console.log('PUT en backend no disponible, actualizando estado local:', err.message)
         }
 
-        setConductores(prev => prev.map(d => d.id === editingDriver.id ? { ...formData, id: editingDriver.id } : d))
+        setConductores(prev => prev.map(d => d.id === editingDriver.id ? updatedDriver : d))
         showNotification('Conductor actualizado exitosamente')
       } else {
         // Intento backend POST
         const newId = Date.now()
-        const newDriver = { ...formData, id: newId }
+        let newDriver = { ...formData, id: newId }
         try {
           const res = await fetch(BASE_URL, {
             method: 'POST',
-            headers: authHeaders(),
-            body: JSON.stringify(formData)
+            headers: {
+              'Authorization': `Bearer ${getToken()}`
+            },
+            body: fd
           })
           if (res.ok) {
-            const data = await res.json()
-            newDriver.id = data.id || newId
+            const text = await res.text()
+            if (text) {
+              const data = JSON.parse(text)
+              if (data) {
+                newDriver = data
+              }
+            }
           }
-        } catch {
-          console.log('POST en backend no disponible, agregando en estado local')
+        } catch (err) {
+          console.log('POST en backend no disponible, agregando en estado local:', err.message)
         }
 
         setConductores(prev => [newDriver, ...prev])
@@ -157,6 +240,8 @@ function Conductores() {
 
       setShowAddModal(false)
       setEditingDriver(null)
+      setSelectedFile(null)
+      setPreviewUrl(null)
     } catch (err) {
       showNotification('Error al guardar conductor: ' + err.message, 'error')
     } finally {
@@ -227,6 +312,11 @@ function Conductores() {
   const startIndex = (currentPage - 1) * itemsPerPage
   const paginatedConductores = filteredConductores.slice(startIndex, startIndex + itemsPerPage)
 
+  const licenseExists = formData.licencia?.trim() !== '' && conductores.some(c =>
+    c.licencia?.trim().toLowerCase() === formData.licencia?.trim().toLowerCase() &&
+    (!editingDriver || c.id !== editingDriver.id)
+  );
+
   return (
     <div className="conductores-view">
       {/* Toast Notification */}
@@ -267,7 +357,7 @@ function Conductores() {
             </div>
 
             {/* Filtro Categoría */}
-           <select
+            <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
               className="filter-select"
@@ -324,8 +414,16 @@ function Conductores() {
                   <tr key={driver.id}>
                     <td>
                       <div className="user-cell">
-                        <div className="user-avatar-small">
-                          {driver.nombres?.charAt(0)}{driver.apellidos?.charAt(0)}
+                        <div
+                          className="user-avatar-small"
+                          style={{ cursor: driver.fotoLicencia ? 'pointer' : 'default' }}
+                          onClick={driver.fotoLicencia ? () => setFullscreenImage(getImageUrl(driver.fotoLicencia)) : undefined}
+                        >
+                          {driver.fotoLicencia ? (
+                            <img src={getImageUrl(driver.fotoLicencia)} alt="Licencia" className="avatar-img" />
+                          ) : (
+                            <>{driver.nombres?.charAt(0)}{driver.apellidos?.charAt(0)}</>
+                          )}
                         </div>
                         <div className="driver-name-container">
                           <span className="driver-full-name">{driver.nombres} {driver.apellidos}</span>
@@ -488,10 +586,20 @@ function Conductores() {
                     type="text"
                     value={formData.licencia}
                     onChange={(e) => setFormData({ ...formData, licencia: e.target.value })}
-                    className="input-field"
+                    className={`input-field ${licenseExists ? 'input-error' : ''}`}
                     placeholder="Ej. 4892019"
                     required
                   />
+                  {licenseExists && (
+                    <span className="license-warning">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12" y2="12" />
+                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                      </svg>
+                      Esta licencia ya está registrada para otro conductor
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -527,6 +635,59 @@ function Conductores() {
                 </div>
               </div>
 
+              <div className="form-grid-2" style={{ gridTemplateColumns: '1fr' }}>
+                <div className="input-group">
+                  <label className="input-label">Foto de Licencia</label>
+                  <div className="image-upload-wrapper">
+                    <div className="image-preview-container">
+                      {previewUrl ? (
+                        <div className="preview-image-wrapper">
+                          <img
+                            src={previewUrl}
+                            alt="Vista previa"
+                            className="preview-image"
+                            style={{ cursor: 'pointer' }}
+                            onClick={() => setFullscreenImage(previewUrl)}
+                          />
+                          <button type="button" className="remove-image-btn" onClick={handleRemoveImage} title="Quitar imagen">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <line x1="18" y1="6" x2="6" y2="18" />
+                              <line x1="6" y1="6" x2="18" y2="18" />
+                            </svg>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="upload-placeholder">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <polyline points="21 15 16 10 5 21" />
+                          </svg>
+                          <span>Sin imagen</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="upload-btn-wrapper">
+                      <input
+                        type="file"
+                        id="foto_licencia"
+                        accept="image/png, image/jpeg, image/jpg"
+                        onChange={handleFileChange}
+                        style={{ display: 'none' }}
+                      />
+                      <label htmlFor="foto_licencia" className="upload-file-label">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                        <span>{previewUrl ? 'Cambiar Imagen' : 'Seleccionar Imagen'}</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="modal-actions">
                 <button
                   type="button"
@@ -536,7 +697,7 @@ function Conductores() {
                 >
                   Cancelar
                 </button>
-                <button type="submit" className="save-btn" disabled={saving}>
+                <button type="submit" className="save-btn" disabled={saving || licenseExists}>
                   {saving ? 'Guardando...' : (editingDriver ? 'Actualizar' : 'Crear') + ' Conductor'}
                 </button>
               </div>
@@ -579,6 +740,19 @@ function Conductores() {
                 Eliminar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {fullscreenImage && (
+        <div className="fullscreen-image-overlay" onClick={() => setFullscreenImage(null)}>
+          <div className="fullscreen-image-content" onClick={(e) => e.stopPropagation()}>
+            <button className="fullscreen-close-btn" onClick={() => setFullscreenImage(null)} title="Cerrar visor">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+            <img src={fullscreenImage} alt="Foto ampliada" className="fullscreen-image-img" />
           </div>
         </div>
       )}
