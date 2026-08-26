@@ -257,7 +257,7 @@ function MainMenu() {
 
   // ── Título del header basado en menú activo ───────────────────────────────────
   const activeMenu = menuItems.find((m) => location.pathname === m.rutaAccion)
-  const pageTitle = activeMenu?.nombre ?? 'Panel de Control'
+  const pageTitle = activeMenu?.nombre ?? 'Pasajes'
   const pageSubtitle = activeMenu
     ? `Gestión de ${activeMenu.nombre.toLowerCase()}`
     : `Bienvenido, ${nombreUsuario}`
@@ -359,29 +359,34 @@ function MainMenu() {
           </div>
           <div className="header-right" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <button
-              onClick={() => setOpenRegisterModal(true)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '8px 16px',
-                backgroundColor: '#2563eb',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '8px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                fontSize: '14px',
-                boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-              <span>Encomienda</span>
-            </button>
+  onClick={() => setOpenRegisterModal(true)}
+  style={{
+    position: 'fixed',   // clave
+    top: '20px',      // distancia desde abajo
+    right: '200px',       // distancia desde la derecha
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '15px 20px',
+    backgroundColor: '#2563eb',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '8px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    fontSize: '14px',
+    boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
+    transition: 'all 0.2s ease',
+    zIndex: 1000         // asegura que quede encima
+  }}
+>
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="12" y1="5" x2="12" y2="19" />
+    <line x1="5" y1="12" x2="19" y2="12" />
+  </svg>
+  <span>Encomienda</span>
+</button>
+
 
             <div className="user-info">
               <div className="user-avatar">

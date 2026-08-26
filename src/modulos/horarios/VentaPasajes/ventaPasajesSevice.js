@@ -50,6 +50,19 @@ export async function deletePasaje(id) {
   return res.json()
 }
 
+export async function putPasaje(id, payload) {
+  const res = await fetch(`${BASE_URL_PASAJES}/${id}`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(payload)
+  })
+  if (!res.ok) {
+    const txt = await res.text()
+    throw new Error(`Error updating pasaje: ${res.status} ${txt}`)
+  }
+  return res.json()
+}
+
 // Descargar hoja de ruta (PDF) para un horario
 export async function getHojaRuta(horarioId) {
   const url = `http://localhost:5093/api/ticket/horarioHojaRuta/${horarioId}`

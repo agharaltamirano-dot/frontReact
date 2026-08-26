@@ -1,14 +1,15 @@
-import React, { useEffect, useState, Fragment } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { Box, Stack, Button, Dialog, DialogTitle, DialogContent, DialogActions, List, ListItem, ListItemText, ListItemAvatar, Avatar, Chip, Grid, Divider, Typography, Snackbar, Alert, TextField, Select, MenuItem, FormControl, InputLabel } from '@mui/material'
-import { getHorarioById, postPasajesBatch, deletePasaje, getHojaRuta } from './ventaPasajesSevice'
+import  { useEffect, useState, Fragment } from 'react'
+import { useParams } from 'react-router-dom'
+import { Box, Stack, Button, Dialog, DialogTitle, DialogContent, DialogActions, List, ListItem, ListItemAvatar, Avatar, Chip, Divider, Typography, Snackbar, Alert, TextField, Select, MenuItem, FormControl, InputLabel, Autocomplete } from '@mui/material'
+import { getHorarioById, postPasajesBatch, deletePasaje, getHojaRuta, putPasaje } from './ventaPasajesSevice'
+import { getClientes } from '../../encomiendas/registrarEncomienda/registrarEncomiendaService'
 import './ventaPasajes.css'
 
 export default function VentaPasajes() {
   const { id } = useParams()
-  const navigate = useNavigate()
   const [horario, setHorario] = useState(null)
   const [selectedSeats, setSelectedSeats] = useState([])
+  const [clientesList, setClientesList] = useState([])
   const [pasajesOpen, setPasajesOpen] = useState(false)
 
   const openPasajes = () => setPasajesOpen(true)
@@ -26,6 +27,132 @@ export default function VentaPasajes() {
   const requestAnular = (pasajeId) => setConfirmAnular({ open: true, pasajeId })
   const cancelAnular = () => setConfirmAnular({ open: false, pasajeId: null })
 
+  // Modal editar pasaje
+  const [editPasaje, setEditPasaje] = useState({ open: false, pasaje: null })
+  const [editForm, setEditForm] = useState({
+    pasajero: '', ci: '', telefono: '', monto: '', destinoId: '', asientoId: '', asientoNumero: ''
+  })
+  const [editClienteObj, setEditClienteObj] = useState(null)
+  const [savingEdit, setSavingEdit] = useState(false)
+
+  const openEditPasaje = (p) => {
+    const asientoNum = p.asiento?.numero || p.asientoId || ''
+    setEditForm({
+      pasajero: p.cliente?.nombreCompleto || '',
+      ci: p.cliente?.ci || '',
+      telefono: p.cliente?.telefono || '',
+      monto: String(p.monto || ''),
+      destinoId: p.destino ? (() => {
+        const found = (horario?.ruta?.destinos || []).find(d => d.puntoVenta?.nombre === p.destino)
+        return found ? String(found.puntoVenta?.id || '') : ''
+      })() : '',
+      asientoId: String(p.asiento?.id || p.asientoId || ''),
+      asientoNumero: String(asientoNum)
+    })
+    setEditClienteObj(null)
+    setEditPasaje({ open: true, pasaje: p })
+  }
+
+  const closeEditPasaje = () => {
+    setEditPasaje({ open: false, pasaje: null })
+    setEditClienteObj(null)
+    setSavingEdit(false)
+  }
+
+  const handleEditSelectCliente = (event, newValue) => {
+    if (typeof newValue === 'string') {
+      setEditClienteObj(null)
+      setEditForm(prev => ({ ...prev, pasajero: newValue }))
+    } else if (newValue && newValue.id) {
+      setEditClienteObj(newValue)
+      setEditForm(prev => ({
+        ...prev,
+        pasajero: newValue.nombreCompleto || '',
+        ci: newValue.ci || '',
+        telefono: newValue.telefono || ''
+      }))
+    } else {
+      setEditClienteObj(null)
+      setEditForm(prev => ({ ...prev, pasajero: '' }))
+    }
+  }
+
+  // Asientos disponibles para editar (libres + el actual del pasaje)
+  const getAsientosDisponibles = (pasaje) => {
+    const asientos = horario?.vehiculo?.distribucion?.asientos || []
+    const pasajes = horario?.pasajes || []
+    return asientos.filter(a => {
+      if (Number(a.id) === Number(pasaje?.asiento?.id || pasaje?.asientoId)) return true // el asiento actual siempre disponible
+      const ocupado = pasajes.find(p => Number(p.asiento?.id) === Number(a.id) && p.estado === true)
+      return !ocupado && a.estado !== false
+    })
+  }
+
+  const handleSaveEditPasaje = async () => {
+    const pasaje = editPasaje.pasaje
+    if (!pasaje) return
+    if (!editForm.pasajero.trim()) {
+      showSnackbar('Ingrese el nombre del pasajero', 'warning')
+      return
+    }
+    if (!editForm.destinoId) {
+      showSnackbar('Seleccione el destino', 'warning')
+      return
+    }
+    const montoNum = parseFloat(String(editForm.monto).replace(',', '.'))
+    if (isNaN(montoNum) || montoNum <= 0) {
+      showSnackbar('Ingrese un monto válido mayor a 0', 'warning')
+      return
+    }
+    if (!editForm.asientoId) {
+      showSnackbar('Seleccione un asiento', 'warning')
+      return
+    }
+    setSavingEdit(true)
+    try {
+      const destinoName = getDestinoName(editForm.destinoId)
+      const usuarioId = getAuthUsuarioId()
+      const payload = {
+        fechaHora: pasaje.fechaHora || formatFechaHoraNow(),
+        monto: montoNum,
+        movil: pasaje.movil || horario?.vehiculo?.movil || '',
+        estado: pasaje.estado !== false,
+        destino: destinoName,
+        asientoId: Number(editForm.asientoId),
+        reserva: pasaje.reserva || false,
+        horarioId: pasaje.horarioId || horario?.id,
+        usuarioId: usuarioId,
+        cliente: editClienteObj && editClienteObj.id
+          ? undefined
+          : {
+              nombreCompleto: editForm.pasajero.trim(),
+              ci: editForm.ci.trim() || null,
+              telefono: editForm.telefono.trim() || null,
+              estado: true
+            },
+        clienteId: editClienteObj && editClienteObj.id ? editClienteObj.id : undefined
+      }
+      // Limpiar claves undefined
+      Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k])
+      await putPasaje(pasaje.id, payload)
+      showSnackbar('Pasaje editado con éxito', 'success')
+      closeEditPasaje()
+      setTimeout(async () => {
+        try {
+          const fresh = await getHorarioById(horario?.id ?? id)
+          setHorario(fresh)
+        } catch (err) {
+          console.warn('No se pudo refrescar horario tras editar pasaje:', err)
+        }
+      }, 100)
+    } catch (err) {
+      console.error('Error editando pasaje', err)
+      showSnackbar('Error al editar: ' + (err.message || ''), 'error')
+    } finally {
+      setSavingEdit(false)
+    }
+  }
+
 
   const destinosOptions = (horario?.ruta?.destinos || []).map(d => {
     const pv = d.puntoVenta || {}
@@ -37,7 +164,7 @@ export default function VentaPasajes() {
     }
   })
   const selectDestinos = destinosOptions.filter(d => !d.visiblePasajes)
-  const quickDestinos = destinosOptions.filter(d => d.visiblePasajes)
+  const quickDestinos = destinosOptions.filter(d => d.visiblePasajes )
 
   const formatDateLocal = (dateStr) => {
     if (!dateStr) return ''
@@ -458,15 +585,38 @@ export default function VentaPasajes() {
     if (!id) return
     const fetchData = async () => {
       try {
-        const data = await getHorarioById(id)
-        console.log('Horario recibido en VentaPasajes:', data)
-        setHorario(data)
+        const [horarioData, clientesData] = await Promise.all([
+          getHorarioById(id),
+          getClientes()
+        ])
+        console.log('Horario recibido:', horarioData)
+        setHorario(horarioData)
+        setClientesList(clientesData)
       } catch (err) {
-        console.error('Error al obtener horario:', err)
+        console.error('Error al obtener datos iniciales:', err)
       }
     }
     fetchData()
   }, [id])
+
+  const handleSelectCliente = (id, newValue) => {
+    if (typeof newValue === 'string') {
+      updateSelectedField(id, 'pasajero', newValue)
+    } else if (newValue && typeof newValue === 'object') {
+      setSelectedSeats(prev => prev.map(s => 
+        Number(s.id) === Number(id) 
+          ? { 
+              ...s, 
+              pasajero: newValue.nombreCompleto || '', 
+              ci: newValue.ci || '', 
+              telefono: newValue.telefono || '' 
+            } 
+          : s
+      ))
+    } else {
+      updateSelectedField(id, 'pasajero', '')
+    }
+  }
 
   const totalMonto = selectedSeats.reduce((sum, s) => {
     const v = parseFloat(String(s.monto || 0).replace(',', '.'))
@@ -536,12 +686,24 @@ export default function VentaPasajes() {
                       />
                     </div>
                     <div className="selected-meta">
-                      <TextField
+                      <Autocomplete
+                        freeSolo
                         size="small"
-                        placeholder="Nombre del pasajero (obligatorio)"
+                        options={clientesList}
+                        getOptionLabel={(option) => {
+                          if (typeof option === 'string') return option
+                          return `${option.nombreCompleto || ''} ${option.ci ? `- CI: ${option.ci}` : ''}`.trim()
+                        }}
                         value={s.pasajero || ''}
-                        onChange={(e) => updateSelectedField(s.id, 'pasajero', e.target.value)}
-                        fullWidth
+                        onChange={(event, newValue) => handleSelectCliente(s.id, newValue)}
+                        onInputChange={(event, newInputValue) => updateSelectedField(s.id, 'pasajero', newInputValue)}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            placeholder="Nombre del pasajero (obligatorio)"
+                            fullWidth
+                          />
+                        )}
                       />
                       <Stack direction="row" spacing={1}>
                         <TextField
@@ -569,9 +731,14 @@ export default function VentaPasajes() {
                           onChange={(e) => selectDestino(s.id, selectDestinos.find(d => String(d.id) === String(e.target.value)))}
                         >
                           <MenuItem value=""><em>Seleccionar destino</em></MenuItem>
-                          {selectDestinos.map(d => (
-                            <MenuItem key={d.id} value={d.id}>{d.nombre} · Bs. {Number(d.tarifa || 0).toFixed(2)}</MenuItem>
-                          ))}
+                 {selectDestinos.map(d => (
+  (d.id!=horario.ruta?.destinos[0].puntoVenta?.id) ? (
+    <MenuItem key={d.id} value={d.id}>
+      {d.nombre} · Bs. {Number(d.tarifa || 0).toFixed(2)}
+    </MenuItem>
+  ) : null
+))}
+
                         </Select>
                       </FormControl>
                       {quickDestinos.length > 0 && (
@@ -718,6 +885,7 @@ export default function VentaPasajes() {
 
                             <Box sx={{ml:1, display:'flex', flexDirection:'column', gap:0.5}}>
                               <Button variant="outlined" size="small" onClick={() => reimprimirPasaje(p.id)} sx={{textTransform:'none', minWidth:80}}>Imprimir</Button>
+                              <Button variant="outlined" color="info" size="small" onClick={() => openEditPasaje(p)} disabled={p.estado===false} sx={{textTransform:'none', minWidth:80}}>Editar</Button>
                               <Button variant="contained" color="error" size="small" onClick={() => requestAnular(p.id)} disabled={p.estado===false} sx={{textTransform:'none', minWidth:80}}>Anular</Button>
                             </Box>
                           </ListItem>
@@ -739,6 +907,103 @@ export default function VentaPasajes() {
                     <DialogActions>
                       <Button onClick={cancelAnular}>Cancelar</Button>
                       <Button onClick={performAnular} color="error" variant="contained">Anular</Button>
+                    </DialogActions>
+                  </Dialog>
+
+                  {/* Dialog Editar Pasaje */}
+                  <Dialog open={editPasaje.open} onClose={closeEditPasaje} maxWidth="sm" fullWidth>
+                    <DialogTitle sx={{fontWeight:700}}>Editar Pasaje #{editPasaje.pasaje?.asiento?.numero || editPasaje.pasaje?.asientoId}</DialogTitle>
+                    <DialogContent dividers>
+                      <Stack spacing={2} sx={{pt:1}}>
+                        {/* Cliente */}
+                        <Autocomplete
+                          freeSolo
+                          options={clientesList}
+                          getOptionLabel={(option) => {
+                            if (typeof option === 'string') return option
+                            return `${option.nombreCompleto || ''} ${option.ci ? `- CI: ${option.ci}` : ''}`.trim()
+                          }}
+                          value={editClienteObj || editForm.pasajero}
+                          onChange={handleEditSelectCliente}
+                          onInputChange={(event, newInputValue) => {
+                            if (!editClienteObj) setEditForm(prev => ({ ...prev, pasajero: newInputValue }))
+                          }}
+                          renderInput={(params) => (
+                            <TextField {...params} label="Pasajero *" size="small" fullWidth />
+                          )}
+                        />
+                        <Stack direction="row" spacing={1}>
+                          <TextField size="small" label="CI" value={editForm.ci} onChange={e => setEditForm(prev => ({ ...prev, ci: e.target.value }))} fullWidth />
+                          <TextField size="small" label="Teléfono" value={editForm.telefono} onChange={e => setEditForm(prev => ({ ...prev, telefono: e.target.value }))} fullWidth />
+                        </Stack>
+
+                        {/* Asiento disponible */}
+                        <Typography variant="caption" color="text.secondary">Asiento (actual: #{editForm.asientoNumero})</Typography>
+                        <Box sx={{display:'flex', flexWrap:'wrap', gap:1}}>
+                          {getAsientosDisponibles(editPasaje.pasaje).map(a => (
+                            <Button
+                              key={a.id}
+                              size="small"
+                              variant={String(editForm.asientoId) === String(a.id) ? 'contained' : 'outlined'}
+                              onClick={() => setEditForm(prev => ({ ...prev, asientoId: String(a.id), asientoNumero: String(a.numero) }))}
+                              sx={{minWidth:48}}
+                            >
+                              {a.numero}
+                            </Button>
+                          ))}
+                        </Box>
+
+                        {/* Precio */}
+                        <TextField
+                          size="small"
+                          label="Monto (Bs.) *"
+                          type="number"
+                          inputProps={{ step:'0.01', min:'0' }}
+                          value={editForm.monto}
+                          onChange={e => setEditForm(prev => ({ ...prev, monto: e.target.value }))}
+                          fullWidth
+                        />
+
+                        {/* Destino */}
+                        <FormControl size="small" fullWidth>
+                          <InputLabel id="edit-destino-label">Destino *</InputLabel>
+                          <Select
+                            labelId="edit-destino-label"
+                            label="Destino *"
+                            value={editForm.destinoId}
+                            onChange={e => {
+                              const d = selectDestinos.find(d => String(d.id) === String(e.target.value))
+                              setEditForm(prev => ({ ...prev, destinoId: e.target.value, monto: d ? String(d.tarifa) : prev.monto }))
+                            }}
+                          >
+                            <MenuItem value=""><em>Seleccionar destino</em></MenuItem>
+                            {selectDestinos.filter(d => String(d.id) !== String(horario?.ruta?.destinos?.[0]?.puntoVenta?.id)).map(d => (
+                              <MenuItem key={d.id} value={String(d.id)}>{d.nombre} · Bs. {Number(d.tarifa||0).toFixed(2)}</MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                        {/* Quick destinos */}
+                        {quickDestinos.length > 0 && (
+                          <Stack direction="row" spacing={1} flexWrap="wrap">
+                            {quickDestinos.map(d => (
+                              <Button
+                                key={d.id}
+                                size="small"
+                                variant={String(editForm.destinoId) === String(d.id) ? 'contained' : 'outlined'}
+                                onClick={() => setEditForm(prev => ({ ...prev, destinoId: String(d.id), monto: String(d.tarifa) }))}
+                              >
+                                {d.nombre} · Bs. {Number(d.tarifa||0).toFixed(2)}
+                              </Button>
+                            ))}
+                          </Stack>
+                        )}
+                      </Stack>
+                    </DialogContent>
+                    <DialogActions>
+                      <Button onClick={closeEditPasaje} disabled={savingEdit}>Cancelar</Button>
+                      <Button onClick={handleSaveEditPasaje} variant="contained" color="primary" disabled={savingEdit}>
+                        {savingEdit ? 'Guardando...' : 'Guardar cambios'}
+                      </Button>
                     </DialogActions>
                   </Dialog>
 

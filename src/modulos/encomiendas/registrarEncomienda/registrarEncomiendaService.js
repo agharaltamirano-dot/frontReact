@@ -1,4 +1,5 @@
 const BASE_URL_ENCOMIENDA = 'http://localhost:5093/api/encomienda'
+const BASE_URL_ENCOMIENDAS = 'http://localhost:5093/api/encomienda'
 const BASE_URL_CLIENTES = 'http://localhost:5093/api/clientes'
 const BASE_URL_PUNTOS_VENTA = 'http://localhost:5093/api/puntos-venta'
 
@@ -94,4 +95,17 @@ export async function createEncomienda(payload) {
   }
 }
 
-export default { getClientes, getPuntosVenta, createEncomienda }
+export async function updateEncomienda(id, payload) {
+  const res = await fetch(`${BASE_URL_ENCOMIENDAS}/${id}`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(payload)
+  })
+  if (!res.ok) {
+    const errorText = await res.text()
+    throw new Error(errorText || `Error ${res.status} al actualizar encomienda`)
+  }
+  return await res.json()
+}
+
+export default { getClientes, getPuntosVenta, createEncomienda, updateEncomienda }

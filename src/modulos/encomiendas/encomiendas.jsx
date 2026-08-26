@@ -130,6 +130,13 @@ const CancelIcon = (props) => (
   </svg>
 )
 
+const EditIcon = (props) => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+  </svg>
+)
+
 export default function Encomiendas() {
   const [encomiendas, setEncomiendas] = useState([])
   const [loading, setLoading] = useState(true)
@@ -155,6 +162,11 @@ export default function Encomiendas() {
 
   // Diálogo para registrar nueva encomienda
   const [openRegisterModal, setOpenRegisterModal] = useState(false)
+
+  // Diálogo para editar encomienda
+  const [editModal, setEditModal] = useState({ open: false, encomienda: null })
+  const openEditModal = (encomienda) => setEditModal({ open: true, encomienda })
+  const closeEditModal = () => setEditModal({ open: false, encomienda: null })
 
   const showSnackbar = (message, severity = 'info') => {
     setSnackbar({ open: true, message, severity })
@@ -584,7 +596,7 @@ export default function Encomiendas() {
                       </Box>
                     </TableCell>
 
-                    {/* Acciones: Imprimir & Anular */}
+                    {/* Acciones: Imprimir, Editar & Anular */}
                     <TableCell align="center">
                       <Stack direction="row" spacing={0.5} justifyContent="center">
                         <Tooltip title="Imprimir Comprobante">
@@ -595,6 +607,19 @@ export default function Encomiendas() {
                           >
                             <PrintIcon fontSize="small" />
                           </IconButton>
+                        </Tooltip>
+
+                        <Tooltip title={row.envio != null ? 'La encomienda ya fue enviada' : 'Editar Encomienda'}>
+                          <span>
+                            <IconButton
+                              size="small"
+                              color="info"
+                              disabled={row.envio != null}
+                              onClick={() => openEditModal(row)}
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </span>
                         </Tooltip>
 
                         <Tooltip title={row.estado ? "Anular Encomienda" : "Encomienda ya anulada"}>
@@ -756,6 +781,18 @@ export default function Encomiendas() {
         onSuccess={() => {
           fetchEncomiendasData()
           showSnackbar('Encomienda registrada con éxito', 'success')
+        }}
+      />
+
+      {/* Modal Editar Encomienda */}
+      <RegistrarEncomienda
+        open={editModal.open}
+        onClose={closeEditModal}
+        encomiendaToEdit={editModal.encomienda}
+        onSuccess={() => {
+          fetchEncomiendasData()
+          showSnackbar('Encomienda actualizada con éxito', 'success')
+          closeEditModal()
         }}
       />
 

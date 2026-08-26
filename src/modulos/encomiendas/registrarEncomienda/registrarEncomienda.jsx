@@ -23,7 +23,7 @@ import {
   useTheme
 } from '@mui/material'
 
-import { getClientes, getPuntosVenta, createEncomienda } from './registrarEncomiendaService'
+import { getClientes, getPuntosVenta, createEncomienda, updateEncomienda } from './registrarEncomiendaService'
 import './registrarEncomienda.css'
 
 // Helper para formatear fecha a "YYYY-MM-DD HH:mm:ss" (sin la 'T')
@@ -76,7 +76,8 @@ const ClockIcon = (props) => (
   </svg>
 )
 
-export default function RegistrarEncomienda({ open, onClose, onSuccess }) {
+export default function RegistrarEncomienda({ open, onClose, onSuccess, encomiendaToEdit }) {
+  const isEditMode = !!encomiendaToEdit
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
@@ -111,10 +112,12 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess }) {
   // Inicializar / Cargar listas
   useEffect(() => {
     if (open) {
-      // Generar número correlativo temporal
-      const randomSeq = String(Math.floor(Math.random() * 9000) + 1000)
-      const currentYear = new Date().getFullYear()
-      setNumero(`ENC-${currentYear}-${randomSeq}`)
+      // Generar número correlativo temporal (solo en modo crear)
+      if (!isEditMode) {
+        const randomSeq = String(Math.floor(Math.random() * 9000) + 1000)
+        const currentYear = new Date().getFullYear()
+        setNumero(`ENC-${currentYear}-${randomSeq}`)
+      }
 
       // Cargar datos
       const loadInitialData = async () => {
@@ -124,9 +127,33 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess }) {
           setClientesList(cliData)
           setPuntosVentaList(pvData)
 
-          // Seleccionar primer destino por defecto si existe
-          if (pvData.length > 0) {
-            setDestino(pvData[0].nombre)
+          if (isEditMode && encomiendaToEdit) {
+            // Pre-cargar campos con datos del registro a editar
+            const e = encomiendaToEdit
+            setNumero(e.numero || '')
+            setContenido(e.contenido || '')
+            setMonto(String(e.monto || ''))
+            setDestino(e.destino || '')
+            setPagado(e.pagado !== undefined ? e.pagado : true)
+            // Remitente
+            if (e.clienteRemitente) {
+              setSelectedRemitente(e.clienteRemitente)
+              setRemitenteNombre(e.clienteRemitente.nombreCompleto || '')
+              setRemitenteCi(e.clienteRemitente.ci || '')
+              setRemitenteTelefono(e.clienteRemitente.telefono || '')
+            }
+            // Consignatario
+            if (e.clienteConsignatario) {
+              setSelectedConsignatario(e.clienteConsignatario)
+              setConsignatarioNombre(e.clienteConsignatario.nombreCompleto || '')
+              setConsignatarioCi(e.clienteConsignatario.ci || '')
+              setConsignatarioTelefono(e.clienteConsignatario.telefono || '')
+            }
+          } else {
+            // Seleccionar primer destino por defecto si existe
+            if (pvData.length > 0) {
+              setDestino(pvData[0].nombre)
+            }
           }
         } catch (err) {
           console.error('Error al cargar datos auxiliares:', err)
@@ -247,11 +274,11 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess }) {
 
       const payload = {
         contenido: contenido.trim(),
-        fechaRecepcion,
+        fechaRecepcion: isEditMode ? (encomiendaToEdit?.fechaRecepcion || formatDateTimeWithoutT(now)) : fechaRecepcion,
         fechaEntrega,
         monto: Number(monto),
         numero,
-        estado: true,
+        estado: isEditMode ? (encomiendaToEdit?.estado !== undefined ? encomiendaToEdit.estado : true) : true,
         pagado: forcedPagado,
         destino,
         usuarioId: getUsuarioId()
@@ -279,9 +306,13 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess }) {
         }
       }
 
-      await createEncomienda(payload)
-
-      setSnackbar({ open: true, message: `Encomienda registrada con éxito!`, severity: 'success' })
+      if (isEditMode) {
+        await updateEncomienda(encomiendaToEdit.id, payload)
+        setSnackbar({ open: true, message: 'Encomienda actualizada con éxito!', severity: 'success' })
+      } else {
+        await createEncomienda(payload)
+        setSnackbar({ open: true, message: 'Encomienda registrada con éxito!', severity: 'success' })
+      }
 
       if (onSuccess) {
         onSuccess(payload)
@@ -292,7 +323,7 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess }) {
       }, 600)
     } catch (err) {
       console.error(err)
-      setSnackbar({ open: true, message: 'Error al registrar la encomienda: ' + (err.message || ''), severity: 'error' })
+      setSnackbar({ open: true, message: (isEditMode ? 'Error al actualizar: ' : 'Error al registrar la encomienda: ') + (err.message || ''), severity: 'error' })
     } finally {
       setSubmitting(false)
     }
@@ -315,7 +346,7 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess }) {
             </Box>
             <Box>
               <Typography variant="h6" sx={{ fontWeight: 700, color: '#0f172a', lineHeight: 1.2 }}>
-                Registrar Nueva Encomienda
+                {isEditMode ? 'Editar Encomienda' : 'Registrar Nueva Encomienda'}
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 N° Guía: <strong>{numero}</strong>
@@ -538,7 +569,7 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess }) {
               '&:hover': { bgcolor: '#15803d' }
             }}
           >
-            {submitting ? 'Guardando...' : 'PAGADO'}
+            {submitting ? 'Guardando...' : (isEditMode ? 'GUARDAR (PAGADO)' : 'PAGADO')}
           </Button>
 
           <Button
@@ -558,7 +589,7 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess }) {
               '&:hover': { bgcolor: '#d97706' }
             }}
           >
-            {submitting ? 'Guardando...' : 'POR PAGAR'}
+            {submitting ? 'Guardando...' : (isEditMode ? 'GUARDAR (POR PAGAR)' : 'POR PAGAR')}
           </Button>
         </DialogActions>
       </Dialog>
