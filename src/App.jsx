@@ -9,6 +9,7 @@ import Conductores from './modulos/conductores/conductores'
 import Vehiculos from './modulos/vehiculos/vehiculos'
 import Horarios from './modulos/horarios/horarios'
 import VentaPasajes from './modulos/horarios/VentaPasajes/ventaPasajes'
+import ReporteIngresos from './modulos/reportes/reporteIngresos/reporteIngresos'
 import Pasajes from './modulos/pasajes/pasajes'
 import Encomiendas from './modulos/encomiendas/encomiendas'
 import ReporteEncomiendas from './modulos/reportes/reporteEncomiendas/reporteEncomiendas'
@@ -45,6 +46,8 @@ function App() {
           <Route path="reportes/pasajes" element={<ReportePasajes />} />
           <Route path="reportes/horarios" element={<ReporteHorarios />} />
           <Route path="reportes/conductores" element={<ReporteConductores />} />
+          <Route path="reportes/ingresos" element={<ReporteIngresos />} />
+
           <Route path="puntos-venta" element={<PuntoVenta />} />
         </Route>
       </Routes>

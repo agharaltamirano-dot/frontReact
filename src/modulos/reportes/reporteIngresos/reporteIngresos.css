@@ -1,0 +1,74 @@
+.reporte-ingresos-container {
+  padding: 24px;
+  background-color: #f8f9fa;
+  min-height: 100vh;
+}
+
+.reporte-ingresos-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 900px) {
+  .reporte-ingresos-header {
+    flex-direction: column;
+    gap: 16px;
+  }
+}
+
+.recharts-responsive-container {
+  margin-top: 16px;
+}
+
+.recharts-cartesian-grid-horizontal line {
+  stroke: #e0e0e0;
+}
+
+.recharts-cartesian-axis-line {
+  stroke: #bdbdbd;
+}
+
+.recharts-legend-wrapper {
+  padding-top: 10px;
+}
+
+/* MUI Customizations */
+.MuiPaper-root {
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.MuiPaper-root:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.MuiTableCell-head {
+  background-color: #f1f3f4 !important;
+  color: #3c4043 !important;
+}
+
+.MuiTableRow-hover:hover {
+  background-color: rgba(25, 118, 210, 0.04) !important;
+}
+
+/* Success and Error colors for specific table cells */
+.text-success {
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+.text-error {
+  color: #d32f2f;
+  font-weight: 600;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.reporte-ingresos-container > * {
+  animation: fadeIn 0.4s ease-out forwards;
+}
