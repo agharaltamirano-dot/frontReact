@@ -23,6 +23,7 @@ export async function getRutas() {
 }
 
 export async function createRuta(payload) {
+  console.log('datos de nueva o edit ruta', payload)
   const res = await fetch(BASE_URL, {
     method: 'POST',
     headers: authHeaders(),

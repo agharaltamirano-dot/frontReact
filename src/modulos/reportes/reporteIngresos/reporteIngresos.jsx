@@ -318,13 +318,13 @@ export default function ReporteIngresos() {
           <ResponsiveContainer width="100%" height="90%">
             <LineChart data={data}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="Fecha" />
+              <XAxis dataKey="fecha" />
               <YAxis tickFormatter={(value) => `Bs ${value}`} />
               <RechartsTooltip formatter={(value) => formatCurrency(value)} />
               <Legend />
               <Line
                 type="monotone"
-                dataKey="Activos"
+                dataKey="activos"
                 name="Ganancias Activas"
                 stroke="#2e7d32"
                 strokeWidth={3}
@@ -333,7 +333,7 @@ export default function ReporteIngresos() {
               />
               <Line
                 type="monotone"
-                dataKey="Anulados"
+                dataKey="anulados"
                 name="Anulados"
                 stroke="#d32f2f"
                 strokeWidth={2}
@@ -366,17 +366,17 @@ export default function ReporteIngresos() {
             ) : (
               data.map((row, index) => (
                 <TableRow key={index} hover>
-                  <TableCell>{row.Fecha}</TableCell>
-                  <TableCell align="center">{row.CantPasajes}</TableCell>
-                  <TableCell align="center">{row.CantEncomiendas}</TableCell>
+                  <TableCell>{row.fecha}</TableCell>
+                  <TableCell align="center">{row.cantPasajes}</TableCell>
+                  <TableCell align="center">{row.cantEncomiendas}</TableCell>
                   <TableCell align="right" sx={{ color: 'success.main', fontWeight: 'medium' }}>
-                    {formatCurrency(row.Activos)}
+                    {formatCurrency(row.activos)}
                   </TableCell>
                   <TableCell align="right" sx={{ color: 'error.main' }}>
-                    {formatCurrency(row.Anulados)}
+                    {formatCurrency(row.anulados)}
                   </TableCell>
                   <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                    {formatCurrency(row.Total)}
+                    {formatCurrency(row.total)}
                   </TableCell>
                 </TableRow>
               ))

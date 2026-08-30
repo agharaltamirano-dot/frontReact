@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import autoImg from '../../assets/auto.jpeg'
-import logoImg from '../../assets/logo9.png'
+import logoImg from '../../assets/logo3.jpeg'
 import './login.css'
 
 function Login() {

@@ -182,6 +182,7 @@ export default function Encomiendas() {
     try {
       const data = await getEncomiendas()
       setEncomiendas(Array.isArray(data) ? data : [])
+      console.log('Encomiendas cargadas:', data)
     } catch (err) {
       console.error(err)
       showSnackbar('Error al cargar encomiendas: ' + (err.message || ''), 'error')

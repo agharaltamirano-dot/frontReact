@@ -146,6 +146,7 @@ function Rutas() {
         esOrigen: true,
         orden: 1,
         puntoVentaId: origenIdNum || existingOriginPuntoId,
+        tarifa: existingOrigin?.tarifa ?? 0,
       });
       (
         // Intermediates from UI (preserve ids when provided)
@@ -161,6 +162,7 @@ function Rutas() {
           esOrigen: false,
           orden: 2 + idx,
           puntoVentaId: Number(midPunto),
+          tarifa: mid?.tarifa ?? 0,
         });
       });
 
@@ -173,6 +175,7 @@ function Rutas() {
       esOrigen: false,
       orden: destOrden,
       puntoVentaId: destinoIdNum || existingDestPuntoId,
+      tarifa: existingDest?.tarifa ?? 0,
     });
 
     return payload;
@@ -249,6 +252,7 @@ function Rutas() {
               id: d.id,
               puntoVentaId: d.puntoVentaId || d.puntoVenta?.id || d.puntoVenta,
               orden: d.orden,
+               tarifa: d.tarifa ?? 0,
             }))
         : [];
 
@@ -382,13 +386,15 @@ function Rutas() {
           console.log("PUT backend rutas no disponible:", err.message);
         }
 
-        setRutas((prev) =>
-          prev.map((r) =>
-            r.id === editingRuta.id
-              ? { ...r, ...payload, id: editingRuta.id }
-              : r,
-          ),
-        );
+        // setRutas((prev) =>
+        //   prev.map((r) =>
+        //     r.id === editingRuta.id
+        //       ? { ...r, ...payload, id: editingRuta.id }
+        //       : r,
+        //   ),
+        // );
+    fetchRutas();
+
         showNotification("Ruta actualizada exitosamente");
       } else {
         const newId = Date.now();
@@ -400,7 +406,9 @@ function Rutas() {
           console.log("POST backend rutas no disponible:", err.message);
         }
 
-        setRutas((prev) => [newRuta, ...prev]);
+        // setRutas((prev) => [newRuta, ...prev]);
+    fetchRutas();
+
         showNotification("Nueva ruta registrada exitosamente");
       }
 
@@ -429,6 +437,25 @@ function Rutas() {
     }
     setRutaToDelete(null);
   };
+
+  const updateIntermediateDestinoTarifa = (index, valor) => {
+  const num = Number(valor);
+
+  // Validación: positivo y <= 1000
+  if (isNaN(num) || num <= 0 || num > 1000) {
+    showNotification("La tarifa debe ser mayor a 0 y no superar 1000", "error");
+    return;
+  }
+
+  setFormData((prev) => {
+    const list = [...(prev.destinosUI || [])];
+    list[index] = {
+      ...(list[index] || {}),
+      tarifa: num,
+    };
+    return { ...prev, destinosUI: list };
+  });
+};
 
   // ── Filtrado ─────────────────────────────────────────────────────────────────
   // Visualización: convertir números de día en abreviatura (1->L,2->Ma...)
@@ -799,7 +826,7 @@ function Rutas() {
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div
-              style={{ width: "1380px", maxWidth: "95%" }}
+              style={{ width: "2080px", maxWidth: "95%" }}
               className="modal-content-inner"
             >
               <div className="modal-header">
@@ -904,6 +931,15 @@ function Rutas() {
                                 </option>
                               ))}
                             </select>
+                             {/* Nuevo input number */}
+ <input
+  type="number"
+  value={d.tarifa ?? ""}
+  onChange={(e) => updateIntermediateDestinoTarifa(idx, e.target.value)}
+  className="input-field"
+  style={{ MozAppearance: "textfield" }} // Firefox
+/>
+
                             <button
                               type="button"
                               className="delete-btn"
