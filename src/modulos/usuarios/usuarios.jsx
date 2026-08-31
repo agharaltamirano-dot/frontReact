@@ -66,6 +66,8 @@ function Usuarios() {
       if (!res.ok) throw new Error(`Error ${res.status}`)
       const data = await res.json()
       // Keep only active users (estado === true)
+      console.log('usaurios: ',data);
+
       setUsuarios(Array.isArray(data) ? data.filter(u => u && u.estado === true) : [])
     } catch (err) {
       console.error(err)
@@ -126,7 +128,7 @@ function Usuarios() {
       clave: '',
       rol: rolActual,
       acceso: user.acceso ?? false,
-      PuntoVentaId: user.puntoVenta.id || 1
+      PuntoVentaId: user.puntoVenta.id
     })
     setEditingUser(user)
     setShowAddModal(true)
@@ -142,13 +144,15 @@ function Usuarios() {
       clave: formData.clave,
       rolId: formData.rol.id,
       estado: formData.estado,
-      PuntoVentaId: formData.PuntoVentaId?.id || 1
+      PuntoVentaId: formData.PuntoVentaId
     }
 
     try {
       console.log('Datos a enviar:', body)
       if (editingUser) {
         // PUT: editar
+        console.log('Respuesta del PUT:', body)
+
         const res = await fetch(`${BASE_URL}/${editingUser.id}`, {
           method: 'PUT',
           headers: authHeaders(),
@@ -158,6 +162,7 @@ function Usuarios() {
         showNotification('Usuario actualizado exitosamente')
       } else {
         // POST: crear
+        console.log('Datos a enviar en POST:', body)
         const res = await fetch(BASE_URL, {
           method: 'POST',
           headers: authHeaders(),

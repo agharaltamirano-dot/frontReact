@@ -259,8 +259,9 @@ const getAuthData = () => {
   }
 };
 function esAdmin() {
-  const authData = getAuthData()
-  return authData?.usuario?.rol?.nombre === "administrador"
+  // const authData = getAuthData()
+  return true
+  // return authData?.usuario?.rol?.nombre === "administrador"
 }
 // Define qué menús puede ver cada rol
 const ROLE_MENUS = {
@@ -269,7 +270,8 @@ const ROLE_MENUS = {
     "m-asi", "m-rut", "m-hor", "m-pas", "m-enc", "m-pv"
   ],
   secretaria: [
-    "m-dash", "m-cli", "m-pas", "m-enc","m-hor"
+    "m-dash", "m-cli", "m-cond", "m-veh",
+    "m-asi", "m-hor", "m-pas", "m-enc"
   ],
   // supervisor: [
   //   "m-dash", "m-cli", "m-cond", "m-veh", "m-rut", "m-hor", "m-pas", "m-enc"

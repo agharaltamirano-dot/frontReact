@@ -452,9 +452,10 @@ function coincideDestino(destino) {
     if (!puntoVentaNombre) {
       return false
     }
+console.log(`coincidencia de ${destino} con ${puntoVentaNombre}`, destino.toLowerCase() == puntoVentaNombre.toLowerCase())
 
     // Comparar con el destino recibido
-    return destino === puntoVentaNombre
+    return destino.toLowerCase() === puntoVentaNombre.toLowerCase()
   } catch (error) {
     return false
   }

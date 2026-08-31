@@ -156,14 +156,14 @@ export default function PuntoVenta() {
     <Box className="pv-screen">
       {/* ── Encabezado ─────────────────────────────────────────────────────── */}
       <Box className="pv-header">
-        <Box>
+        {/* <Box>
           <Typography variant="h5" className="pv-title">
             Puntos de Venta
           </Typography>
           <Typography variant="body2" className="pv-subtitle">
             {puntos.length} punto{puntos.length !== 1 ? 's' : ''} de venta registrado{puntos.length !== 1 ? 's' : ''}
           </Typography>
-        </Box>
+        </Box> */}
         <Stack direction="row" spacing={1.5} alignItems="center">
           <Tooltip title="Recargar">
             <IconButton onClick={fetchPuntos} disabled={loading} className="refresh-btn">
@@ -230,7 +230,7 @@ export default function PuntoVenta() {
                   <TableCell>Nombre</TableCell>
                   <TableCell>Dirección</TableCell>
                   <TableCell>Teléfono</TableCell>
-                  <TableCell align="center">Estado</TableCell>
+                  <TableCell align="center">Es punto venta</TableCell>
                   <TableCell align="center">Acciones</TableCell>
                 </TableRow>
               </TableHead>
@@ -268,7 +268,7 @@ export default function PuntoVenta() {
                       </TableCell>
                       <TableCell align="center">
                         <Chip
-                          label={p.esPuntoVenta !== false ? 'Activo' : 'Inactivo'}
+                          label={p.esPuntoVenta !== false ? 'Punto de venta' : 'Lugar'}
                           size="small"
                           className={p.esPuntoVenta !== false ? 'chip-activo' : 'chip-inactivo'}
                         />
@@ -284,7 +284,7 @@ export default function PuntoVenta() {
                               <EditIcon fontSize="small" />
                             </IconButton>
                           </Tooltip>
-                          <Tooltip title="Eliminar">
+                          {/* <Tooltip title="Eliminar">
                             <IconButton
                               size="small"
                               className="btn-action-delete"
@@ -292,7 +292,7 @@ export default function PuntoVenta() {
                             >
                               <DeleteIcon fontSize="small" />
                             </IconButton>
-                          </Tooltip>
+                          </Tooltip> */}
                         </Stack>
                       </TableCell>
                     </TableRow>
@@ -374,8 +374,8 @@ export default function PuntoVenta() {
               size="small"
               value={form.direccion}
               onChange={e => setForm(f => ({ ...f, direccion: e.target.value }))}
-              error={!!formErrors.direccion}
-              helperText={formErrors.direccion}
+              // error={!!formErrors.direccion}
+              // helperText={formErrors.direccion}
               InputProps={{
                 startAdornment: <InputAdornment position="start"><RoomIcon sx={{ fontSize: 16, color: '#94a3b8' }} /></InputAdornment>
               }}
@@ -387,8 +387,8 @@ export default function PuntoVenta() {
               size="small"
               value={form.telefono}
               onChange={e => setForm(f => ({ ...f, telefono: e.target.value }))}
-              error={!!formErrors.telefono}
-              helperText={formErrors.telefono}
+              // error={!!formErrors.telefono}
+              // helperText={formErrors.telefono}
               InputProps={{
                 startAdornment: <InputAdornment position="start"><PhoneIcon sx={{ fontSize: 16, color: '#94a3b8' }} /></InputAdornment>
               }}

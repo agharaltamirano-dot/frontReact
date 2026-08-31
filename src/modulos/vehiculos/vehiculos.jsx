@@ -318,8 +318,8 @@ function Vehiculos() {
         } catch (err) {
           console.log('POST backend vehiculos no disponible, agregando local:', err.message)
         }
-
-        setVehiculos(prev => [newVehicle, ...prev])
+        fetchVehiculos()
+        // setVehiculos(prev => [newVehicle, ...prev])
         showNotification('Nuevo vehículo registrado exitosamente')
       }
 
@@ -339,7 +339,7 @@ function Vehiculos() {
 
   const confirmDelete = async () => {
     if (!vehicleToDelete) return
-    setVehiculos(prev => prev.filter(v => v.id !== vehicleToDelete.id))
+    // setVehiculos(prev => prev.filter(v => v.id !== vehicleToDelete.id))
 
     try {
       await deleteVehiculo(vehicleToDelete.id)
@@ -457,7 +457,7 @@ function Vehiculos() {
               <option value="inactivos">Inactivos</option>
             </select>
             */}
-          </div> 
+          </div>
 
           <button className="add-btn" onClick={handleAddNew}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -504,7 +504,7 @@ function Vehiculos() {
                   return (
                     <tr key={v.id}>
                       <td>
-                        <div 
+                        <div
                           className="user-avatar-small"
                           style={{ cursor: vehicleFoto ? 'pointer' : 'default' }}
                           onClick={vehicleFoto ? () => setFullscreenImage(getVehicleImageUrl(vehicleFoto)) : undefined}
@@ -885,10 +885,10 @@ function Vehiculos() {
                     <div className="image-preview-container">
                       {previewUrl ? (
                         <div className="preview-image-wrapper">
-                          <img 
-                            src={previewUrl} 
-                            alt="Vista previa" 
-                            className="preview-image" 
+                          <img
+                            src={previewUrl}
+                            alt="Vista previa"
+                            className="preview-image"
                             style={{ cursor: 'pointer' }}
                             onClick={() => setFullscreenImage(previewUrl)}
                           />
