@@ -108,7 +108,7 @@ export default function Dashboard() {
         {/* 🚌 FLOTA DE VEHÍCULOS */}
         <div className="kpi-card flota">
           <div className="kpi-header">
-            <span className="kpi-title">Flota de Vehículos</span>
+            <span className="kpi-title">Vehículos</span>
             <div className="kpi-icon">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                 <rect x="3" y="4" width="18" height="15" rx="3" />
