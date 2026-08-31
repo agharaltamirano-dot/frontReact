@@ -26,7 +26,7 @@ export default function ReporteClientes() {
   const [exporting, setExporting] = useState({ pdf: false, xlsx: false })
   const [error, setError] = useState('')
 
-  const filters = search.trim() ? { search: search.trim() } : {}
+  var filters = search.trim() ? { search: search.trim() } : {}
 
   const loadClientes = useCallback(async (appliedFilters = {}) => {
     setLoading(true)
@@ -46,14 +46,19 @@ export default function ReporteClientes() {
     const timer = setTimeout(() => loadClientes(), 0)
     return () => clearTimeout(timer)
   }, [loadClientes])
-
+  const getUserName = () => {
+    const authData = JSON.parse(sessionStorage.getItem("authData") || '{}')
+    console.log('usuario generando', authData);
+    return authData?.usuario?.usuario1 || ''
+  }
   const handleExport = async (type) => {
     setExporting(current => ({ ...current, [type]: true }))
     setError('')
     try {
+      const filter = { ...filters, nombreUsuario: getUserName() }
       const blob = type === 'pdf'
-        ? await getReporteClientesPdf(filters)
-        : await getReporteClientesXlsx(filters)
+        ? await getReporteClientesPdf(filter)
+        : await getReporteClientesXlsx(filter)
 
       if (type === 'pdf') {
         const url = URL.createObjectURL(blob)

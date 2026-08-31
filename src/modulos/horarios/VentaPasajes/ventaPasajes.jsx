@@ -17,9 +17,14 @@ export default function VentaPasajes() {
 
   // Snackbar / Alert state
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' })
-  const showSnackbar = (message, severity = 'info') => {
-    setSnackbar({ open: true, message: message || '', severity })
-  }
+  const showSnackbar = (message, severity = "info") => {
+  setSnackbar({ open: true, message: message || "", severity })
+  // ⏱️ Cerrar automáticamente después de 2 segundos
+  setTimeout(() => {
+    setSnackbar((prev) => ({ ...prev, open: false }))
+  }, 2000)
+}
+
   const closeSnackbar = () => setSnackbar(prev => ({ ...prev, open: false }))
 
   // Confirmación para anular pasaje
@@ -274,112 +279,164 @@ export default function VentaPasajes() {
   }
 
   const reimprimirPasaje = async (pasajeId) => {
-    if (!pasajeId) return showSnackbar('ID de pasaje inválido', 'warning')
-    showSnackbar('Generando ticket...', 'info')
-    try {
-      const token = getAuthToken()
-      const headers = token ? { Authorization: `Bearer <${token}>` } : {}
-      const resp = await fetch(`http://localhost:5093/api/ticket/${pasajeId}`, { method: 'GET', headers })
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
-      const blob = await resp.blob()
-      const blobUrl = URL.createObjectURL(blob)
+  if (!pasajeId) return showSnackbar("ID de pasaje inválido", "warning")
 
-      // Cargar el PDF en un iframe oculto y abrir SOLO el diálogo de impresión
-      showSnackbar('Preparando ticket para imprimir...', 'info')
+  showSnackbar("Generando ticket...", "info")
+
+  try {
+    const token = getAuthToken()
+    const headers = token ? { Authorization: `Bearer ${token}` } : {}
+    const resp = await fetch(`http://localhost:5093/api/ticket/${pasajeId}`, { method: "GET", headers })
+
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+
+    const blob = await resp.blob()
+    const blobUrl = URL.createObjectURL(blob)
+
+    showSnackbar("Preparando ticket para imprimir...", "info")
+
+    const iframe = document.createElement("iframe")
+    Object.assign(iframe.style, {
+      position: "fixed",
+      right: "0",
+      bottom: "0",
+      width: "0",
+      height: "0",
+      border: "0",
+      opacity: "0",
+    })
+    iframe.src = blobUrl
+
+    iframe.onload = () => {
       try {
-        const iframe = document.createElement('iframe')
-        iframe.style.position = 'fixed'
-        iframe.style.right = '0'
-        iframe.style.bottom = '0'
-        iframe.style.width = '0'
-        iframe.style.height = '0'
-        iframe.style.border = '0'
-        iframe.style.opacity = '0'
-        iframe.src = blobUrl
-        iframe.onload = () => {
-          try {
-            // Algunos navegadores requieren foco y un pequeño retraso
-            iframe.contentWindow.focus()
-            setTimeout(() => {
-              try { iframe.contentWindow.print() } catch (e) { console.warn('print() en iframe falló:', e) }
-              // limpiar
+        // Verificar que el documento esté listo
+        const checkReady = setInterval(() => {
+          if (iframe.contentDocument?.readyState === "complete") {
+            clearInterval(checkReady)
+
+            try {
+              iframe.contentWindow.focus()
+              // Dar tiempo suficiente para que el PDF se renderice
               setTimeout(() => {
-                try { document.body.removeChild(iframe) } catch (_) {}
-                try { URL.revokeObjectURL(blobUrl) } catch (_) {}
-              }, 900)
-            }, 500)
-          } catch (e) {
-            console.warn('Error al invocar print en iframe:', e)
-            // fallback: abrir en nueva pestaña para que el usuario imprima manualmente
-            const a = document.createElement('a')
-            a.href = blobUrl
-            a.target = '_blank'
-            a.rel = 'noopener'
-            a.click()
-            setTimeout(() => URL.revokeObjectURL(blobUrl), 60000)
+                try {
+                  iframe.contentWindow.print()
+                } catch (e) {
+                  console.warn("print() en iframe falló:", e)
+                  // Fallback: abrir en nueva pestaña
+                  const a = document.createElement("a")
+                  a.href = blobUrl
+                  a.target = "_blank"
+                  a.rel = "noopener"
+                  a.click()
+                }
+
+                // Limpieza después de unos segundos
+                setTimeout(() => {
+                  try { document.body.removeChild(iframe) } catch (_) {}
+                  try { URL.revokeObjectURL(blobUrl) } catch (_) {}
+                }, 3000)
+              }, 1200) // delay mayor para estabilidad
+            } catch (e) {
+              console.warn("Error al invocar print:", e)
+            }
           }
-        }
-        document.body.appendChild(iframe)
+        }, 300)
       } catch (e) {
-        console.error('No se pudo crear iframe para imprimir:', e)
-        // fallback: navegar a la URL del blob en la misma pestaña
-        window.location.href = blobUrl
+        console.warn("Error en iframe.onload:", e)
+        // Fallback inmediato
+        const a = document.createElement("a")
+        a.href = blobUrl
+        a.target = "_blank"
+        a.rel = "noopener"
+        a.click()
         setTimeout(() => URL.revokeObjectURL(blobUrl), 60000)
       }
-    } catch (err) {
-      console.error('Error reimprimiendo pasaje', err)
-      showSnackbar('Error al generar ticket: ' + (err.message || ''), 'error')
     }
+
+    document.body.appendChild(iframe)
+  } catch (err) {
+    console.error("Error reimprimiendo pasaje", err)
+    showSnackbar("Error al generar ticket: " + (err.message || ""), "error")
   }
+}
+
 
   const openHojaRuta = async () => {
-    if (!horario?.id) return showSnackbar('Horario inválido', 'warning')
-    showSnackbar('Generando hoja de ruta...', 'info')
-    try {
-      const blob = await getHojaRuta(horario.id)
-      const blobUrl = URL.createObjectURL(blob)
-      showSnackbar('Preparando hoja para imprimir...', 'info')
+  if (!horario?.id) return showSnackbar("Horario inválido", "warning")
+
+  showSnackbar("Generando hoja de ruta...", "info")
+
+  try {
+    const blob = await getHojaRuta(horario.id)
+    const blobUrl = URL.createObjectURL(blob)
+
+    showSnackbar("Preparando hoja para imprimir...", "info")
+
+    const iframe = document.createElement("iframe")
+    Object.assign(iframe.style, {
+      position: "fixed",
+      right: "0",
+      bottom: "0",
+      width: "0",
+      height: "0",
+      border: "0",
+      opacity: "0",
+    })
+    iframe.src = blobUrl
+
+    iframe.onload = () => {
       try {
-        const iframe = document.createElement('iframe')
-        iframe.style.position = 'fixed'
-        iframe.style.right = '0'
-        iframe.style.bottom = '0'
-        iframe.style.width = '0'
-        iframe.style.height = '0'
-        iframe.style.border = '0'
-        iframe.style.opacity = '0'
-        iframe.src = blobUrl
-        iframe.onload = () => {
-          try {
-            iframe.contentWindow.focus()
-            setTimeout(() => {
-              try { iframe.contentWindow.print() } catch (e) { console.warn('print() en iframe falló:', e) }
+        // Verificar que el documento esté listo
+        const checkReady = setInterval(() => {
+          if (iframe.contentDocument?.readyState === "complete") {
+            clearInterval(checkReady)
+
+            try {
+              iframe.contentWindow.focus()
+              // Dar tiempo suficiente para que el PDF se renderice
               setTimeout(() => {
-                try { document.body.removeChild(iframe) } catch (_) {}
-                try { URL.revokeObjectURL(blobUrl) } catch (_) {}
-              }, 900)
-            }, 500)
-          } catch (e) {
-            console.warn('Error al invocar print en iframe:', e)
-            const a = document.createElement('a')
-            a.href = blobUrl
-            a.target = '_blank'
-            a.rel = 'noopener'
-            a.click()
-            setTimeout(() => URL.revokeObjectURL(blobUrl), 60000)
+                try {
+                  iframe.contentWindow.print()
+                } catch (e) {
+                  console.warn("print() en iframe falló:", e)
+                  // Fallback: abrir en nueva pestaña
+                  const a = document.createElement("a")
+                  a.href = blobUrl
+                  a.target = "_blank"
+                  a.rel = "noopener"
+                  a.click()
+                }
+
+                // Limpieza después de unos segundos
+                setTimeout(() => {
+                  try { document.body.removeChild(iframe) } catch (_) {}
+                  try { URL.revokeObjectURL(blobUrl) } catch (_) {}
+                }, 3000)
+              }, 1200) // delay mayor para estabilidad
+            } catch (e) {
+              console.warn("Error al invocar print:", e)
+            }
           }
-        }
-        document.body.appendChild(iframe)
+        }, 300)
       } catch (e) {
-        console.error('No se pudo crear iframe para imprimir hoja:', e)
-        window.location.href = blobUrl
+        console.warn("Error en iframe.onload:", e)
+        // Fallback inmediato
+        const a = document.createElement("a")
+        a.href = blobUrl
+        a.target = "_blank"
+        a.rel = "noopener"
+        a.click()
         setTimeout(() => URL.revokeObjectURL(blobUrl), 60000)
       }
-    } catch (err) {
-      console.error('Error generando hoja de ruta', err)
-      showSnackbar('Error al generar hoja: ' + (err.message || ''), 'error')
     }
+
+    document.body.appendChild(iframe)
+  } catch (err) {
+    console.error("Error generando hoja de ruta", err)
+    showSnackbar("Error al generar hoja: " + (err.message || ""), "error")
   }
+}
+
 
   const getDestinoName = (destinoId) => {
     try {
@@ -555,8 +612,8 @@ export default function VentaPasajes() {
                   </div>
                   <button
                     className="seat-print-btn"
-                    title="Reimprimir recibo"
-                    aria-label="Reimprimir recibo"
+                    title="Imprimir recibo"
+                    aria-label="Imprimir recibo"
                     onClick={(e) => { e.stopPropagation(); reimprimirPasaje(pasaje.id) }}
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>

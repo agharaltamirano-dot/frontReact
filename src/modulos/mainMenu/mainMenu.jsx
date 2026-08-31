@@ -258,7 +258,38 @@ const getAuthData = () => {
     return null;
   }
 };
+function esAdmin() {
+  const authData = getAuthData()
+  return authData?.usuario?.rol?.nombre === "administrador"
+}
+// Define qué menús puede ver cada rol
+const ROLE_MENUS = {
+  administrador: [
+    "m-dash", "m-usr", "m-cli", "m-cond", "m-veh",
+    "m-asi", "m-rut", "m-hor", "m-pas", "m-enc", "m-pv"
+  ],
+  secretaria: [
+    "m-dash", "m-cli", "m-pas", "m-enc","m-hor"
+  ],
+  // supervisor: [
+  //   "m-dash", "m-cli", "m-cond", "m-veh", "m-rut", "m-hor", "m-pas", "m-enc"
+  // ]
+  // puedes agregar más roles aquí
+}
 
+// Método que filtra menús según rol
+function getMenusByRol() {
+  const authData = getAuthData()
+  const rolNombre = authData?.usuario?.rol?.nombre
+
+  if (!rolNombre) {
+    console.warn("No se encontró rol en authData")
+    return []
+  }
+
+  const allowedIds = ROLE_MENUS[rolNombre] || []
+  return DEFAULT_FALLBACK_MENUS.filter(menu => allowedIds.includes(menu.id))
+}
 /** Genera iniciales a partir del nombre de usuario */
 const getInitials = (nombre = "") =>
   nombre
@@ -324,6 +355,8 @@ function MainMenu() {
       "/reportes/conductores": "rep-conductores",
       "/reportes/ingresos": "rep-ingresos",
     };
+    const authData = getAuthData();
+    console.log('Datos de auth',authData);
     setSelectedReporte(routeToId[location.pathname] ?? null);
   }, [location.pathname]);
 
@@ -346,6 +379,27 @@ function MainMenu() {
   }
 
   menuItems.sort((a, b) => (a.orden || 0) - (b.orden || 0));
+
+  function tieneRol(rolNombre) {
+  try {
+    // Obtener datos de sesión
+    const authData = JSON.parse(sessionStorage.getItem("authData") || "{}")
+
+    // Verificar que exista el rol y su nombre
+    const nombreRol = authData?.usuario?.rol?.nombre
+
+    if (!nombreRol) {
+      console.warn("No se encontró rol.nombre en authData")
+      return false
+    }
+
+    // Comparar con el rol recibido
+    return nombreRol === rolNombre
+  } catch (error) {
+    console.error("Error leyendo authData:", error)
+    return false
+  }
+}
 
   // ── Logout ────────────────────────────────────────────────────────────────────
   const handleLogout = () => {
@@ -388,61 +442,64 @@ function MainMenu() {
 
         <div className="sidebar-body">
           <nav className="sidebar-nav">
-            {menuItems.map((item) => (
-              <NavLink
-                key={item.id}
-                to={item.rutaAccion}
-                className={({ isActive }) =>
-                  `nav-item ${isActive ? "active" : ""}`
-                }
-              >
-                {getIcon(item.icono)}
-                <span>{item.nombre}</span>
-              </NavLink>
-            ))}
-          </nav>
+  {getMenusByRol().map((item) => (
+    <NavLink
+      key={item.id}
+      to={item.rutaAccion}
+      className={({ isActive }) =>
+        `nav-item ${isActive ? "active" : ""}`
+      }
+    >
+      {getIcon(item.icono)}
+      <span>{item.nombre}</span>
+    </NavLink>
+  ))}
+</nav>
 
           {/* Dropdown de Reportes */}
-          <div className="reportes-dropdown">
-            <button
-              className={`reportes-toggle${reportesOpen ? " open" : ""}`}
-              onClick={() => setReportesOpen((prev) => !prev)}
-              aria-expanded={reportesOpen}
-            >
-              <span className="reportes-toggle-left">
-                {getIcon("bar-chart")}
-                <span>Reportes</span>
-              </span>
-              <svg
-                className="reportes-chevron"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
-            </button>
-            {reportesOpen && (
-              <div className="reportes-submenu">
-                {REPORTES_ITEMS.map((r) => (
-                  <button
-                    key={r.id}
-                    className={`reportes-subitem ${r.id === selectedReporte ? "selected" : ""}`}
-                    type="button"
-                    onClick={() => handleReporteClick(r)}
-                    style={
-                      r.id === selectedReporte
-                        ? { backgroundColor: "#2563eb", color: "#fff" }
-                        : {}
-                    }
-                  >
-                    {r.nombre}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+{esAdmin() && (
+  <div className="reportes-dropdown">
+    <button
+      className={`reportes-toggle${reportesOpen ? " open" : ""}`}
+      onClick={() => setReportesOpen((prev) => !prev)}
+      aria-expanded={reportesOpen}
+    >
+      <span className="reportes-toggle-left">
+        {getIcon("bar-chart")}
+        <span>Reportes</span>
+      </span>
+      <svg
+        className="reportes-chevron"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+      >
+        <polyline points="6 9 12 15 18 9" />
+      </svg>
+    </button>
+    {reportesOpen && (
+      <div className="reportes-submenu">
+        {REPORTES_ITEMS.map((r) => (
+          <button
+            key={r.id}
+            className={`reportes-subitem ${r.id === selectedReporte ? "selected" : ""}`}
+            type="button"
+            onClick={() => handleReporteClick(r)}
+            style={
+              r.id === selectedReporte
+                ? { backgroundColor: "#2563eb", color: "#fff" }
+                : {}
+            }
+          >
+            {r.nombre}
+          </button>
+        ))}
+      </div>
+    )}
+  </div>
+)}
+
         </div>
 
         <button onClick={handleLogout} className="logout-btn">

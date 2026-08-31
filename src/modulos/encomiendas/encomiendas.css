@@ -15,6 +15,11 @@
     transform: translateY(0);
   }
 }
+@media print {
+  .MuiDialogActions-root {
+    display: none !important; /* oculta Cerrar e Imprimir Ticket */
+  }
+}
 
 /* Stat Cards */
 .stat-card {
@@ -118,3 +123,18 @@
 .ticket-modal-paper {
   border-radius: 16px !important;
 }
+@media print {
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .ticket-print-area {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .ticket-modal-paper {
+    box-shadow: none !important; /* quita sombra del diálogo */
+    border: none !important;
+  }
+}
+

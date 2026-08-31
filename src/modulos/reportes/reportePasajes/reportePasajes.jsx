@@ -28,6 +28,11 @@ function formatDateTime(value) {
 }
 
 export default function ReportePasajes() {
+  const getUserName = () => {
+    const authData = JSON.parse(sessionStorage.getItem("authData") || '{}')
+    console.log('usuario generando', authData);
+    return authData?.usuario?.usuario1 || ''
+  }
   const [filters, setFilters] = useState(EMPTY_FILTERS)
   const [pasajes, setPasajes] = useState([])
   const [loading, setLoading] = useState(false)
@@ -62,9 +67,10 @@ export default function ReportePasajes() {
     setExporting(current => ({ ...current, [type]: true }))
     setError('')
     try {
+      const filters = {...apiFilters, nombreUsuario: getUserName()}
       const blob = type === 'pdf'
-        ? await getReportePasajesPdf(apiFilters)
-        : await getReportePasajesXlsx(apiFilters)
+        ? await getReportePasajesPdf(filters)
+        : await getReportePasajesXlsx(filters)
 
       if (type === 'pdf') {
         const url = URL.createObjectURL(blob)

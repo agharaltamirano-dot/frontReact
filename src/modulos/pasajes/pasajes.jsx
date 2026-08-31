@@ -104,35 +104,82 @@ export default function PasajesList() {
   }
 
   const reimprimir = async (id) => {
-    if (!id) return showSnackbar('ID inválido', 'warning')
-    showSnackbar('Generando ticket...', 'info')
-    try {
-      const blob = await getTicketBlob(id)
-      const blobUrl = URL.createObjectURL(blob)
-      const iframe = document.createElement('iframe')
-      Object.assign(iframe.style, { position: 'fixed', right: '0', bottom: '0', width: '0', height: '0', border: '0', opacity: '0' })
-      iframe.src = blobUrl
-      iframe.onload = () => {
-        try {
-          iframe.contentWindow.focus()
-          setTimeout(() => {
-            try { iframe.contentWindow.print() } catch (e) { console.warn(e) }
-            setTimeout(() => {
-              try { document.body.removeChild(iframe) } catch (_) { }
-              try { URL.revokeObjectURL(blobUrl) } catch (_) { }
-            }, 900)
-          }, 500)
-        } catch (e) {
-          const a = document.createElement('a')
-          a.href = blobUrl; a.target = '_blank'; a.rel = 'noopener'; a.click()
-          setTimeout(() => URL.revokeObjectURL(blobUrl), 60000)
-        }
+  if (!id) return showSnackbar("ID inválido", "warning")
+
+  showSnackbar("Generando ticket...", "info")
+
+  try {
+    const blob = await getTicketBlob(id)
+    const blobUrl = URL.createObjectURL(blob)
+
+    const iframe = document.createElement("iframe")
+    Object.assign(iframe.style, {
+      position: "fixed",
+      right: "0",
+      bottom: "0",
+      width: "0",
+      height: "0",
+      border: "0",
+      opacity: "0",
+    })
+    iframe.src = blobUrl
+
+    iframe.onload = () => {
+      try {
+        // Esperar a que el documento esté completamente listo
+        const checkReady = setInterval(() => {
+          if (iframe.contentDocument?.readyState === "complete") {
+            clearInterval(checkReady)
+
+            try {
+              iframe.contentWindow.focus()
+              // Dar tiempo suficiente para que el PDF se renderice
+              setTimeout(() => {
+                try {
+                  iframe.contentWindow.print()
+                } catch (e) {
+                  console.warn("Error al imprimir:", e)
+                  // Fallback: abrir en nueva pestaña
+                  const a = document.createElement("a")
+                  a.href = blobUrl
+                  a.target = "_blank"
+                  a.rel = "noopener"
+                  a.click()
+                }
+
+                // Limpieza después de unos segundos
+                setTimeout(() => {
+                  try {
+                    document.body.removeChild(iframe)
+                  } catch (_) {}
+                  try {
+                    URL.revokeObjectURL(blobUrl)
+                  } catch (_) {}
+                }, 3000)
+              }, 1200) // delay mayor para estabilidad
+            } catch (e) {
+              console.warn("Error en impresión:", e)
+            }
+          }
+        }, 300)
+      } catch (e) {
+        console.warn("Error en iframe.onload:", e)
+        // Fallback inmediato
+        const a = document.createElement("a")
+        a.href = blobUrl
+        a.target = "_blank"
+        a.rel = "noopener"
+        a.click()
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 60000)
       }
-      document.body.appendChild(iframe)
-    } catch (err) {
-      showSnackbar('Error generando ticket: ' + (err.message || ''), 'error')
     }
+
+    document.body.appendChild(iframe)
+  } catch (err) {
+    showSnackbar("Error generando ticket: " + (err.message || ""), "error")
   }
+}
+
 
   // Filtros
   const normalized = (s = '') => String(s || '').toLowerCase()

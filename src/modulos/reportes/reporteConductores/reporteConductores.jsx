@@ -86,7 +86,9 @@ export default function ReporteConductores() {
       const params = new URLSearchParams()
       if (fechaParams.fechaInicio) params.append('fechaInicio', fechaParams.fechaInicio)
       if (fechaParams.fechaFin) params.append('fechaFin', fechaParams.fechaFin)
-        // params.append('nombreUsuario', searchTerm.trim())
+
+        const authData = (sessionStorage.getItem('authData') ? JSON.parse(sessionStorage.getItem('authData')) : null)
+        params.append('nombreUsuario', authData?.usuario.usuario)
       const url = `${BASE_URL_REPORTE}/${conductorId}/${type}?${params.toString()}`
       const res = await fetch(url, { headers: authHeaders() })
 

@@ -195,12 +195,17 @@ export default function ReporteEncomiendas() {
     })
     return queryParams.toString()
   }
-
+  const getUserName = () => {
+    const authData = JSON.parse(sessionStorage.getItem("authData") || '{}')
+    console.log('usuario generando', authData);
+    return authData?.usuario?.usuario1 || ''
+  }
   const handleExportPDF = async () => {
     setExporting(prev => ({ ...prev, pdf: true }))
     try {
       const queryString = buildQueryString()
-      const url = `http://localhost:5093/api/reporteEncomiendas/reporte-encomiendas/pdf${queryString ? '?' + queryString : ''}`
+      const filters = {...buildFiltersForAPI(), nombreUsuario: getUserName()}
+      const url = `http://localhost:5093/api/reporteEncomiendas/reporte-encomiendas/pdf${filters ? '?' + new URLSearchParams(filters).toString() : ''}`
       const token = getToken()
       const headers = token ? { Authorization: `Bearer ${token}` } : {}
       
