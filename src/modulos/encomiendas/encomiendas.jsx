@@ -801,6 +801,7 @@ console.log(`coincidencia de ${destino} con ${puntoVentaNombre}`, destino.toLowe
                 <TableCell>Número</TableCell>
                 <TableCell>Contenido</TableCell>
                 <TableCell>Destino</TableCell>
+                <TableCell>ENVIO</TableCell>
                 <TableCell>Remitente</TableCell>
                 <TableCell>Consignatario</TableCell>
                 <TableCell align="right">Monto</TableCell>
@@ -815,7 +816,7 @@ console.log(`coincidencia de ${destino} con ${puntoVentaNombre}`, destino.toLowe
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={11} align="center" sx={{ py: 5 }}>
+                  <TableCell colSpan={13} align="center" sx={{ py: 5 }}>
                     <CircularProgress size={32} sx={{ mb: 1 }} />
                     <Typography variant="body2" color="text.secondary">
                       Cargando encomiendas...
@@ -824,7 +825,7 @@ console.log(`coincidencia de ${destino} con ${puntoVentaNombre}`, destino.toLowe
                 </TableRow>
               ) : paginatedData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={11} align="center" sx={{ py: 5 }}>
+                  <TableCell colSpan={13} align="center" sx={{ py: 5 }}>
                     <LocalShippingIcon
                       sx={{ fontSize: 40, color: "#94a3b8", mb: 1 }}
                     />
@@ -864,6 +865,24 @@ console.log(`coincidencia de ${destino} con ${puntoVentaNombre}`, destino.toLowe
                           bgcolor: "#f8fafc",
                         }}
                       />
+                    </TableCell>
+
+                    <TableCell>
+                      {row.envio == null ? (
+                        <Button
+                          variant="contained"
+                          size="small"
+                          color="primary"
+                          onClick={() => showSnackbar("asigando", "info")}
+                        >
+                          Asignar
+                        </Button>
+                      ) : (
+                        <span>
+                          {(row.envio.conductor?.nombre ?? "")}
+                          {row.envio.fecha ? ` ${row.envio.fecha}` : ""}
+                        </span>
+                      )}
                     </TableCell>
 
                     {/* Remitente: Nombre Completo & Teléfono */}

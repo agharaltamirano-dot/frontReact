@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { Box, Stack, Button, Dialog, DialogTitle, DialogContent, DialogActions, List, ListItem, ListItemAvatar, Avatar, Chip, Divider, Typography, Snackbar, Alert, TextField, Select, MenuItem, FormControl, InputLabel, Autocomplete } from '@mui/material'
 import { getHorarioById, postPasajesBatch, deletePasaje, getHojaRuta, putPasaje } from './ventaPasajesSevice'
 import { getClientes } from '../../encomiendas/registrarEncomienda/registrarEncomiendaService'
+import { getPuntosVenta } from '../../puntoVenta/puntoVentaService'
 import './ventaPasajes.css'
 
 export default function VentaPasajes() {
@@ -10,6 +11,7 @@ export default function VentaPasajes() {
   const [horario, setHorario] = useState(null)
   const [selectedSeats, setSelectedSeats] = useState([])
   const [clientesList, setClientesList] = useState([])
+  const [puntosVentaList, setPuntosVentaList] = useState([])
   const [pasajesOpen, setPasajesOpen] = useState(false)
 
   const openPasajes = () => setPasajesOpen(true)
@@ -159,17 +161,19 @@ export default function VentaPasajes() {
   }
 
 
-  const destinosOptions = (horario?.ruta?.destinos || []).map(d => {
-    const pv = d.puntoVenta || {}
+  const destinosOptions = puntosVentaList.map(pv => {
+    const rutaDestino = (horario?.ruta?.destinos || []).find(d => Number(d.puntoVenta?.id) === Number(pv.id))
     return {
-      id: pv.id || d.id || '',
-      nombre: pv.nombre || pv || '',
-      tarifa: d.tarifa ?? horario?.ruta?.tarifa ?? 0,
+      id: pv.id,
+      nombre: pv.nombre || '',
+      tarifa: rutaDestino?.tarifa ?? horario?.ruta?.tarifa ?? 0,
       visiblePasajes: !!pv.visiblePasajes
     }
   })
-  const selectDestinos = destinosOptions.filter(d => !d.visiblePasajes)
-  const quickDestinos = destinosOptions.filter(d => d.visiblePasajes )
+  const origenId = horario?.ruta?.destinos?.[0]?.puntoVenta?.id
+  const quickDestinos = destinosOptions.filter(
+    (d) => d.visiblePasajes && Number(d.id) !== Number(origenId),
+  )
 
   const formatDateLocal = (dateStr) => {
     if (!dateStr) return ''
@@ -642,13 +646,15 @@ export default function VentaPasajes() {
     if (!id) return
     const fetchData = async () => {
       try {
-        const [horarioData, clientesData] = await Promise.all([
+        const [horarioData, clientesData, puntosVentaData] = await Promise.all([
           getHorarioById(id),
-          getClientes()
+          getClientes(),
+          getPuntosVenta()
         ])
         console.log('Horario recibido:', horarioData)
         setHorario(horarioData)
         setClientesList(clientesData)
+        setPuntosVentaList(Array.isArray(puntosVentaData) ? puntosVentaData : [])
       } catch (err) {
         console.error('Error al obtener datos iniciales:', err)
       }
@@ -785,17 +791,14 @@ export default function VentaPasajes() {
                           labelId={`destino-label-${s.id}`}
                           label="Destino"
                           value={s.destinoId || ''}
-                          onChange={(e) => selectDestino(s.id, selectDestinos.find(d => String(d.id) === String(e.target.value)))}
+                          onChange={(e) => selectDestino(s.id, destinosOptions.find(d => String(d.id) === String(e.target.value)))}
                         >
                           <MenuItem value=""><em>Seleccionar destino</em></MenuItem>
-                 {selectDestinos.map(d => (
-  (d.id!=horario.ruta?.destinos[0].puntoVenta?.id) ? (
-    <MenuItem key={d.id} value={d.id}>
-      {d.nombre} · Bs. {Number(d.tarifa || 0).toFixed(2)}
-    </MenuItem>
-  ) : null
-))}
-
+                          {destinosOptions.filter(d => String(d.id) !== String(origenId)).map(d => (
+                            <MenuItem key={d.id} value={d.id}>
+                              {d.nombre} · Bs. {Number(d.tarifa || 0).toFixed(2)}
+                            </MenuItem>
+                          ))}
                         </Select>
                       </FormControl>
                       {quickDestinos.length > 0 && (
@@ -1029,12 +1032,12 @@ export default function VentaPasajes() {
                             label="Destino *"
                             value={editForm.destinoId}
                             onChange={e => {
-                              const d = selectDestinos.find(d => String(d.id) === String(e.target.value))
+                              const d = destinosOptions.find(d => String(d.id) === String(e.target.value))
                               setEditForm(prev => ({ ...prev, destinoId: e.target.value, monto: d ? String(d.tarifa) : prev.monto }))
                             }}
                           >
                             <MenuItem value=""><em>Seleccionar destino</em></MenuItem>
-                            {selectDestinos.filter(d => String(d.id) !== String(horario?.ruta?.destinos?.[0]?.puntoVenta?.id)).map(d => (
+                            {destinosOptions.filter(d => String(d.id) !== String(origenId)).map(d => (
                               <MenuItem key={d.id} value={String(d.id)}>{d.nombre} · Bs. {Number(d.tarifa||0).toFixed(2)}</MenuItem>
                             ))}
                           </Select>

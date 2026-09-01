@@ -82,6 +82,7 @@ function Usuarios() {
       const res = await fetch("http://localhost:5093/api/puntos-venta", { headers: authHeaders() })
       if (!res.ok) throw new Error(`Error ${res.status}`)
       const data = await res.json()
+    console.log('puntos de venta: ', data);
       setPuntosVenta(data)
     } catch (err) {
       console.error(err)
@@ -521,8 +522,7 @@ function Usuarios() {
                 <select
                   value={formData.PuntoVentaId}
                   onChange={(e) => {
-                    const selected = puntosVenta.find(r => r.id === Number(e.target.value))
-                    setFormData({ ...formData, PuntoVentaId: selected })
+                    setFormData({ ...formData, PuntoVentaId: Number(e.target.value) })
                   }}
                   className="input-field"
                 >

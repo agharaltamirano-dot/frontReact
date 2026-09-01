@@ -35,6 +35,10 @@ function Vehiculos() {
   const [previewUrl, setPreviewUrl] = useState(null)
   const [fullscreenImage, setFullscreenImage] = useState(null)
 
+  // Errores de validación en tiempo real (duplicados)
+  const [placaError, setPlacaError] = useState('')
+  const [movilError, setMovilError] = useState('')
+
   // Estado del Formulario
   const [formData, setFormData] = useState({
     movil: '',
@@ -55,6 +59,17 @@ function Vehiculos() {
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type })
     setTimeout(() => setNotification(null), 3500)
+  }
+
+  // ── Validaciones de duplicados en tiempo real ────────────────────────────────
+  const checkPlacaDuplicate = (value, currentId) => {
+    const dup = vehiculos.some(v => (v.placa || '').trim().toLowerCase() === value.trim().toLowerCase() && v.id !== currentId)
+    setPlacaError(value.trim() && dup ? `Ya existe un vehículo registrado con la placa "${value}"` : '')
+  }
+
+  const checkMovilDuplicate = (value, currentId) => {
+    const dup = vehiculos.some(v => (v.movil || '').toString().trim().toLowerCase() === value.toString().trim().toLowerCase() && v.id !== currentId)
+    setMovilError(value.toString().trim() && dup ? `Ya existe un vehículo registrado con el móvil "${value}"` : '')
   }
 
   // ── GET Conductores ('api/conductores') ─────────────────────────────────────
@@ -126,7 +141,7 @@ function Vehiculos() {
       console.log('PUT backend vehiculos no disponible:', err.message)
     }
 
-    showNotification(`Estado del vehículo M-${vehicle.movil} actualizado a ${nuevoEstado ? 'Activo' : 'Inactivo'}`, 'success')
+    showNotification(`Estado del vehículo ${vehicle.movil} actualizado a ${nuevoEstado ? 'Activo' : 'Inactivo'}`, 'success')
   }
 
   const handleFileChange = (e) => {
@@ -172,6 +187,8 @@ function Vehiculos() {
     })
     setSelectedFile(null)
     setPreviewUrl(null)
+    setPlacaError('')
+    setMovilError('')
     setEditingVehicle(null)
     setShowAddModal(true)
   }
@@ -195,6 +212,8 @@ function Vehiculos() {
     })
     setSelectedFile(null)
     setPreviewUrl(vehicleFoto ? getVehicleImageUrl(vehicleFoto) : null)
+    setPlacaError('')
+    setMovilError('')
     setEditingVehicle(vehicle)
     setShowAddModal(true)
   }
@@ -207,6 +226,12 @@ function Vehiculos() {
     // Validaciones cliente
     if (!formData.movil || !formData.placa || !formData.marca || !formData.modelo || !formData.color || !formData.tipo || !formData.soat || !formData.aseguradora || !formData.conductorId || !formData.propietarioId || !formData.distribucionId) {
       showNotification('Complete todos los campos obligatorios (*)', 'error')
+      setSaving(false)
+      return
+    }
+
+    if (placaError || movilError) {
+      showNotification('Corrija los campos con datos duplicados antes de guardar', 'error')
       setSaving(false)
       return
     }
@@ -228,7 +253,12 @@ function Vehiculos() {
       setSaving(false)
       return
     }
-
+    //validacion donde se revisa si tiene distribucionId asiganda sino devuelve error
+    if (!formData.distribucionId) {
+      showNotification('Seleccione una distribución de asientos para el vehículo', 'error')
+      setSaving(false)
+      return
+    }
     // Crear FormData
     const fd = new FormData()
     fd.append('movil', formData.movil)
@@ -517,7 +547,7 @@ function Vehiculos() {
                         </div>
                       </td>
                       <td>
-                        <span className="movil-badge">M-{v.movil}</span>
+                        <span className="movil-badge">{v.movil}</span>
                       </td>
                       <td>
                         <span className="placa-pill">{v.placa}</span>
@@ -705,11 +735,16 @@ function Vehiculos() {
                   <input
                     type="text"
                     value={formData.movil}
-                    onChange={(e) => setFormData({ ...formData, movil: e.target.value })}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      setFormData({ ...formData, movil: value })
+                      checkMovilDuplicate(value, editingVehicle?.id)
+                    }}
                     className="input-field"
                     placeholder="Ej. 101"
                     required
                   />
+                  {movilError && <span className="field-error" style={{ color: '#ef4444', fontSize: '12px', display: 'block', marginTop: '4px' }}>{movilError}</span>}
                 </div>
 
                 <div className="input-group">
@@ -717,11 +752,16 @@ function Vehiculos() {
                   <input
                     type="text"
                     value={formData.placa}
-                    onChange={(e) => setFormData({ ...formData, placa: e.target.value })}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      setFormData({ ...formData, placa: value })
+                      checkPlacaDuplicate(value, editingVehicle?.id)
+                    }}
                     className="input-field"
                     placeholder="Ej. ABC123"
                     required
                   />
+                  {placaError && <span className="field-error" style={{ color: '#ef4444', fontSize: '12px', display: 'block', marginTop: '4px' }}>{placaError}</span>}
                 </div>
               </div>
 

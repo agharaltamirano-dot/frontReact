@@ -3,8 +3,6 @@ import './conductores.css'
 
 const BASE_URL = 'http://localhost:5093/api/conductores'
 
-const CATEGORIAS_LICENCIA = ['A-I', 'A-IIa', 'A-IIb', 'A-IIIa', 'A-IIIb', 'A-IIIc']
-
 function getToken() {
   try {
     const authData = JSON.parse(sessionStorage.getItem('authData') || '{}')
@@ -56,7 +54,7 @@ function Conductores() {
     apellidos: '',
     telefono: '',
     licencia: '',
-    categoria: CATEGORIAS_LICENCIA[0],
+    categoria: '',
     estado: true,
     fotoLicencia: ''
   })
@@ -118,7 +116,7 @@ function Conductores() {
       apellidos: '',
       telefono: '',
       licencia: '',
-      categoria: CATEGORIAS_LICENCIA[0],
+      categoria: '',
       estado: true,
       fotoLicencia: ''
     })
@@ -134,7 +132,7 @@ function Conductores() {
       apellidos: driver.apellidos || '',
       telefono: driver.telefono || '',
       licencia: driver.licencia || '',
-      categoria: driver.categoria || CATEGORIAS_LICENCIA[0],
+      categoria: driver.categoria || '',
       estado: driver.estado !== false,
       fotoLicencia: driver.fotoLicencia || ''
     })
@@ -606,15 +604,15 @@ function Conductores() {
               <div className="form-grid-2">
                 <div className="input-group">
                   <label className="input-label">Categoría de Licencia</label>
-                  <select
+                  <input
+                    type="text"
                     value={formData.categoria}
-                    onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
+                    maxLength={3}
+                    onChange={(e) => setFormData({ ...formData, categoria: e.target.value.toUpperCase() })}
                     className="input-field"
-                  >
-                    {CATEGORIAS_LICENCIA.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
+                    placeholder="Ej. A-I (máx 3 caracteres)"
+                    required
+                  />
                 </div>
 
                 <div className="input-group">

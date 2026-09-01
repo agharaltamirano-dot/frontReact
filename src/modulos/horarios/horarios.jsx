@@ -318,7 +318,7 @@ function Horarios() {
     )
     if (isDuplicate) {
       const veh = vehiculos.find(v => Number(v.id) === Number(formData.vehiculoId))
-      const vehLabel = veh ? `M-${veh.movil} (${veh.placa})` : `Vehículo #${formData.vehiculoId}`
+      const vehLabel = veh ? `${veh.movil} (${veh.placa})` : `Vehículo #${formData.vehiculoId}`
       showNotification(`Ya existe un horario el ${formData.fecha} a las ${formData.hora} para ${vehLabel}`, 'error')
       setSaving(false)
       return
