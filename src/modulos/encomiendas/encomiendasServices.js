@@ -107,4 +107,25 @@ export async function deleteEncomienda(id) {
   }
 }
 
-export default { getEncomiendas, deleteEncomienda,putEntrega }
+export async function asignarEncomiendas(payload) {
+  try {
+    const res = await fetch(BASE_URL + '/asignar', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(payload),
+    })
+
+    if (!res.ok) {
+      return false
+      // const txt = await res.text().catch(() => null)
+      // throw new Error(txt || `Error ${res.status} al asignar encomiendas`)
+    }
+
+    return true
+  } catch (err) {
+    console.warn('Error en asignarEncomiendas:', err.message)
+    throw err
+  }
+}
+
+export default { getEncomiendas, deleteEncomienda, putEntrega, asignarEncomiendas }

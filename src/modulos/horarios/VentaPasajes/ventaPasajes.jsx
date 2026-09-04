@@ -1,6 +1,6 @@
 import  { useEffect, useState, Fragment } from 'react'
 import { useParams } from 'react-router-dom'
-import { Box, Stack, Button, Dialog, DialogTitle, DialogContent, DialogActions, List, ListItem, ListItemAvatar, Avatar, Chip, Divider, Typography, Snackbar, Alert, TextField, Select, MenuItem, FormControl, InputLabel, Autocomplete } from '@mui/material'
+import { Box, Stack, Button, Dialog, DialogTitle, DialogContent, DialogActions, List, ListItem, ListItemAvatar, Avatar, Chip, Divider, Typography, TextField, Select, MenuItem, FormControl, InputLabel, Autocomplete, Tooltip, Snackbar, Alert } from '@mui/material'
 import { getHorarioById, postPasajesBatch, deletePasaje, getHojaRuta, putPasaje } from './ventaPasajesSevice'
 import { getClientes } from '../../encomiendas/registrarEncomienda/registrarEncomiendaService'
 import { getPuntosVenta } from '../../puntoVenta/puntoVentaService'
@@ -17,17 +17,13 @@ export default function VentaPasajes() {
   const openPasajes = () => setPasajesOpen(true)
   const closePasajes = () => setPasajesOpen(false)
 
-  // Snackbar / Alert state
-  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' })
-  const showSnackbar = (message, severity = "info") => {
-  setSnackbar({ open: true, message: message || "", severity })
-  // ⏱️ Cerrar automáticamente después de 2 segundos
-  setTimeout(() => {
-    setSnackbar((prev) => ({ ...prev, open: false }))
-  }, 2000)
-}
-
-  const closeSnackbar = () => setSnackbar(prev => ({ ...prev, open: false }))
+  // Notificaciones: usar solo showNotification
+  const [notification, setNotification] = useState(null)
+  const showNotification = (message, type = 'success') => {
+    setNotification({ message, type })
+    setTimeout(() => setNotification(null), 3500)
+  }
+  const closeNotification = () => setNotification(null)
 
   // Confirmación para anular pasaje
   const [confirmAnular, setConfirmAnular] = useState({ open: false, pasajeId: null })
@@ -99,20 +95,20 @@ export default function VentaPasajes() {
     const pasaje = editPasaje.pasaje
     if (!pasaje) return
     if (!editForm.pasajero.trim()) {
-      showSnackbar('Ingrese el nombre del pasajero', 'warning')
+      showNotification('Ingrese el nombre del pasajero', 'warning')
       return
     }
     if (!editForm.destinoId) {
-      showSnackbar('Seleccione el destino', 'warning')
+      showNotification('Seleccione el destino', 'warning')
       return
     }
     const montoNum = parseFloat(String(editForm.monto).replace(',', '.'))
     if (isNaN(montoNum) || montoNum <= 0) {
-      showSnackbar('Ingrese un monto válido mayor a 0', 'warning')
+      showNotification('Ingrese un monto válido mayor a 0', 'warning')
       return
     }
     if (!editForm.asientoId) {
-      showSnackbar('Seleccione un asiento', 'warning')
+      showNotification('Seleccione un asiento', 'warning')
       return
     }
     setSavingEdit(true)
@@ -142,7 +138,7 @@ export default function VentaPasajes() {
       // Limpiar claves undefined
       Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k])
       await putPasaje(pasaje.id, payload)
-      showSnackbar('Pasaje editado con éxito', 'success')
+      showNotification('Pasaje editado con éxito', 'success')
       closeEditPasaje()
       setTimeout(async () => {
         try {
@@ -154,7 +150,7 @@ export default function VentaPasajes() {
       }, 100)
     } catch (err) {
       console.error('Error editando pasaje', err)
-      showSnackbar('Error al editar: ' + (err.message || ''), 'error')
+      showNotification('Error al editar: ' + (err.message || ''), 'error')
     } finally {
       setSavingEdit(false)
     }
@@ -194,7 +190,30 @@ export default function VentaPasajes() {
 
   const toggleSelectSeat = (seat) => {
     if (!seat) return
+    // Evitar selección si la venta está vencida (horario + 10 minutos)
+    const canSell = () => {
+      try {
+        if (!horario || !horario.fecha || !horario.hora) return true
+        const horaParts = String(horario.hora).split(':')
+        const dateParts = String(horario.fecha).split('-')
+        if (horaParts.length < 2 || dateParts.length < 3) return true
+        const yyyy = Number(dateParts[0])
+        const mm = Number(dateParts[1]) - 1
+        const dd = Number(dateParts[2])
+        const hh = Number(horaParts[0])
+        const min = Number(horaParts[1])
+        const scheduled = new Date(yyyy, mm, dd, hh, min, 0)
+        const cutoff = new Date(scheduled.getTime() + 10 * 60 * 1000)
+        return new Date() <= cutoff
+      } catch (e) {
+        return true
+      }
+    }
     const exists = selectedSeats.find(s => Number(s.id) === Number(seat.id))
+    if (!canSell()) {
+      showNotification('No se pueden seleccionar asientos: el horario ya superó el límite de venta (+10 minutos)', 'warning')
+      return
+    }
     if (exists) {
       setSelectedSeats(prev => prev.filter(s => Number(s.id) !== Number(seat.id)))
     } else {
@@ -219,16 +238,16 @@ export default function VentaPasajes() {
     const sel = selectedSeats.find(s => Number(s.id) === Number(id))
     if (!sel) return
     if (!sel.pasajero) {
-      showSnackbar('Ingrese nombre del pasajero', 'warning')
+      showNotification('Ingrese nombre del pasajero', 'warning')
       return
     }
     if (!sel.destinoId) {
-      showSnackbar('Seleccione el destino para el pasajero', 'warning')
+      showNotification('Seleccione el destino para el pasajero', 'warning')
       return
     }
     const montoNum = parseFloat(String(sel.monto).replace(',', '.'))
     if (isNaN(montoNum) || montoNum <= 0) {
-      showSnackbar('Ingrese un monto válido mayor a 0', 'warning')
+      showNotification('Ingrese un monto válido mayor a 0', 'warning')
       return
     }
     // marcar asiento como vendido en el horario local
@@ -260,6 +279,31 @@ export default function VentaPasajes() {
     return `${y}-${m}-${dd} ${hh}:${mi}:${ss}`
   }
 
+  // Comprueba si la venta está permitida: horario + 10 minutos >= ahora
+  const isSaleAllowed = () => {
+    try {
+      if (!horario || !horario.fecha || !horario.hora) return true
+      const horaParts = String(horario.hora).split(':')
+      const dateParts = String(horario.fecha).split('-')
+      if (horaParts.length < 2 || dateParts.length < 3) return true
+      const yyyy = Number(dateParts[0])
+      const mm = Number(dateParts[1]) - 1
+      const dd = Number(dateParts[2])
+      const hh = Number(horaParts[0])
+      const min = Number(horaParts[1])
+      const scheduled = new Date(yyyy, mm, dd, hh, min, 0)
+      // Si la fecha programada ya quedó en el pasado (comparación por fecha)
+      const today = new Date()
+      const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+      const scheduledDateOnly = new Date(yyyy, mm, dd)
+      if (todayDateOnly > scheduledDateOnly) return false
+      const cutoff = new Date(scheduled.getTime() + 10 * 60 * 1000)
+      return new Date() <= cutoff
+    } catch (e) {
+      return true
+    }
+  }
+
   const getAuthUsuarioId = () => {
     try {
       const raw = sessionStorage.getItem('authData')
@@ -283,9 +327,9 @@ export default function VentaPasajes() {
   }
 
   const reimprimirPasaje = async (pasajeId) => {
-  if (!pasajeId) return showSnackbar("ID de pasaje inválido", "warning")
+  if (!pasajeId) return showNotification("ID de pasaje inválido", "warning")
 
-  showSnackbar("Generando ticket...", "info")
+  showNotification("Generando ticket...", "info")
 
   try {
     const token = getAuthToken()
@@ -297,7 +341,7 @@ export default function VentaPasajes() {
     const blob = await resp.blob()
     const blobUrl = URL.createObjectURL(blob)
 
-    showSnackbar("Preparando ticket para imprimir...", "info")
+    showNotification("Preparando ticket para imprimir...", "info")
 
     const iframe = document.createElement("iframe")
     Object.assign(iframe.style, {
@@ -360,21 +404,21 @@ export default function VentaPasajes() {
     document.body.appendChild(iframe)
   } catch (err) {
     console.error("Error reimprimiendo pasaje", err)
-    showSnackbar("Error al generar ticket: " + (err.message || ""), "error")
+    showNotification("Error al generar ticket: " + (err.message || ""), "error")
   }
 }
 
 
   const openHojaRuta = async () => {
-  if (!horario?.id) return showSnackbar("Horario inválido", "warning")
+  if (!horario?.id) return showNotification("Horario inválido", "warning")
 
-  showSnackbar("Generando hoja de ruta...", "info")
+  showNotification("Generando hoja de ruta...", "info")
 
   try {
     const blob = await getHojaRuta(horario.id)
     const blobUrl = URL.createObjectURL(blob)
 
-    showSnackbar("Preparando hoja para imprimir...", "info")
+    showNotification("Preparando hoja para imprimir...", "info")
 
     const iframe = document.createElement("iframe")
     Object.assign(iframe.style, {
@@ -437,7 +481,7 @@ export default function VentaPasajes() {
     document.body.appendChild(iframe)
   } catch (err) {
     console.error("Error generando hoja de ruta", err)
-    showSnackbar("Error al generar hoja: " + (err.message || ""), "error")
+    showNotification("Error al generar hoja: " + (err.message || ""), "error")
   }
 }
 
@@ -459,7 +503,7 @@ export default function VentaPasajes() {
 
   const handleAction = async (isReserva) => {
     if (!selectedSeats || selectedSeats.length === 0) {
-      showSnackbar('No hay asientos seleccionados', 'warning')
+      showNotification('No hay asientos seleccionados', 'warning')
       return
     }
 
@@ -467,16 +511,16 @@ export default function VentaPasajes() {
     const items = []
     for (const s of selectedSeats) {
       if (!s.pasajero) {
-        showSnackbar(`Ingrese nombre para asiento ${s.numero}`, 'warning')
+        showNotification(`Ingrese nombre para asiento ${s.numero}`, 'warning')
         return
       }
       if (!s.destinoId) {
-        showSnackbar(`Seleccione destino para asiento ${s.numero}`, 'warning')
+        showNotification(`Seleccione destino para asiento ${s.numero}`, 'warning')
         return
       }
       const montoNum = parseFloat(String(s.monto).replace(',', '.'))
       if (isNaN(montoNum) || montoNum <= 0) {
-        showSnackbar(`Monto inválido en asiento ${s.numero}`, 'warning')
+        showNotification(`Monto inválido en asiento ${s.numero}`, 'warning')
         return
       }
       const destinoName = getDestinoName(s.destinoId)
@@ -514,7 +558,7 @@ export default function VentaPasajes() {
       setHorario(prev => ({ ...prev, pasajes: merged }))
       // clear selected
       setSelectedSeats([])
-      showSnackbar('Operación realizada con éxito', 'success')
+      showNotification('Operación realizada con éxito', 'success')
       // small delay to allow snackbar to be visible, then refresh horario from API
       setTimeout(async () => {
         try {
@@ -526,7 +570,7 @@ export default function VentaPasajes() {
       }, 100)
     } catch (err) {
       console.error('Error enviando pasajes:', err)
-      showSnackbar('Error al enviar los pasajes: ' + (err.message || ''), 'error')
+      showNotification('Error al enviar los pasajes: ' + (err.message || ''), 'error')
     }
   }
 
@@ -546,10 +590,10 @@ export default function VentaPasajes() {
       } catch (fetchErr) {
         console.warn('No se pudo refrescar horario tras anular:', fetchErr)
       }
-      showSnackbar('Pasaje anulado', 'success')
+      showNotification('Pasaje anulado', 'success')
     } catch (err) {
       console.error('Error anulando pasaje', err)
-      showSnackbar('Error al anular: ' + (err.message || ''), 'error')
+      showNotification('Error al anular: ' + (err.message || ''), 'error')
     } finally {
       cancelAnular()
     }
@@ -590,8 +634,12 @@ export default function VentaPasajes() {
           colsArr.push(
             <div
               key={seat.id}
-              className={`seat ${occupied ? 'occupied' : selected ? 'selected' : 'available'}`}
-              onClick={() => { if (!occupied) toggleSelectSeat(seat) }}
+              className={`seat ${occupied ? 'occupied' : selected ? 'selected' : 'available'} ${!isSaleAllowed() && !occupied ? 'sale-disabled' : ''}`}
+              onClick={() => {
+                if (occupied) return
+                if (!isSaleAllowed()) return showNotification('No se puede seleccionar: la fecha/hora del horario ya pasó o superó el límite (+10 minutos)', 'warning')
+                toggleSelectSeat(seat)
+              }}
             >
               {pasaje ? (
                 <>
@@ -861,7 +909,11 @@ export default function VentaPasajes() {
                     <Button
                       variant="contained"
                       color="success"
-                      onClick={() => handleAction(false)}
+                      onClick={() => {
+                        if (!isSaleAllowed()) return showNotification('No se puede vender: el horario ya superó el límite de venta (+10 minutos)', 'warning')
+                        handleAction(false)
+                      }}
+                      disabled={!isSaleAllowed()}
                       startIcon={(
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
                           <path d="M21 7H3v10a2 2 0 002 2h14a2 2 0 002-2V7z" fill="#10b981"/>
@@ -875,7 +927,11 @@ export default function VentaPasajes() {
                     <Button
                       variant="contained"
                       sx={{background:'#f59e0b','&:hover':{background:'#d97706'}}}
-                      onClick={() => handleAction(true)}
+                      onClick={() => {
+                        if (!isSaleAllowed()) return showNotification('No se puede reservar: el horario ya superó el límite de venta (+10 minutos)', 'warning')
+                        handleAction(true)
+                      }}
+                      disabled={!isSaleAllowed()}
                       startIcon={(
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
                           <path d="M6 2h9l4 4v14a1 1 0 01-1 1H6a1 1 0 01-1-1V2z" fill="#f59e0b"/>
@@ -945,8 +1001,40 @@ export default function VentaPasajes() {
 
                             <Box sx={{ml:1, display:'flex', flexDirection:'column', gap:0.5}}>
                               <Button variant="outlined" size="small" onClick={() => reimprimirPasaje(p.id)} sx={{textTransform:'none', minWidth:80}}>Imprimir</Button>
-                              <Button variant="outlined" color="info" size="small" onClick={() => openEditPasaje(p)} disabled={p.estado===false} sx={{textTransform:'none', minWidth:80}}>Editar</Button>
-                              <Button variant="contained" color="error" size="small" onClick={() => requestAnular(p.id)} disabled={p.estado===false} sx={{textTransform:'none', minWidth:80}}>Anular</Button>
+                              <Tooltip
+                                title={
+                                  !isSaleAllowed()
+                                    ? 'No se puede editar: ventas cerradas para este horario'
+                                    : p.despachado
+                                      ? 'No se puede editar: pasaje despachado'
+                                      : p.estado === false
+                                        ? 'No se puede editar: pasaje anulado'
+                                        : ''
+                                }
+                                disableHoverListener={!(p.estado === false || p.despachado || !isSaleAllowed())}
+                                arrow
+                              >
+                                <span>
+                                  <Button variant="outlined" color="info" size="small" onClick={() => openEditPasaje(p)} disabled={p.estado === false || p.despachado || !isSaleAllowed()} sx={{textTransform:'none', minWidth:80}}>Editar</Button>
+                                </span>
+                              </Tooltip>
+                              <Tooltip
+                                title={
+                                  !isSaleAllowed()
+                                    ? 'No se puede anular: ventas cerradas para este horario'
+                                    : p.despachado
+                                      ? 'No se puede anular: pasaje despachado'
+                                      : p.estado === false
+                                        ? 'No se puede anular: pasaje anulado'
+                                        : ''
+                                }
+                                disableHoverListener={!(p.estado === false || p.despachado || !isSaleAllowed())}
+                                arrow
+                              >
+                                <span>
+                                  <Button variant="contained" color="error" size="small" onClick={() => requestAnular(p.id)} disabled={p.estado === false || p.despachado || !isSaleAllowed()} sx={{textTransform:'none', minWidth:80}}>Anular</Button>
+                                </span>
+                              </Tooltip>
                             </Box>
                           </ListItem>
                           <Divider component="li" />
@@ -1067,10 +1155,10 @@ export default function VentaPasajes() {
                     </DialogActions>
                   </Dialog>
 
-                  {/* Snackbar global */}
-                  <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={closeSnackbar} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
-                    <Alert onClose={closeSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
-                      {snackbar.message}
+                  {/* Notification global (mapped from notification state) */}
+                  <Snackbar open={!!notification} autoHideDuration={3500} onClose={closeNotification} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+                    <Alert onClose={closeNotification} severity={notification?.type || 'info'} sx={{ width: '100%' }}>
+                      {notification?.message}
                     </Alert>
                   </Snackbar>
           </>

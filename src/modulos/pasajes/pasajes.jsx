@@ -93,6 +93,14 @@ export default function PasajesList() {
 
   const performAnular = async () => {
     try {
+      // Evitar anular si el pasaje ya fue despachado
+      const pasaje = pasajes.find(p => p.id === confirm.id)
+      if (pasaje?.despachado) {
+        showSnackbar('No se puede anular: el pasaje ya fue despachado', 'warning')
+        setConfirm({ open: false, id: null })
+        return
+      }
+
       await deletePasaje(confirm.id)
       showSnackbar('Pasaje anulado correctamente', 'success')
       fetchAll()
@@ -404,18 +412,18 @@ export default function PasajesList() {
                               <PrintIcon fontSize="small" />
                             </IconButton>
                           </Tooltip>
-                          <Tooltip title={p.estado === false ? 'Ya anulado' : 'Anular pasaje'}>
-                            <span>
-                              <IconButton
-                                size="small"
-                                className="btn-action-cancel"
-                                onClick={() => setConfirm({ open: true, id: p.id })}
-                                disabled={p.estado === false}
-                              >
-                                <CancelIcon fontSize="small" />
-                              </IconButton>
-                            </span>
-                          </Tooltip>
+                                          <Tooltip title={p.estado === false ? 'Ya anulado' : p.despachado ? 'Pasaje despachado' : 'Anular pasaje'}>
+                                            <span>
+                                              <IconButton
+                                                size="small"
+                                                className="btn-action-cancel"
+                                                onClick={() => setConfirm({ open: true, id: p.id })}
+                                                disabled={p.estado === false || p.despachado}
+                                              >
+                                                <CancelIcon fontSize="small" />
+                                              </IconButton>
+                                            </span>
+                                          </Tooltip>
                         </Stack>
                       </TableCell>
                     </TableRow>

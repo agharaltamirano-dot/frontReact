@@ -409,12 +409,23 @@ function MainMenu() {
     navigate("/login");
   };
 
+  const nombrePuntoVenta = 'Punto de venta: '+authData?.usuario?.puntoVenta?.nombre;
   // ── Título del header basado en menú activo ───────────────────────────────────
   const activeMenu = menuItems.find((m) => location.pathname === m.rutaAccion);
-  const pageTitle = activeMenu?.nombre ?? "Pasajes";
-  const pageSubtitle = activeMenu
-    ? `Gestión de ${activeMenu.nombre.toLowerCase()}`
-    : `Bienvenido, ${nombreUsuario}`;
+
+  // Si el usuario seleccionó un reporte en el dropdown, mostrarlo en el header
+  let pageTitle;
+  let pageSubtitle;
+  if (selectedReporte) {
+    const rptItem = REPORTES_ITEMS.find((r) => r.id === selectedReporte);
+    pageTitle = rptItem?.nombre ?? activeMenu?.nombre ?? "Reportes";
+    pageSubtitle = nombrePuntoVenta//rptItem ? `Reporte de ${rptItem.nombre.toLowerCase()}` : `Gestión de ${activeMenu?.nombre?.toLowerCase() || ''}`;
+  } else {
+    pageTitle = activeMenu?.nombre ?? "Pasajes";
+    pageSubtitle = nombrePuntoVenta//activeMenu
+      //? `Gestión de ${activeMenu.nombre.toLowerCase()}`
+      // : `Bienvenido, ${nombreUsuario}`;
+  }
 
   return (
     <div className="admin-layout">

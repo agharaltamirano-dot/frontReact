@@ -3,6 +3,7 @@ import {
   Box,
   Card,
   CardContent,
+  Avatar,
   Typography,
   Table,
   TableBody,
@@ -33,12 +34,15 @@ import {
   Alert,
   Divider,
   Stack,
+  Checkbox,
+  Autocomplete,
 } from "@mui/material";
 
 import {
   getEncomiendas,
   deleteEncomienda,
   putEntrega,
+  asignarEncomiendas,
 } from "./encomiendasServices";
 import RegistrarEncomienda from "./RegistrarEncomienda/registrarEncomienda";
 import "./encomiendas.css";
@@ -291,7 +295,11 @@ export default function Encomiendas() {
     message: "",
     severity: "info",
   });
-
+  const [notification, setNotification] = useState(null)
+  const showNotification = (message, type = 'success') => {
+    setNotification({ message, type })
+    setTimeout(() => setNotification(null), 3500)
+  }
   // Diálogo para anular
   const [confirmDelete, setConfirmDelete] = useState({
     open: false,
@@ -318,6 +326,133 @@ export default function Encomiendas() {
     setSnackbar({ open: true, message, severity });
   };
 
+  // Selección múltiple para asignar
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [conductores, setConductores] = useState([]);
+  const [horariosOptions, setHorariosOptions] = useState([]);
+  const [selectedConductor, setSelectedConductor] = useState("");
+  const [selectedConductorObj, setSelectedConductorObj] = useState(null);
+  const [selectedHorarioObj, setSelectedHorarioObj] = useState(null);
+  const [assigning, setAssigning] = useState(false);
+  const [conductorSearch, setConductorSearch] = useState("");
+
+  const toggleSelect = (id, checked) => {
+    setSelectedIds((prev) => {
+      if (checked) return [...new Set([...prev, id])];
+      return prev.filter((x) => x !== id);
+    });
+  };
+
+  const BASE_CONDUCTORES_URL = "http://localhost:5093/api/conductores";
+  const BASE_HORARIOS_URL = "http://localhost:5093/api/horarios";
+
+  function getToken() {
+    try {
+      const authData = JSON.parse(sessionStorage.getItem("authData") || "{}");
+      return authData.token || "";
+    } catch {
+      return "";
+    }
+  }
+
+  function authHeaders() {
+    return {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getToken()}`,
+    };
+  }
+
+  const fetchConductores = async (q = "") => {
+    try {
+      const url = q ? `${BASE_CONDUCTORES_URL}?q=${encodeURIComponent(q)}` : BASE_CONDUCTORES_URL;
+      const res = await fetch(url, { headers: authHeaders() });
+      if (!res.ok) throw new Error("Error al obtener conductores");
+      const data = await res.json();
+      setConductores(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
+      showNotification("No se pudo cargar la lista de conductores", 'error');
+    }
+  };
+
+  const fetchHorarios = async (q = "", signal) => {
+    try {
+      const url = q ? `${BASE_HORARIOS_URL}?q=${encodeURIComponent(q)}` : BASE_HORARIOS_URL;
+      const opts = { headers: authHeaders() };
+      if (signal) opts.signal = signal;
+      const res = await fetch(url, opts);
+      if (!res.ok) throw new Error("Error al obtener horarios");
+      const data = await res.json();
+      setHorariosOptions(Array.isArray(data) ? data : []);
+    } catch (err) {
+      if (err.name === 'AbortError') return;
+      console.error(err);
+      showNotification("No se pudo cargar la lista de horarios", 'error');
+    }
+  };
+
+  const openAssignDialog = async () => {
+    setConductorSearch("");
+    setSelectedConductorObj(null);
+    setSelectedHorarioObj(null);
+    await fetchHorarios();
+    setAssignDialogOpen(true);
+  };
+
+  const closeAssignDialog = () => {
+    setAssignDialogOpen(false);
+    setSelectedConductor("");
+    setSelectedConductorObj(null);
+  };
+
+  const handleConfirmAssign = async () => {
+    if (selectedIds.length === 0) return;
+    setAssigning(true);
+    try {
+      const horarioId = selectedHorarioObj ? (selectedHorarioObj.id || null) : null;
+      const payload = {
+        conductor_id: selectedConductorObj ? (selectedConductorObj.id || null) : null,
+        horario_id: horarioId,
+        encomiendas: selectedIds,
+        fecha: getFechaEntregaBolivia(),
+      };
+console.log("Payload a enviar:", payload);
+      const ok = await asignarEncomiendas(payload);
+
+      if (ok) {showNotification("Encomiendas asignadas correctamente", 'success');
+        fetchEncomiendasData();
+      }
+      else showNotification("Error al asignar encomiendas", 'error');
+      setSelectedIds([]);
+      closeAssignDialog();
+      fetchEncomiendasData();
+    } catch (err) {
+      console.error(err);
+      showNotification(err.message || "Error al asignar", 'error');
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  // Cuando el usuario escribe para filtrar conductores, llamar al API solo cuando ≥3 caracteres
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+    const doFetch = async () => {
+      try {
+        await fetchHorarios(conductorSearch, controller.signal);
+      } catch (err) {
+        if (err.name !== 'AbortError') console.error(err);
+      }
+    };
+    if (active) doFetch();
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [conductorSearch]);
+
   const handleCloseSnackbar = () => {
     setSnackbar((prev) => ({ ...prev, open: false }));
   };
@@ -331,9 +466,9 @@ export default function Encomiendas() {
       console.log("Encomiendas cargadas:", data);
     } catch (err) {
       console.error(err);
-      showSnackbar(
+      showNotification(
         "Error al cargar encomiendas: " + (err.message || ""),
-        "error",
+        'error',
       );
     } finally {
       setLoading(false);
@@ -418,15 +553,15 @@ export default function Encomiendas() {
           item.id === idToAnular ? { ...item, estado: false } : item,
         ),
       );
-      showSnackbar(
+      showNotification(
         `Encomienda N° ${confirmDelete.encomienda.numero} anulada con éxito`,
-        "success",
+        'success',
       );
     } catch (err) {
       console.error(err);
-      showSnackbar(
+      showNotification(
         "Error al anular la encomienda: " + (err.message || ""),
-        "error",
+        'error',
       );
     } finally {
       setDeleting(false);
@@ -437,9 +572,9 @@ export default function Encomiendas() {
   // Handler Imprimir Ticket
   const handleOpenPrintModal = (encomienda) => {
     setPrintModal({ open: true, encomienda });
-    showSnackbar(
+    showNotification(
       `Generando vista de comprobante para ${encomienda.numero}...`,
-      "info",
+      'info',
     );
   };
 function coincideDestino(destino) {
@@ -452,7 +587,6 @@ function coincideDestino(destino) {
     if (!puntoVentaNombre) {
       return false
     }
-console.log(`coincidencia de ${destino} con ${puntoVentaNombre}`, destino.toLowerCase() == puntoVentaNombre.toLowerCase())
 
     // Comparar con el destino recibido
     return destino.toLowerCase() === puntoVentaNombre.toLowerCase()
@@ -503,6 +637,17 @@ console.log(`coincidencia de ${destino} con ${puntoVentaNombre}`, destino.toLowe
   const paginatedData = filteredEncomiendas.slice(
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage,
+  );
+
+  // Encomiendas seleccionadas (objetos) para mostrar en el diálogo
+  const selectedEncomiendas = encomiendas.filter((e) =>
+    selectedIds.includes(e.id),
+  );
+
+  // Suma total de los montos de las encomiendas seleccionadas
+  const selectedTotal = selectedEncomiendas.reduce(
+    (acc, cur) => acc + (Number(cur.monto) || 0),
+    0,
   );
 
   return (
@@ -749,6 +894,17 @@ console.log(`coincidencia de ${destino} con ${puntoVentaNombre}`, destino.toLowe
             }}
           />
 
+          {selectedIds.length > 0 && (
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={openAssignDialog}
+              sx={{ textTransform: "none", borderRadius: 2 }}
+            >
+              Asignar
+            </Button>
+          )}
+
           {/* Filtro Pagado */}
           <FormControl size="small" sx={{ minWidth: 150 }}>
             <InputLabel id="select-pagado-label">Pago</InputLabel>
@@ -798,6 +954,7 @@ console.log(`coincidencia de ${destino} con ${puntoVentaNombre}`, destino.toLowe
           >
             <TableHead>
               <TableRow>
+                <TableCell />
                 <TableCell>Número</TableCell>
                 <TableCell>Contenido</TableCell>
                 <TableCell>Destino</TableCell>
@@ -816,7 +973,7 @@ console.log(`coincidencia de ${destino} con ${puntoVentaNombre}`, destino.toLowe
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={13} align="center" sx={{ py: 5 }}>
+                  <TableCell colSpan={14} align="center" sx={{ py: 5 }}>
                     <CircularProgress size={32} sx={{ mb: 1 }} />
                     <Typography variant="body2" color="text.secondary">
                       Cargando encomiendas...
@@ -825,7 +982,7 @@ console.log(`coincidencia de ${destino} con ${puntoVentaNombre}`, destino.toLowe
                 </TableRow>
               ) : paginatedData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={13} align="center" sx={{ py: 5 }}>
+                  <TableCell colSpan={14} align="center" sx={{ py: 5 }}>
                     <LocalShippingIcon
                       sx={{ fontSize: 40, color: "#94a3b8", mb: 1 }}
                     />
@@ -842,7 +999,23 @@ console.log(`coincidencia de ${destino} con ${puntoVentaNombre}`, destino.toLowe
                 </TableRow>
               ) : (
                 paginatedData.map((row) => (
-                  <TableRow key={row.id} hover>
+                  <TableRow
+                    key={row.id}
+                    hover
+                    sx={{
+                      backgroundColor: selectedIds.includes(row.id) ? "#eef2ff" : "inherit",
+                      transition: "background-color 200ms",
+                    }}
+                  >
+                    <TableCell>
+                      <Checkbox
+                        size="small"
+                        disabled={row.estado === false || row.envio != null}
+                        checked={selectedIds.includes(row.id)}
+                        onChange={(e) => toggleSelect(row.id, e.target.checked)}
+                        inputProps={{ 'aria-label': `select-encomienda-${row.id}` }}
+                      />
+                    </TableCell>
                     {/* Número */}
                     <TableCell>
                       <span className="tracking-number">{row.numero}</span>
@@ -869,14 +1042,18 @@ console.log(`coincidencia de ${destino} con ${puntoVentaNombre}`, destino.toLowe
 
                     <TableCell>
                       {row.envio == null ? (
-                        <Button
-                          variant="contained"
+                        <Chip
+                          label="Sin enviar"
                           size="small"
-                          color="primary"
-                          onClick={() => showSnackbar("asigando", "info")}
-                        >
-                          Asignar
-                        </Button>
+                          variant="filled"
+                          sx={{
+                            fontWeight: 700,
+                            bgcolor: "#e0f2fe",
+                            color: "#0369a1",
+                            borderRadius: 1,
+                            px: 1,
+                          }}
+                        />
                       ) : (
                         <span>
                           {(row.envio.conductor?.nombre ?? "")}
@@ -1157,6 +1334,160 @@ console.log(`coincidencia de ${destino} con ${puntoVentaNombre}`, destino.toLowe
         </DialogActions>
       </Dialog>
 
+      {/* Diálogo Asignar Conductor a Encomiendas seleccionadas */}
+      <Dialog
+        open={assignDialogOpen}
+        onClose={closeAssignDialog}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, bgcolor: '#f8fafc', color: '#0f172a', py: 2, px: 3, borderTopLeftRadius: 8, borderTopRightRadius: 8 }}>Asignar Conductor</DialogTitle>
+          <DialogContent>
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={6}>
+              <Box sx={{ mb: 1 }}>
+                <DialogContentText sx={{ color: "#334155", mb: 1 }}>
+                  Selecciona el conductor al que se asignarán las encomiendas ({selectedIds.length}).
+                </DialogContentText>
+                <Autocomplete
+                  size="small"
+                  fullWidth
+                  options={horariosOptions}
+            getOptionLabel={(h) => {
+              if (!h) return "";
+              const hora = h.hora || h.horaSalida || "";
+              const fecha = h.fecha ? String(h.fecha).split("T")[0] : "";
+              const vehMovil = h.vehiculo?.movil ?? h.movil ?? (h.vehiculoId ? String(h.vehiculoId) : "");
+              const conductor = h.vehiculo?.conductor ? `${h.vehiculo.conductor.nombres || ''} ${h.vehiculo.conductor.apellidos || ''}`.trim() : (h.conductor ? `${h.conductor.nombres || ''} ${h.conductor.apellidos || ''}`.trim() : '');
+              const ruta = h.ruta?.origenNombre && h.ruta?.destinoNombre ? `${h.ruta.origenNombre} → ${h.ruta.destinoNombre}` : (h.ruta?.origenNombre || h.ruta?.destinoNombre || '');
+              return `${hora ? hora + ' — ' : ''}${conductor || 'Sin conductor'}${vehMovil ? ' — Móvil ' + vehMovil : ''}${ruta ? ' — ' + ruta : ''}`;
+            }}
+            value={selectedHorarioObj}
+            onChange={(e, newVal) => {
+              setSelectedHorarioObj(newVal);
+              const conductorObj = newVal?.vehiculo?.conductor ?? newVal?.conductor ?? null;
+              setSelectedConductorObj(conductorObj);
+              setSelectedConductor(conductorObj ? (conductorObj.id || '') : '');
+            }}
+            inputValue={conductorSearch}
+            onInputChange={(e, newInput) => setConductorSearch(newInput)}
+            renderOption={(props, h) => {
+              const hora = h.hora || h.horaSalida || "";
+              const vehMovil = h.vehiculo?.movil ?? h.movil ?? (h.vehiculoId ? String(h.vehiculoId) : "");
+              const conductor = h.vehiculo?.conductor ? `${h.vehiculo.conductor.nombres || ''} ${h.vehiculo.conductor.apellidos || ''}`.trim() : (h.conductor ? `${h.conductor.nombres || ''} ${h.conductor.apellidos || ''}`.trim() : 'Sin conductor');
+              const ruta = h.ruta?.origenNombre && h.ruta?.destinoNombre ? `${h.ruta.origenNombre} → ${h.ruta.destinoNombre}` : (h.ruta?.origenNombre || h.ruta?.destinoNombre || '');
+              return (
+                <li {...props}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography sx={{ fontWeight: 700, color: '#0f172a' }}>{hora}</Typography>
+                      <Typography sx={{ fontWeight: 700, color: '#0f172a' }}>{conductor}</Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <PhoneIcon />
+                      <Typography variant="body2" sx={{ color: '#475569' }}>{vehMovil || 'N/A'}</Typography>
+                      {ruta ? (
+                        <Typography variant="body2" sx={{ color: '#475569', ml: 1 }}>{ruta}</Typography>
+                      ) : null}
+                    </Box>
+                  </Box>
+                </li>
+              );
+            }}
+            renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Horario / Conductor"
+                    placeholder="Buscar por nombre de chofer o nro de móvil"
+                  />
+                )}
+              />
+              </Box>
+              <Card variant="outlined" sx={{ mt: 1, bgcolor: '#fff', boxShadow: 'none', borderColor: '#e6edf3' }}>
+                <CardContent sx={{ p: 1.5 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>Conductor seleccionado</Typography>
+                  {selectedConductorObj ? (
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                      <Avatar sx={{ bgcolor: '#2563eb', width: 40, height: 40 }}>{(selectedConductorObj.nombres || '').charAt(0) || 'C'}</Avatar>
+                      <Box>
+                        <Typography sx={{ fontWeight: 700 }}>{`${selectedConductorObj.nombres || ''} ${selectedConductorObj.apellidos || ''}`.trim()}</Typography>
+                        <Typography variant="body2" sx={{ color: '#475569' }}>{selectedConductorObj.telefono || selectedConductorObj.celular || ''}</Typography>
+                      </Box>
+                    </Box>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">No hay conductor seleccionado</Typography>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <Card variant="outlined" sx={{ borderColor: '#e6edf3' }}>
+                <CardContent sx={{ p: 1.5 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>Encomiendas seleccionadas ({selectedEncomiendas.length})</Typography>
+                  {selectedEncomiendas.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">No hay encomiendas seleccionadas.</Typography>
+                  ) : (
+                    <Box sx={{ maxHeight: 260, overflow: 'auto' }}>
+                      <Table size="small" aria-label="selected-encomiendas-list">
+                        <TableBody>
+                          {selectedEncomiendas.map((s) => (
+                            <TableRow key={`sel-${s.id}`}> 
+                              <TableCell sx={{ fontWeight: 700, width: 80 }}>{s.numero}</TableCell>
+                              <TableCell sx={{ maxWidth: 160 }}>
+                                <Chip label={s.destino} size="small" variant="outlined" sx={{ fontWeight: 600, borderColor: '#cbd5e1', bgcolor: '#f8fafc' }} />
+                              </TableCell>
+                              <TableCell sx={{ maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.contenido}</TableCell>
+                              <TableCell align="right" sx={{ fontWeight: 800, color: '#0f172a' }}>Bs. {Number(s.monto || 0).toFixed(2)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </Box>
+                  )}
+                  {selectedEncomiendas.length > 0 && (
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Total:</Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 900, color: '#2563eb' }}>Bs. {selectedTotal.toFixed(2)}</Typography>
+                    </Box>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+
+          {/* {selectedEncomiendas.length > 0 && (
+            <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
+                Total: Bs. {selectedTotal.toFixed(2)}
+              </Typography>
+            </Box>
+          )} */}
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={closeAssignDialog} color="inherit" sx={{ textTransform: "none", mr: 1 }}>
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleConfirmAssign}
+            disabled={!(selectedConductorObj || selectedConductor) || assigning}
+            startIcon={assigning ? <CircularProgress size={16} /> : null}
+            sx={{
+              textTransform: "none",
+              borderRadius: 2,
+              bgcolor: 'linear-gradient(90deg,#2563eb,#1e40af)',
+              color: '#fff',
+              boxShadow: '0 4px 12px rgba(37,99,235,0.15)',
+              '&:hover': { boxShadow: '0 6px 18px rgba(30,64,175,0.2)' },
+            }}
+          >
+            {assigning ? "Asignando..." : "Asignar"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Diálogo Vista previa comprobante / Imprimir */}
       <Dialog
         open={printModal.open}
@@ -1286,7 +1617,7 @@ console.log(`coincidencia de ${destino} con ${puntoVentaNombre}`, destino.toLowe
         onClose={() => setOpenRegisterModal(false)}
         onSuccess={() => {
           fetchEncomiendasData();
-          showSnackbar("Encomienda registrada con éxito", "success");
+            showNotification("Encomienda registrada con éxito", 'success');
         }}
       />
 
@@ -1297,7 +1628,7 @@ console.log(`coincidencia de ${destino} con ${puntoVentaNombre}`, destino.toLowe
         encomiendaToEdit={editModal.encomienda}
         onSuccess={() => {
           fetchEncomiendasData();
-          showSnackbar("Encomienda actualizada con éxito", "success");
+          showNotification("Encomienda actualizada con éxito", 'success');
           closeEditModal();
         }}
       />

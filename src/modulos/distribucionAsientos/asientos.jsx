@@ -9,7 +9,7 @@ function Asientos() {
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [minibusFilter, setMinibusFilter] = useState('todos')
-  const [statusFilter, setStatusFilter] = useState('todos')
+  const [statusFilter, setStatusFilter] = useState('activo')
 
   // Paginación
   const [currentPage, setCurrentPage] = useState(1)
@@ -158,7 +158,7 @@ function Asientos() {
         try {
           const body =  { ...payload, id: editingAsiento.id }
           const data = await updateDistribucion(editingAsiento.id, body)
-          setAsientos(prev => prev.map(a => a.id === editingAsiento.id ? data : a))
+          // setAsientos(prev => prev.map(a => a.id === editingAsiento.id ? data : a))
           showNotification('Distribución de asientos actualizada exitosamente')
         } catch (err) {
           console.log('UPDATE distribucion error:', err)
@@ -169,7 +169,7 @@ function Asientos() {
         try {
           const body = payload
           const data = await createDistribucion(body)
-          setAsientos(prev => [data, ...prev])
+          // setAsientos(prev => [data, ...prev])
           showNotification('Nueva distribución de asientos creada exitosamente')
         } catch (err) {
           const msg = err.message || 'Error al crear distribución'
@@ -201,6 +201,7 @@ fetchAsientos()
       console.log('DELETE distribucion error:', msg)
       showNotification(msg, 'error')
     }
+    fetchAsientos()
     setAsientoToDelete(null)
   }
 
@@ -264,7 +265,7 @@ fetchAsientos()
               />
             </div>
 
-            <select
+            {/* <select
               value={minibusFilter}
               onChange={(e) => setMinibusFilter(e.target.value)}
               className="filter-select"
@@ -272,7 +273,7 @@ fetchAsientos()
               <option value="todos">Todos los Tipos de Vehículo</option>
               <option value="minibus">Solo Minibús / Van</option>
               <option value="bus">Solo Bus Estándar / Cama</option>
-            </select>
+            </select> */}
 
             <select
               value={statusFilter}

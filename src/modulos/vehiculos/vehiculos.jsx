@@ -1,4 +1,8 @@
 import { useState, useEffect } from 'react'
+import FormControl from '@mui/material/FormControl'
+import InputLabel from '@mui/material/InputLabel'
+import Select from '@mui/material/Select'
+import MenuItem from '@mui/material/MenuItem'
 import './vehiculos.css'
 import { getVehiculos, createVehiculo, updateVehiculo, deleteVehiculo, getConductores } from './vehiculoService'
 import { getDistribuciones } from './asientosService'
@@ -85,7 +89,9 @@ function Vehiculos() {
   // ── GET Asientos ('api/asientos') ───────────────────────────────────────────
   const fetchDistribuciones = async () => {
     try {
-      const data = await getDistribuciones()
+      var data = await getDistribuciones()
+      //filtrar la lista por estado activo
+      data = data.filter(item => item.estado)
       if (Array.isArray(data) && data.length > 0) setDistribucionesList(data)
     } catch (err) {
       console.log('Usando lista local de distribuciones para pruebas:', err.message)
@@ -373,6 +379,7 @@ function Vehiculos() {
 
     try {
       await deleteVehiculo(vehicleToDelete.id)
+      fetchVehiculos()
     } catch (err) {
       console.log('DELETE backend vehiculos no disponible:', err.message)
     }
@@ -451,42 +458,53 @@ function Vehiculos() {
               />
             </div>
 
-            {/* <select
-              value={tipoFilter}
-              onChange={(e) => setTipoFilter(e.target.value)}
-              className="filter-select"
-            >
-              <option value="todos">Todos los Tipos</option>
-              <option value="Sedán">Sedán</option>
-              <option value="Minibús">Minibús</option>
-              <option value="Van">Van</option>
-              <option value="Bus Cama">Bus Cama</option>
-              <option value="Omnibús">Omnibús</option>
-            </select>
+            <FormControl size="small" sx={{ minWidth: 160, marginLeft: 1 }}>
+              <InputLabel id="tipo-filter-label">Tipo</InputLabel>
+              <Select
+                labelId="tipo-filter-label"
+                value={tipoFilter}
+                label="Tipo"
+                onChange={(e) => setTipoFilter(e.target.value)}
+              >
+                <MenuItem value="todos">Todos los Tipos</MenuItem>
+                <MenuItem value="Sedán">Sedán</MenuItem>
+                <MenuItem value="Minibús">Minibús</MenuItem>
+                <MenuItem value="Van">Van</MenuItem>
+                <MenuItem value="Bus Cama">Bus Cama</MenuItem>
+                <MenuItem value="Omnibús">Omnibús</MenuItem>
+              </Select>
+            </FormControl>
 
-            <select
-              value={aseguradoraFilter}
-              onChange={(e) => setAseguradoraFilter(e.target.value)}
-              className="filter-select"
-            >
-              <option value="todos">Todas las Aseguradoras</option>
-              <option value="La Boliviana">La Boliviana</option>
-              <option value="Alianza Seguros">Alianza Seguros</option>
-              <option value="BISA Seguros">BISA Seguros</option>
-              <option value="Nacional Vida">Nacional Vida</option>
-              <option value="Rímac Seguros">Rímac Seguros</option>
-            </select>
+            <FormControl size="small" sx={{ minWidth: 200, marginLeft: 1 }}>
+              <InputLabel id="aseg-filter-label">Aseguradora</InputLabel>
+              <Select
+                labelId="aseg-filter-label"
+                value={aseguradoraFilter}
+                label="Aseguradora"
+                onChange={(e) => setAseguradoraFilter(e.target.value)}
+              >
+                <MenuItem value="todos">Todas las Aseguradoras</MenuItem>
+                <MenuItem value="La Boliviana">La Boliviana</MenuItem>
+                <MenuItem value="Alianza Seguros">Alianza Seguros</MenuItem>
+                <MenuItem value="BISA Seguros">BISA Seguros</MenuItem>
+                <MenuItem value="Nacional Vida">Nacional Vida</MenuItem>
+                <MenuItem value="Rímac Seguros">Rímac Seguros</MenuItem>
+              </Select>
+            </FormControl>
 
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="filter-select"
-            >
-              <option value="todos">Todos los Estados</option>
-              <option value="activos">Activos</option>
-              <option value="inactivos">Inactivos</option>
-            </select>
-            */}
+            <FormControl size="small" sx={{ minWidth: 160, marginLeft: 1 }}>
+              <InputLabel id="status-filter-label">Estado</InputLabel>
+              <Select
+                labelId="status-filter-label"
+                value={statusFilter}
+                label="Estado"
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <MenuItem value="todos">Todos los Estados</MenuItem>
+                <MenuItem value="activos">Activos</MenuItem>
+                <MenuItem value="inactivos">Inactivos</MenuItem>
+              </Select>
+            </FormControl>
           </div>
 
           <button className="add-btn" onClick={handleAddNew}>

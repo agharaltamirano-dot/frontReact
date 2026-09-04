@@ -355,6 +355,29 @@ body {
     color: var(--neutral-700);
 }
 
+/* Forgot password link styling: centered, black text, no background */
+.forgot-link-row {
+    display: flex;
+    justify-content: center;
+    margin-top: 12px;
+}
+
+.forgot-link {
+    background: none;
+    border: none;
+    color: #000;
+    text-align: center;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    font-size: 0.95rem;
+    text-decoration: underline;
+}
+
+.forgot-link:focus {
+    outline: none;
+}
+
 .input-label svg {
     width: 18px;
     height: 18px;

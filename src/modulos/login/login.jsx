@@ -3,6 +3,22 @@ import { useNavigate } from 'react-router-dom'
 import autoImg from '../../assets/auto.jpeg'
 import logoImg from '../../assets/logo3.jpeg'
 import './login.css'
+// MUI imports for improved modal UI
+import Dialog from '@mui/material/Dialog'
+import DialogTitle from '@mui/material/DialogTitle'
+import DialogContent from '@mui/material/DialogContent'
+import DialogActions from '@mui/material/DialogActions'
+import TextField from '@mui/material/TextField'
+import Button from '@mui/material/Button'
+import InputAdornment from '@mui/material/InputAdornment'
+import Box from '@mui/material/Box'
+import PersonIcon from '@mui/icons-material/Person'
+import EmailIcon from '@mui/icons-material/Email'
+// Note: intentionally do not include a close 'X' — only the Cancel button closes the dialog
+import SendIcon from '@mui/icons-material/Send'
+import LockIcon from '@mui/icons-material/Lock'
+import CheckCircleIcon from '@mui/icons-material/CheckCircle'
+import CircularProgress from '@mui/material/CircularProgress'
 
 function Login() {
     const navigate = useNavigate()
@@ -13,6 +29,15 @@ function Login() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
     const [showPassword, setShowPassword] = useState(false)
+    // Forgot password modal state
+    const [showForgotModal, setShowForgotModal] = useState(false)
+    const [forgotStep, setForgotStep] = useState(1) // 1,2,3
+    const [forgotForm, setForgotForm] = useState({ nombre: '', correo: '' })
+    const [forgotLoading, setForgotLoading] = useState(false)
+    const [forgotError, setForgotError] = useState('')
+    const [forgotCode, setForgotCode] = useState('')
+    const [verifyLoading, setVerifyLoading] = useState(false)
+    const [verifyError, setVerifyError] = useState('')
 
     const handleChange = (e) => {
         const { name, value } = e.target
@@ -57,6 +82,84 @@ function Login() {
             setError(err.message || 'Error de conexión con el servidor')
         } finally {
             setLoading(false)
+        }
+    }
+
+    // Forgot password handlers
+    const openForgotModal = () => {
+        setShowForgotModal(true)
+        setForgotStep(1)
+        setForgotForm({ nombre: '', correo: '' })
+        setForgotError('')
+        setForgotLoading(false)
+    }
+
+    const closeForgotModal = () => {
+        setShowForgotModal(false)
+        setForgotStep(1)
+        setForgotError('')
+    }
+
+    const handleForgotChange = (e) => {
+        const { name, value } = e.target
+        setForgotForm(prev => ({ ...prev, [name]: value }))
+        if (forgotError) setForgotError('')
+    }
+
+    const handleForgotSubmit = async (e) => {
+        e.preventDefault()
+        setForgotLoading(true)
+        setForgotError('')
+
+        try {
+            const response = await fetch('http://localhost:5093/api/auth/login/send-code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(forgotForm)
+            })
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}))
+                const message = err.message || 'Error al solicitar recuperación'
+                const e = new Error(message)
+                console.log(e)
+                throw e
+            }
+
+            // Si recibimos 200 ok, avanzamos al siguiente paso
+            setForgotStep(2)
+        } catch (err) {
+            // Log the error as requested and show a friendly message
+            console.log(err)
+            setForgotError(err.message || 'Error de conexión con el servidor')
+        } finally {
+            setForgotLoading(false)
+        }
+    }
+
+    const handleCodeChange = (e) => {
+        const v = e.target.value.replace(/[^0-9]/g, '').slice(0, 6)
+        setForgotCode(v)
+        if (verifyError) setVerifyError('')
+    }
+
+    const handleVerifyCode = async () => {
+        // For now advance locally when 6 digits entered
+        if (forgotCode.length !== 6) {
+            setVerifyError('Ingrese un código de 6 dígitos')
+            return
+        }
+
+        setVerifyLoading(true)
+        try {
+            // If you later add an API call to verify the code, do it here.
+            console.log('Código ingresado:', forgotCode)
+            setForgotStep(3)
+        } catch (e) {
+            console.log(e)
+            setVerifyError('Error al verificar el código')
+        } finally {
+            setVerifyLoading(false)
         }
     }
 
@@ -194,8 +297,145 @@ function Login() {
                                 </>
                             )}
                         </button>
+
+                        <div className="forgot-link-row">
+                            <button
+                                type="button"
+                                className="forgot-link"
+                                onClick={openForgotModal}
+                            >
+                                ¿Olvidaste tu contraseña?
+                            </button>
+                        </div>
                     </form>
                     </div>
+
+                    {/* Forgot password modal (MUI) */}
+                    <Dialog
+                        open={showForgotModal}
+                        onClose={(e, reason) => {
+                            // Prevent closing via backdrop click or Escape key — only Cancel closes
+                            if (reason === 'backdropClick' || reason === 'escapeKeyDown') return
+                            // Also prevent programmatic close while request is in progress
+                            if (forgotLoading) return
+                            closeForgotModal()
+                        }}
+                        maxWidth="xs"
+                        fullWidth
+                        BackdropProps={{
+                            sx: {
+                                backdropFilter: 'blur(6px)',
+                                backgroundColor: 'rgba(0,0,0,0.35)'
+                            }
+                        }}
+                        PaperProps={{
+                            sx: {
+                                bgcolor: '#fff',
+                                borderRadius: 2
+                            }
+                        }}
+                    >
+                        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
+                            Recuperar contraseña
+                        </DialogTitle>
+
+                        <DialogContent dividers sx={{ backgroundColor: '#fff' }}>
+                            {forgotStep === 1 && (
+                                <Box component="form" onSubmit={handleForgotSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                    <Box sx={{ color: 'text.secondary' }}>Ingrese su usuario y correo para continuar.</Box>
+
+                                    {forgotError && (
+                                        <Box sx={{ color: 'error.main', fontSize: '0.95rem' }}>{forgotError}</Box>
+                                    )}
+
+                                    <TextField
+                                        name="nombre"
+                                        value={forgotForm.nombre}
+                                        onChange={handleForgotChange}
+                                        required
+                                        label="Usuario"
+                                        variant="outlined"
+                                        fullWidth
+                                        InputProps={{
+                                            startAdornment: (
+                                                <InputAdornment position="start">
+                                                    <PersonIcon />
+                                                </InputAdornment>
+                                            ),
+                                        }}
+                                    />
+
+                                    <TextField
+                                        name="correo"
+                                        type="email"
+                                        value={forgotForm.correo}
+                                        onChange={handleForgotChange}
+                                        required
+                                        label="Correo electrónico"
+                                        variant="outlined"
+                                        fullWidth
+                                        InputProps={{
+                                            startAdornment: (
+                                                <InputAdornment position="start">
+                                                    <EmailIcon />
+                                                </InputAdornment>
+                                            ),
+                                        }}
+                                    />
+
+                                    <DialogActions sx={{ px: 0 }}>
+                                        <Button variant="text" onClick={closeForgotModal} disabled={forgotLoading}>Cancelar</Button>
+                                        <Button variant="contained" type="submit" disabled={forgotLoading} endIcon={!forgotLoading ? <SendIcon /> : null}>
+                                            {forgotLoading ? (
+                                                <CircularProgress size={18} color="inherit" />
+                                            ) : (
+                                                'Enviar'
+                                            )}
+                                        </Button>
+                                    </DialogActions>
+                                </Box>
+                            )}
+
+                            {forgotStep === 2 && (
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <CheckCircleIcon color="success" />
+                                        <Box>Hemos enviado un enlace o código a su correo.</Box>
+                                    </Box>
+
+                                    <DialogActions sx={{ px: 0 }}>
+                                        <Button variant="outlined" onClick={() => setForgotStep(1)}>Volver</Button>
+                                        <Button variant="contained" onClick={() => setForgotStep(3)}>Siguiente</Button>
+                                    </DialogActions>
+                                </Box>
+                            )}
+
+                            {forgotStep === 3 && (
+                                <Box component="form" sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                    <TextField
+                                        type="password"
+                                        label="Nueva contraseña"
+                                        variant="outlined"
+                                        fullWidth
+                                        InputProps={{ startAdornment: (<InputAdornment position="start"><LockIcon /></InputAdornment>) }}
+                                    />
+
+                                    <TextField
+                                        type="password"
+                                        label="Confirmar contraseña"
+                                        variant="outlined"
+                                        fullWidth
+                                        InputProps={{ startAdornment: (<InputAdornment position="start"><LockIcon /></InputAdornment>) }}
+                                    />
+
+                                    <DialogActions sx={{ px: 0 }}>
+                                        <Button variant="outlined" onClick={() => setForgotStep(2)}>Volver</Button>
+                                        <Button variant="contained" onClick={closeForgotModal}>Guardar</Button>
+                                    </DialogActions>
+                                </Box>
+                            )}
+                        </DialogContent>
+                    </Dialog>
 
                     {/* Descripción abajo */}
                     <p className="visual-description">

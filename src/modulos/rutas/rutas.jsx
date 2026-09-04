@@ -35,7 +35,9 @@ function Rutas() {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [diaFilter, setDiaFilter] = useState("todos");
-  const [statusFilter, setStatusFilter] = useState("todos");
+  const [statusFilter, setStatusFilter] = useState("activos");
+  const [originFilterId, setOriginFilterId] = useState("");
+  const [destinationFilterId, setDestinationFilterId] = useState("");
 
   // Paginación
   const [currentPage, setCurrentPage] = useState(1);
@@ -84,6 +86,7 @@ function Rutas() {
     try {
       const data = await getRutas();
       if (Array.isArray(data) && data.length > 0) setRutas(data);
+      console.log('rutaas',data)
     } catch (err) {
       console.log("Usando lista local de rutas:", err.message);
     } finally {
@@ -463,60 +466,71 @@ function Rutas() {
 
   const filteredRutas = rutas
     .map((r) => {
-      // Si la API devuelve 'destinos' con puntoVenta y orden, inferimos origen y destino
-      let origenObj = null;
-      let destinoObj = null;
-      if (Array.isArray(r.destinos) && r.destinos.length > 0) {
-        const sorted = [...r.destinos].sort(
-          (a, b) => (a.orden || 0) - (b.orden || 0),
-        );
-        const origenDest = sorted[0];
-        const destinoDest = sorted[sorted.length - 1];
-        origenObj =
-          origenDest?.puntoVenta ||
-          getPunto(origenDest?.puntoVenta?.id || origenDest?.puntoVenta);
-        destinoObj =
-          destinoDest?.puntoVenta ||
-          getPunto(destinoDest?.puntoVenta?.id || destinoDest?.puntoVenta);
-      } else {
-        origenObj = getPunto(r.origenId || r.origen?.id);
-        destinoObj = getPunto(r.destinoId || r.destino?.id);
-      }
+      const destinosArr = Array.isArray(r.destinos) ? r.destinos : [];
 
-      // Transformar dias: si vienen como "1, 2, 3" o "1,2,3"
-      const diasRaw = String(r.dias || "");
+      // Determine origin (orden === 1) and destination (max orden)
+      const originDest = destinosArr.find((d) => Number(d.orden) === 1) || null;
+      const maxOrden = destinosArr.reduce((m, d) => Math.max(m, Number(d.orden || 0)), 0);
+      const destDest = destinosArr.find((d) => Number(d.orden) === maxOrden) || null;
+
+      // Extract puntoVenta id (supports shapes: puntoVenta: {id,...} or puntoVentaId)
+      const origenPuntoId = originDest ? (originDest.puntoVenta?.id ?? originDest.puntoVentaId ?? originDest.puntoVenta) : null;
+      const destinoPuntoId = destDest ? (destDest.puntoVenta?.id ?? destDest.puntoVentaId ?? destDest.puntoVenta) : null;
+
+      const origenObj = puntosVenta.find((p) => Number(p.id) === Number(origenPuntoId)) || (originDest?.puntoVenta && typeof originDest.puntoVenta === 'object' ? { nombre: originDest.puntoVenta.nombre || `Punto #${origenPuntoId}`, telefono: originDest.puntoVenta.telefono || 'Sin tel.' } : { nombre: `Punto #${origenPuntoId}`, telefono: 'Sin tel.' });
+      const destinoObj = puntosVenta.find((p) => Number(p.id) === Number(destinoPuntoId)) || (destDest?.puntoVenta && typeof destDest.puntoVenta === 'object' ? { nombre: destDest.puntoVenta.nombre || `Punto #${destinoPuntoId}`, telefono: destDest.puntoVenta.telefono || 'Sin tel.' } : { nombre: `Punto #${destinoPuntoId}`, telefono: 'Sin tel.' });
+
+      // dias: normalizar a array de números
+      const diasRaw = String(r.dias || '');
       const diasNums = diasRaw
-        .split(",")
+        .split(',')
         .map((s) => s.trim())
-        .filter(Boolean);
-      const diasAbrev = diasNums.map((n) => diaMap[n] || n);
+        .filter(Boolean)
+        .map((n) => Number(n));
 
       return {
         __orig: r,
         origenObj,
         destinoObj,
+        origenPuntoId,
+        destinoPuntoId,
         diasNums,
-        diasArray: diasAbrev,
+        diasArray: diasNums.map((n) => diaMap[n] || n),
       };
     })
     .filter((item) => {
-      const textTarget =
-        `${item.origenObj.nombre} ${item.destinoObj.nombre} ${item.__orig.dias || ""}`.toLowerCase();
-      const matchesSearch = textTarget.includes(searchTerm.toLowerCase());
+      // Origin/Destination select filters
+      if (originFilterId && String(originFilterId).trim() !== "") {
+        if (String(item.origenPuntoId || '') !== String(originFilterId)) return false;
+      }
 
-      const matchesDia =
-        diaFilter === "todos" ||
-        (item.diasNums &&
-          item.diasNums
-            .map((n) => DIAS_SEMANA[Number(n) - 1])
-            .includes(diaFilter));
+      if (destinationFilterId && String(destinationFilterId).trim() !== "") {
+        if (String(item.destinoPuntoId || '') !== String(destinationFilterId)) return false;
+      }
+      // Search filter compares against origen and destino nombre (from puntoVenta)
+      if (searchTerm && String(searchTerm).trim() !== '') {
+        const s = String(searchTerm).toLowerCase();
+        const matchesOrigin = (item.origenObj?.nombre || '').toLowerCase().includes(s);
+        const matchesDestino = (item.destinoObj?.nombre || '').toLowerCase().includes(s);
+        const matchesDia = item.diasNums.some((d) => (DIAS_SEMANA[d - 1] || '').toLowerCase().includes(s));
+        if (!matchesOrigin && !matchesDestino && !matchesDia) return false;
+      }
 
-      const matchesStatus =
-        statusFilter === "todos" ||
-        (statusFilter === "activos" && item.__orig.estado) ||
-        (statusFilter === "inactivos" && !item.__orig.estado);
+      // Day filter
+      if (diaFilter && diaFilter !== 'todos') {
+        const diaIndex = DIAS_SEMANA.findIndex((dn) => dn === diaFilter);
+        const diaNumber = diaIndex >= 0 ? diaIndex + 1 : null;
+        if (diaNumber && !item.diasNums.includes(diaNumber)) return false;
+      }
 
-      return matchesSearch && matchesDia && matchesStatus;
+      // Status filter (expects boolean estado on route)
+      if (statusFilter && statusFilter !== 'todos') {
+        const expectActive = statusFilter === 'activos';
+        const estado = typeof item.__orig.estado === 'boolean' ? item.__orig.estado : item.__orig.estado === 1 || item.__orig.estado === '1';
+        if (estado !== expectActive) return false;
+      }
+
+      return true;
     })
     .map((item) => ({
       ...item.__orig,
@@ -611,6 +625,20 @@ function Rutas() {
               <option value="todos">Todos los Estados</option>
               <option value="activos">Activos</option>
               <option value="inactivos">Inactivos</option>
+            </select>
+            
+            <select value={originFilterId} onChange={(e) => setOriginFilterId(e.target.value)} className="filter-select">
+              <option value="">Origen (todos)</option>
+              {puntosVenta.map((pv) => (
+                <option key={pv.id} value={pv.id}>{pv.nombre}</option>
+              ))}
+            </select>
+
+            <select value={destinationFilterId} onChange={(e) => setDestinationFilterId(e.target.value)} className="filter-select">
+              <option value="">Destino (todos)</option>
+              {puntosVenta.map((pv) => (
+                <option key={pv.id} value={pv.id}>{pv.nombre}</option>
+              ))}
             </select>
           </div>
 

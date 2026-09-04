@@ -90,9 +90,18 @@ export async function getDashboardData() {
 
   // REGLA SOLICITADA POR EL USUARIO:
   // La suma del total recaudado debe ser filtrada por encomienda.estado = true
-  const montoEncomiendasTotal = encomiendas
-    .filter(e => e.estado === true || e.estado === undefined)
-    .reduce((sum, e) => sum + (Number(e.monto) || 0), 0)
+  // Sumar solo encomiendas activas y cuya fecha de recepción/registro sea hoy
+  const encomiendasHoy = encomiendas.filter(e => {
+    try {
+      const fechaRaw = e.fechaRecepcion || e.fechaEntrega || ''
+      const fechaPart = String(fechaRaw || '').split(' ')[0]
+      return fechaPart === new Date().toLocaleDateString('en-CA') && (e.estado === true || e.estado === undefined)
+    } catch {
+      return false
+    }
+  })
+
+  const montoEncomiendasTotal = encomiendasHoy.reduce((sum, e) => sum + (Number(e.monto) || 0), 0)
 
   // Encomiendas por destino (encomienda.destino)
   const encomiendasDestinoMap = {}
@@ -121,11 +130,20 @@ export async function getDashboardData() {
   const totalPasajesCount = pasajes.length
   const pasajesReservasCount = pasajesActivosList.filter(p => p.reserva === true).length
 
-  // REGLA SOLICITADA POR EL USUARIO:
-  // La suma del total recaudado debe ser filtrada por pasaje.estado = true
-  const montoPasajesTotal = pasajes
-    .filter(p => p.estado === true || p.estado === undefined)
-    .reduce((sum, p) => sum + (Number(p.monto) || 0), 0)
+  // Fecha de hoy en formato yyyy-MM-dd (local)
+  const todayStr = new Date().toLocaleDateString('en-CA')
+
+  // REGLA: sumar solo los pasajes cuya fecha (primer segmento de fechaHora) sea hoy
+  const pasajesHoy = pasajes.filter(p => {
+    try {
+      const fechaPart = String(p.fechaHora || '').split(' ')[0]
+      return fechaPart === todayStr && (p.estado === true || p.estado === undefined)
+    } catch {
+      return false
+    }
+  })
+
+  const montoPasajesTotal = pasajesHoy.reduce((sum, p) => sum + (Number(p.monto) || 0), 0)
 
   // Pasajes por destino (pasajes.destino -> destinos más concurridos)
   const pasajesDestinoMap = {}
@@ -154,6 +172,7 @@ export async function getDashboardData() {
   const horariosActivosCount = horarios.filter(h => h.estado !== false).length
 
   // REGLA SOLICITADA POR EL USUARIO: Suma global filtrada por estado = true
+  // Ahora total recaudado considera solo registros correspondientes a la fecha de hoy
   const totalRecaudadoGlobal = montoEncomiendasTotal + montoPasajesTotal
 
   return {
@@ -164,7 +183,8 @@ export async function getDashboardData() {
       encomiendasSinEntregar: sinEntregarCount,
       encomiendasEntregadas: entregadasCount,
       totalEncomiendas: totalEncomiendasCount,
-      totalPasajesVendidos: pasajesActivosList.length,
+      // Número de pasajes vendidos hoy (filtrados por fecha)
+      totalPasajesVendidos: pasajesHoy.length,
       pasajesAnulados: pasajesAnuladosCount,
       pasajesReservas: pasajesReservasCount,
       vehiculosActivos: vehiculosActivosCount,

@@ -1,4 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
+import TextField from '@mui/material/TextField'
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns'
+import { DatePicker } from '@mui/x-date-pickers/DatePicker'
+import format from 'date-fns/format'
 import { useNavigate } from 'react-router-dom'
 import './horarios.css'
 
@@ -31,6 +36,8 @@ function Horarios() {
   const [origenFilter, setOrigenFilter] = useState('todos')
   const [destinoFilter, setDestinoFilter] = useState('todos')
   const [statusFilter, setStatusFilter] = useState('todos')
+  // Fecha filter (por defecto hoy)
+  const [dateFilter, setDateFilter] = useState(new Date())
 
   // datasets
   const [horarios, setHorarios] = useState([])
@@ -51,15 +58,17 @@ function Horarios() {
 
   // Formulario
   const [formData, setFormData] = useState({
-    fecha: '2026-08-01',
-    hora: '08:30',
+    fecha: new Date().toLocaleDateString('en-CA'),
+    hora: '',
     estado: true,
+    vehiculoId: '',
   })
 
   // Selector de horas (buscable)
   const [timeSearch, setTimeSearch] = useState('')
   const [showTimeList, setShowTimeList] = useState(false)
   const timeListRef = useRef(null)
+  const [timeError, setTimeError] = useState('')
 
   // Selector de vehículos (buscable)
   const [vehicleSearch, setVehicleSearch] = useState('')
@@ -149,6 +158,7 @@ function Horarios() {
       if (res.ok) {
         const data = await res.json()
         if (Array.isArray(data) && data.length > 0) setHorarios(data)
+          console.log('lista de horarios:', data)
       }
     } catch (err) {
       console.log('Usando datos locales de horarios para pruebas:', err.message)
@@ -164,7 +174,7 @@ function Horarios() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, rutaFilter, origenFilter, destinoFilter, statusFilter, itemsPerPage])
+  }, [searchTerm, rutaFilter, origenFilter, destinoFilter, statusFilter, itemsPerPage, dateFilter])
 
   const getPunto = (id) => puntosVenta.find(p => Number(p.id) === Number(id)) || { nombre: `Punto #${id}` }
 
@@ -234,6 +244,22 @@ function Horarios() {
     }
   }
 
+  // Comprueba si acciones (editar/eliminar) están permitidas según fecha/hora
+  const isHorarioActionAllowed = (h) => {
+    try {
+      const todayStr = new Date().toLocaleDateString('en-CA')
+      const now = new Date()
+      const nowStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0')
+      if (!h) return true
+      if (!h.fecha) return true
+      if (h.fecha < todayStr) return false
+      if (h.fecha === todayStr && h.hora && h.hora < nowStr) return false
+      return true
+    } catch (err) {
+      return true
+    }
+  }
+
   // ── Toggle Estado Rápido ──────────────────────────────────────────────────────
   const toggleEstado = async (horario) => {
     const nuevoEstado = !horario.estado
@@ -257,32 +283,34 @@ function Horarios() {
     const todayStr = new Date().toLocaleDateString('en-CA') // YYYY-MM-DD in local time
     setFormData({
       fecha: todayStr,
-      hora: '08:30',
+      hora: '',
       estado: true,
-      rutaId: rutas[0]?.id || 1,
-      vehiculoId: vehiculos[0]?.id || 10
+      rutaId: '',
+      vehiculoId: ''
     })
     setEditingHorario(null)
     setTimeSearch('')
     setVehicleSearch('')
     setShowTimeList(false)
     setShowVehicleList(false)
+    setTimeError('')
     setShowAddModal(true)
   }
 
   const handleEdit = (horario) => {
     setFormData({
-      fecha: horario.fecha || '2026-08-01',
-      hora: horario.hora || '08:30',
+      fecha: horario.fecha || new Date().toLocaleDateString('en-CA'),
+      hora: horario.hora || '',
       estado: horario.estado ?? true,
-      rutaId: horario.rutaId || horario.ruta?.id || rutas[0]?.id || 1,
-      vehiculoId: horario.vehiculoId || horario.vehiculo?.id || vehiculos[0]?.id || 10
+      rutaId: horario.rutaId || horario.ruta?.id || '',
+      vehiculoId: horario.vehiculoId || horario.vehiculo?.id || ''
     })
     setEditingHorario(horario)
     setTimeSearch('')
     setVehicleSearch('')
     setShowTimeList(false)
     setShowVehicleList(false)
+    setTimeError('')
     setShowAddModal(true)
   }
 
@@ -302,6 +330,16 @@ function Horarios() {
       showNotification('La hora es obligatoria', 'error')
       setSaving(false)
       return
+    }
+    // Si la fecha es hoy, la hora no puede ser menor a la hora actual
+    if (formData.fecha === todayStr) {
+      const now = new Date()
+      const nowStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0')
+      if (formData.hora < nowStr) {
+        showNotification('Si la fecha es hoy, la hora no puede ser menor a la hora actual', 'error')
+        setSaving(false)
+        return
+      }
     }
     if (!formData.vehiculoId) {
       showNotification('Seleccione un vehículo válido', 'error')
@@ -401,8 +439,14 @@ function Horarios() {
     const rutaObj = getRutaObj(h.rutaId || h.ruta?.id)
     const vehObj = getVehiculoObj(h.vehiculoId || h.vehiculo?.id)
 
-    const textTarget = `${h.fecha} ${h.hora} ${rutaObj.origenNombre} ${rutaObj.destinoNombre} ${vehObj.movil} ${vehObj.placa} ${vehObj.marca}`.toLowerCase()
-    const matchesSearch = textTarget.includes(searchTerm.toLowerCase())
+    // Search: only by conductor full name or vehículo móvil number
+    const term = String(searchTerm || '').trim().toLowerCase()
+    let matchesSearch = true
+    if (term) {
+      const conductorFull = vehObj?.conductor ? `${vehObj.conductor.nombres || ''} ${vehObj.conductor.apellidos || ''}`.trim().toLowerCase() : ''
+      const movil = String(vehObj?.movil || '').toLowerCase()
+      matchesSearch = (conductorFull && conductorFull.includes(term)) || (movil && movil.includes(term))
+    }
 
     // derive origin/destination from ruta.destinos when possible
     const obtenerOrigenDestino = (hr) => {
@@ -436,7 +480,19 @@ function Horarios() {
       (statusFilter === 'activos' && h.estado) ||
       (statusFilter === 'inactivos' && !h.estado)
 
-    return matchesSearch && matchesRuta && matchesOrigen && matchesDestino && matchesStatus
+    // Date filter: compare only YYYY-MM-DD part
+    let matchesDate = true
+    if (dateFilter) {
+      try {
+        const selected = format(dateFilter, 'yyyy-MM-dd')
+        const horarioDate = (h.fecha || '').split('T')[0]
+        matchesDate = horarioDate === selected
+      } catch (e) {
+        matchesDate = true
+      }
+    }
+
+    return matchesSearch && matchesRuta && matchesOrigen && matchesDestino && matchesStatus && matchesDate
   })
 
   // Paginación
@@ -500,6 +556,15 @@ function Horarios() {
                 <option key={p.id} value={p.id}>{p.nombre}</option>
               ))}
             </select>
+
+            <LocalizationProvider dateAdapter={AdapterDateFns}>
+              <DatePicker
+                label="Fecha"
+                value={dateFilter}
+                onChange={(newVal) => setDateFilter(newVal || new Date())}
+                renderInput={(params) => <TextField {...params} size="small" sx={{ minWidth: 160 }} />}
+              />
+            </LocalizationProvider>
 
             {/* <select
               value={statusFilter}
@@ -565,6 +630,8 @@ function Horarios() {
 
                   const conductorFull = vehInfo?.conductor ? `${vehInfo.conductor.nombres || ''} ${vehInfo.conductor.apellidos || ''}`.trim() : '';
 
+                  const actionAllowed = isHorarioActionAllowed(h)
+
                   return (
                     <tr key={h.id} onClick={() => openVentaPasajes(h.id)} style={{ cursor: 'pointer' }}>
                       <td>{nro}</td>
@@ -609,9 +676,25 @@ function Horarios() {
                             </svg>
                           </button> */}
                           <button
-                            onClick={(e) => { e.stopPropagation(); handleEdit(h) }}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              if (actionAllowed) return handleEdit(h)
+                              const todayStr = new Date().toLocaleDateString('en-CA')
+                              const now = new Date()
+                              const nowStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0')
+                              if (!h.fecha) {
+                                showNotification('No se puede editar: fecha inválida', 'error')
+                              } else if (h.fecha < todayStr) {
+                                showNotification('No se puede editar: la fecha del horario ya pasó', 'error')
+                              } else if (h.fecha === todayStr && h.hora && h.hora < nowStr) {
+                                showNotification('No se puede editar: la hora del horario ya pasó', 'error')
+                              } else {
+                                showNotification('No se puede editar este horario', 'error')
+                              }
+                            }}
                             className="action-btn edit-btn"
-                            title="Editar Horario"
+                            title={actionAllowed ? 'Editar Horario' : 'No se puede editar: horario con fecha/hora pasada'}
+                            style={{ opacity: actionAllowed ? 1 : 0.5, cursor: actionAllowed ? 'pointer' : 'not-allowed' }}
                           >
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                               <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
@@ -619,9 +702,25 @@ function Horarios() {
                             </svg>
                           </button>
                           <button
-                            onClick={(e) => { e.stopPropagation(); handleDelete(h) }}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              if (actionAllowed) return handleDelete(h)
+                              const todayStr = new Date().toLocaleDateString('en-CA')
+                              const now = new Date()
+                              const nowStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0')
+                              if (!h.fecha) {
+                                showNotification('No se puede eliminar: fecha inválida', 'error')
+                              } else if (h.fecha < todayStr) {
+                                showNotification('No se puede eliminar: la fecha del horario ya pasó', 'error')
+                              } else if (h.fecha === todayStr && h.hora && h.hora < nowStr) {
+                                showNotification('No se puede eliminar: la hora del horario ya pasó', 'error')
+                              } else {
+                                showNotification('No se puede eliminar este horario', 'error')
+                              }
+                            }}
                             className="action-btn delete-btn"
-                            title="Eliminar Horario"
+                            title={actionAllowed ? 'Eliminar Horario' : 'No se puede eliminar: horario con fecha/hora pasada'}
+                            style={{ opacity: actionAllowed ? 1 : 0.5, cursor: actionAllowed ? 'pointer' : 'not-allowed' }}
                           >
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                               <polyline points="3 6 5 6 21 6" />
@@ -718,7 +817,20 @@ function Horarios() {
                     className="input-field"
                     value={formData.fecha}
                     min={new Date().toLocaleDateString('en-CA')}
-                    onChange={(e) => setFormData({ ...formData, fecha: e.target.value })}
+                    onChange={(e) => {
+                      const newFecha = e.target.value
+                      setFormData({ ...formData, fecha: newFecha })
+                      // si la fecha seleccionada es hoy, validar la hora seleccionada
+                      const todayStr = new Date().toLocaleDateString('en-CA')
+                      if (newFecha === todayStr && formData.hora) {
+                        const now = new Date()
+                        const nowStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0')
+                        if (formData.hora < nowStr) setTimeError('La hora no puede ser menor a la hora actual')
+                        else setTimeError('')
+                      } else {
+                        setTimeError('')
+                      }
+                    }}
                     required
                   />
                 </div>
@@ -750,14 +862,28 @@ function Horarios() {
                         borderRadius: 6,
                         boxShadow: '0 6px 18px rgba(15,23,42,0.08)'
                       }}>
-                        {(filteredTimes.length === 0) ? (
-                          <div style={{ padding: 10, color: '#64748b' }}>No hay horas</div>
+                          {(filteredTimes.length === 0) ? (
+                          <div style={{ padding: 10, color: '#374151' }}>No hay horas</div>
                         ) : (
                           filteredTimes.map(t => (
                             <div
                               key={t}
-                              onClick={() => { setFormData({ ...formData, hora: t }); setShowTimeList(false); setTimeSearch('') }}
-                              style={{ padding: '8px 10px', cursor: 'pointer', background: formData.hora === t ? '#f1f5f9' : 'transparent' }}
+                              onClick={() => {
+                                // select time and validate if fecha is today
+                                const newHora = t
+                                const todayStr = new Date().toLocaleDateString('en-CA')
+                                const now = new Date()
+                                const nowStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0')
+                                if (formData.fecha === todayStr && newHora < nowStr) {
+                                  setTimeError('La hora no puede ser menor a la hora actual')
+                                } else {
+                                  setTimeError('')
+                                }
+                                setFormData({ ...formData, hora: newHora })
+                                setShowTimeList(false)
+                                setTimeSearch('')
+                              }}
+                              style={{ padding: '8px 10px', cursor: 'pointer', background: formData.hora === t ? '#eef2ff' : 'transparent', color: '#0f172a' }}
                             >
                               {t}
                             </div>
@@ -766,6 +892,9 @@ function Horarios() {
                       </div>
                     )}
                   </div>
+                  {timeError && (
+                    <div style={{ color: '#dc2626', fontSize: 13, marginTop: 6 }}>{timeError}</div>
+                  )}
                 </div>
               </div>
 
@@ -778,6 +907,7 @@ function Horarios() {
                   onChange={(e) => setFormData({ ...formData, rutaId: e.target.value })}
                   required
                 >
+                  <option value="">Seleccione una ruta...</option>
                   {rutas.map(r => {
                     const rObj = getRutaObj(r.id)
                     return (
@@ -823,16 +953,16 @@ function Horarios() {
                       boxShadow: '0 6px 18px rgba(15,23,42,0.08)'
                     }}>
                       {(filteredVehicles.length === 0) ? (
-                        <div style={{ padding: 10, color: '#64748b' }}>No hay vehículos</div>
+                        <div style={{ padding: 10, color: '#374151' }}>No hay vehículos</div>
                       ) : (
                         filteredVehicles.map(v => (
                           <div
                             key={v.id}
                             onClick={() => { setFormData({ ...formData, vehiculoId: v.id }); setShowVehicleList(false); setVehicleSearch('') }}
-                            style={{ padding: '8px 10px', cursor: 'pointer', background: Number(formData.vehiculoId) === Number(v.id) ? '#f1f5f9' : 'transparent' }}
+                            style={{ padding: '8px 10px', cursor: 'pointer', background: Number(formData.vehiculoId) === Number(v.id) ? '#eef2ff' : 'transparent', color: '#0f172a' }}
                           >
                             <div style={{ fontWeight: 700 }}>{`Móvil ${v.movil} - Placa ${v.placa}`}</div>
-                            <div style={{ fontSize: 12, color: '#64748b' }}>{v.conductor ? `${v.conductor.nombres || ''} ${v.conductor.apellidos || ''}` : ''}</div>
+                            <div style={{ fontSize: 12, color: '#374151' }}>{v.conductor ? `${v.conductor.nombres || ''} ${v.conductor.apellidos || ''}` : ''}</div>
                           </div>
                         ))
                       )}
