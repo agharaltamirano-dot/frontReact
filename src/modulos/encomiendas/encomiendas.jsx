@@ -37,6 +37,9 @@ import {
   Checkbox,
   Autocomplete,
 } from "@mui/material";
+import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers'
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns'
+import esLocale from 'date-fns/locale/es'
 
 import {
   getEncomiendas,
@@ -284,6 +287,7 @@ export default function Encomiendas() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPagado, setFilterPagado] = useState("todos");
   const [filterEstado, setFilterEstado] = useState("todos");
+  const [filterFecha, setFilterFecha] = useState(null);
 
   // Paginación
   const [page, setPage] = useState(0);
@@ -480,6 +484,13 @@ console.log("Payload a enviar:", payload);
   }, [fetchEncomiendasData]);
 
   // Filtrado de encomiendas
+  const getEncomiendaDate = (item) => {
+    if (item?.fechaRecepcion) return String(item.fechaRecepcion).slice(0,10)
+    return ''
+  }
+
+  const selectedFechaStr = filterFecha ? `${filterFecha.getFullYear()}-${String(filterFecha.getMonth()+1).padStart(2,'0')}-${String(filterFecha.getDate()).padStart(2,'0')}` : null
+
   const filteredEncomiendas = encomiendas.filter((item) => {
     // Filtro texto
     const term = searchTerm.toLowerCase().trim();
@@ -507,7 +518,9 @@ console.log("Payload a enviar:", payload);
     if (filterEstado === "activa") matchesEstado = item.estado === true;
     if (filterEstado === "anulada") matchesEstado = item.estado === false;
 
-    return matchesSearch && matchesPagado && matchesEstado;
+    const matchesFecha = !selectedFechaStr || getEncomiendaDate(item) === selectedFechaStr
+
+    return matchesSearch && matchesPagado && matchesEstado && matchesFecha;
   });
 
   // Handlers de paginación
@@ -603,11 +616,13 @@ function coincideDestino(destino) {
       const data = await putEntrega(id);
 
       // Notificación de éxito
-      setSnackbar({
-        open: true,
-        message: "Entrega registrada correctamente",
-        severity: "success",
-      });
+      showNotification('Entrega registrada correctamente', 'success')
+      
+      // setSnackbar({
+      //   open: true,
+      //   message: "Entrega registrada correctamente",
+      //   severity: "success",
+      // });
       // fetchEncomiendasData();
 
       // Actualizar estado local (ejemplo)
@@ -618,11 +633,12 @@ function coincideDestino(destino) {
       // )
     } catch (error) {
       // Notificación de error
-      setSnackbar({
-        open: true,
-        message: error.message || "No se pudo registrar la entrega",
-        severity: "error",
-      });
+      // setSnackbar({
+      //   open: true,
+      //   message: error.message || "No se pudo registrar la entrega",
+      //   severity: "error",
+      // });
+      showNotification("No se pudo registrar la entrega", "error");
     }
   }
   // Cálculos estadísticos
@@ -942,6 +958,32 @@ function coincideDestino(destino) {
               <MenuItem value="anulada">Anulada</MenuItem>
             </Select>
           </FormControl>
+
+          <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={esLocale}>
+  <DatePicker
+    label="Fecha"
+    value={filterFecha}
+    onChange={(newVal) => { 
+      setFilterFecha(newVal); 
+      setPage(0); // Mantiene el reseteo a 0
+    }}
+    slotProps={{
+      field: {
+        clearable: true, // Activa la "X" nativa para borrar
+        onClear: () => {
+          setFilterFecha(null);
+          setPage(0); // También regresa a la página 0 al limpiar
+        },
+      },
+      textField: {
+        size: "small",
+        InputLabelProps: { shrink: true },
+        sx: { minWidth: 160 } // Mantiene tu ancho original
+      }
+    }}
+  />
+</LocalizationProvider>
+
         </Box>
 
         <Divider />

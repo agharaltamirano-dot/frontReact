@@ -11,6 +11,7 @@ export default function Dashboard() {
     try {
       const result = await getDashboardData()
       setData(result)
+      console.log('Datos del dashboard cargados:', result)
     } catch (err) {
       console.error('Error al cargar datos del dashboard:', err)
     } finally {

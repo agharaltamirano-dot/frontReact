@@ -17,6 +17,8 @@ import {
   TableHead,
   TableRow,
   TextField,
+  IconButton,
+  InputAdornment,
   Typography,
   Grid,
 } from '@mui/material';
@@ -70,10 +72,15 @@ export default function ReporteIngresos() {
   const [error, setError] = useState('');
   const [data, setData] = useState([]);
 
+  // Fechas por defecto: primer y último día del mes actual
+  const now = new Date()
+  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]
+
   const [filters, setFilters] = useState({
     usuarioId: '',
-    fechaInicio: new Date().toISOString().split('T')[0],
-    fechaFin: new Date().toISOString().split('T')[0],
+    fechaInicio: firstDay,
+    fechaFin: lastDay,
     estado: 'null', // string "null" for the select
     nombreUsuario: '',
   });
@@ -108,20 +115,28 @@ export default function ReporteIngresos() {
 
   useEffect(() => {
     loadUsuarios();
-    loadData();
-  }, [loadUsuarios, loadData]);
+  }, [loadUsuarios]);
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
     setFilters((prev) => {
       const newFilters = { ...prev, [name]: value };
       if (name === 'usuarioId') {
-        const user = usuarios.find((u) => u.id.toString() === value.toString());
-        newFilters.nombreUsuario = user ? user.nombre : '';
+        const user = usuarios.find((u) => String(u.id) === String(value));
+        newFilters.nombreUsuario = user ? (user.usuario1 || user.nombre || '') : '';
       }
       return newFilters;
     });
   };
+
+  // Ejecutar búsqueda cada vez que cambian los filtros
+  useEffect(() => {
+    // debounce mínimo para evitar llamadas rápidas en secuencia
+    const t = setTimeout(() => {
+      loadData()
+    }, 100)
+    return () => clearTimeout(t)
+  }, [filters, loadData])
 
   const handleExport = async (type, mode) => {
     const exportKey = `${mode}${type.charAt(0).toUpperCase() + type.slice(1)}`;
@@ -213,45 +228,66 @@ export default function ReporteIngresos() {
       <Paper elevation={3} sx={{ p: 3, mb: 3, borderRadius: 2 }}>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={12} sm={6} md={3}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Usuario</InputLabel>
-              <Select
-                name="usuarioId"
-                value={filters.usuarioId}
-                label="Usuario"
-                onChange={handleFilterChange}
-              >
-                <MenuItem value="">Todos los usuarios</MenuItem>
-                {usuarios.map((u) => (
-                  <MenuItem key={u.id} value={u.id}>
-                    {u.nombre}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
+  <FormControl
+    fullWidth
+    size="small"
+    sx={{ minWidth: 220 }}   // fuerza un ancho mínimo
+  >
+    <InputLabel>Usuario</InputLabel>
+    <Select
+      name="usuarioId"
+      value={filters.usuarioId}
+      label="Usuario"
+      onChange={handleFilterChange}
+      sx={{ width: '100%' }} // asegura que ocupe todo el espacio
+    >
+      <MenuItem value="">Todos los usuarios</MenuItem>
+      {usuarios.map((u) => (
+        <MenuItem key={u.id} value={u.id}>
+          {u.usuario1 || u.nombre || u.nombreCompleto || u.usuario || `#${u.id}`}
+        </MenuItem>
+      ))}
+    </Select>
+  </FormControl>
+</Grid>
           <Grid item xs={12} sm={6} md={2}>
             <TextField
               fullWidth
               size="small"
+              variant="outlined"
               type="date"
               label="Fecha Inicio"
               name="fechaInicio"
               value={filters.fechaInicio}
               onChange={handleFilterChange}
               InputLabelProps={{ shrink: true }}
+              InputProps={{
+                endAdornment: filters.fechaInicio ? (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={() => handleFilterChange({ target: { name: 'fechaInicio', value: '' } })}>✖</IconButton>
+                  </InputAdornment>
+                ) : undefined,
+              }}
             />
           </Grid>
           <Grid item xs={12} sm={6} md={2}>
             <TextField
               fullWidth
               size="small"
+              variant="outlined"
               type="date"
               label="Fecha Fin"
               name="fechaFin"
               value={filters.fechaFin}
               onChange={handleFilterChange}
               InputLabelProps={{ shrink: true }}
+              InputProps={{
+                endAdornment: filters.fechaFin ? (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={() => handleFilterChange({ target: { name: 'fechaFin', value: '' } })}>✖</IconButton>
+                  </InputAdornment>
+                ) : undefined,
+              }}
             />
           </Grid>
           <Grid item xs={12} sm={6} md={2}>
@@ -269,7 +305,7 @@ export default function ReporteIngresos() {
               </Select>
             </FormControl>
           </Grid>
-          <Grid item xs={12} md={3}>
+          {/* <Grid item xs={12} md={3}>
             <Stack direction="row" spacing={1}>
               <Button
                 fullWidth
@@ -285,8 +321,8 @@ export default function ReporteIngresos() {
                 onClick={() => {
                   setFilters({
                     usuarioId: '',
-                    fechaInicio: new Date().toISOString().split('T')[0],
-                    fechaFin: new Date().toISOString().split('T')[0],
+                    fechaInicio: firstDay,
+                    fechaFin: lastDay,
                     estado: 'null',
                     nombreUsuario: '',
                   });
@@ -295,7 +331,7 @@ export default function ReporteIngresos() {
                 <Refresh />
               </Button>
             </Stack>
-          </Grid>
+          </Grid> */}
         </Grid>
       </Paper>
 
@@ -324,8 +360,8 @@ export default function ReporteIngresos() {
               <Legend />
               <Line
                 type="monotone"
-                dataKey="activos"
-                name="Ganancias Activas"
+                dataKey="activosEncomiendas"
+                name="Activos Encomiendas"
                 stroke="#2e7d32"
                 strokeWidth={3}
                 dot={{ r: 6 }}
@@ -333,11 +369,12 @@ export default function ReporteIngresos() {
               />
               <Line
                 type="monotone"
-                dataKey="anulados"
-                name="Anulados"
-                stroke="#d32f2f"
-                strokeWidth={2}
-                strokeDasharray="5 5"
+                dataKey="activosPasajes"
+                name="Activos Pasajes"
+                stroke="#1565c0"
+                strokeWidth={3}
+                dot={{ r: 6 }}
+                activeDot={{ r: 8 }}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -351,15 +388,16 @@ export default function ReporteIngresos() {
               <TableCell sx={{ fontWeight: 'bold' }}>Fecha</TableCell>
               <TableCell sx={{ fontWeight: 'bold' }} align="center">Cant. Pasajes</TableCell>
               <TableCell sx={{ fontWeight: 'bold' }} align="center">Cant. Encomiendas</TableCell>
-              <TableCell sx={{ fontWeight: 'bold' }} align="right">Activos</TableCell>
-              <TableCell sx={{ fontWeight: 'bold' }} align="right">Anulados</TableCell>
-              <TableCell sx={{ fontWeight: 'bold' }} align="right">Total</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }} align="right">Total enc. activa</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }} align="right">Total enc. anulada</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }} align="right">Total psj activo</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }} align="right">Total psj anulado</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
+                <TableCell colSpan={7} align="center" sx={{ py: 3 }}>
                   {loading ? 'Cargando...' : 'No hay datos disponibles para los filtros seleccionados'}
                 </TableCell>
               </TableRow>
@@ -370,13 +408,16 @@ export default function ReporteIngresos() {
                   <TableCell align="center">{row.cantPasajes}</TableCell>
                   <TableCell align="center">{row.cantEncomiendas}</TableCell>
                   <TableCell align="right" sx={{ color: 'success.main', fontWeight: 'medium' }}>
-                    {formatCurrency(row.activos)}
+                    {formatCurrency(row.activosEncomiendas || 0)}
                   </TableCell>
                   <TableCell align="right" sx={{ color: 'error.main' }}>
-                    {formatCurrency(row.anulados)}
+                    {formatCurrency(row.anuladosEncomiendas || 0)}
                   </TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                    {formatCurrency(row.total)}
+                  <TableCell align="right" sx={{ color: 'success.main', fontWeight: 'medium' }}>
+                    {formatCurrency(row.activosPasajes || 0)}
+                  </TableCell>
+                  <TableCell align="right" sx={{ color: 'error.main' }}>
+                    {formatCurrency(row.anuladosPasajes || 0)}
                   </TableCell>
                 </TableRow>
               ))

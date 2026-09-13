@@ -7,6 +7,9 @@ import {
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Paper, Pagination, CircularProgress
 } from '@mui/material'
+import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers'
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns'
+import esLocale from 'date-fns/locale/es'
 import {
   Search as SearchIcon,
   Print as PrintIcon,
@@ -47,6 +50,7 @@ export default function PasajesList() {
   const [filterDestino, setFilterDestino] = useState('todos')
   const [filterVehiculo, setFilterVehiculo] = useState('todos')
   const [filterUsuario, setFilterUsuario] = useState('todos')
+  const [filterFecha, setFilterFecha] = useState(null) // Date | null
 
   const [confirm, setConfirm] = useState({ open: false, id: null })
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' })
@@ -191,12 +195,21 @@ export default function PasajesList() {
 
   // Filtros
   const normalized = (s = '') => String(s || '').toLowerCase()
+  const getPasajeDate = (p) => {
+    if (p?.fechaHora) return String(p.fechaHora).slice(0, 10)
+    if (p?.horario?.fecha) return String(p.horario.fecha).slice(0, 10)
+    return ''
+  }
+
+  const selectedDateStr = filterFecha ? `${filterFecha.getFullYear()}-${String(filterFecha.getMonth()+1).padStart(2,'0')}-${String(filterFecha.getDate()).padStart(2,'0')}` : null
+
   const filteredPasajes = pasajes.filter(p => {
     const matchCliente = !filterCliente || normalized(p.cliente?.nombreCompleto || '').includes(normalized(filterCliente))
     const matchDestino = filterDestino === 'todos' || (p.destino || '') === filterDestino
     const matchVehiculo = filterVehiculo === 'todos' || (p.movil && String(p.movil) === String(filterVehiculo))
     const matchUsuario = filterUsuario === 'todos' || (p.usuario?.usuario || '') === filterUsuario
-    return matchCliente && matchDestino && matchVehiculo && matchUsuario
+    const matchFecha = !selectedDateStr || getPasajeDate(p) === selectedDateStr
+    return matchCliente && matchDestino && matchVehiculo && matchUsuario && matchFecha
   })
 
   const totalPages = Math.max(1, Math.ceil(filteredPasajes.length / ITEMS_PER_PAGE))
@@ -299,6 +312,33 @@ export default function PasajesList() {
               {usuariosList.map(u => <MenuItem key={u.id} value={u.usuario1}>{u.usuario1}</MenuItem>)}
             </Select>
           </FormControl>
+
+       <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={esLocale}>
+  <DatePicker
+    label="Fecha"
+    value={filterFecha}
+    onChange={(newVal) => {
+      setFilterFecha(newVal);
+      setPage(1);
+    }}
+    slotProps={{
+      field: {
+        clearable: true, // Esto activa la "X" nativa de MUI
+        onClear: () => {
+          setFilterFecha(null);
+          setPage(1); // Resetea la página también al limpiar
+        },
+      },
+      textField: {
+        size: "small",
+        InputLabelProps: { shrink: true },
+        sx: { minWidth: 160, background: 'white', borderRadius: '10px' }
+      }
+    }}
+  />
+</LocalizationProvider>
+
+
 
           <Tooltip title="Recargar">
             <IconButton onClick={fetchAll} disabled={loading} className="refresh-btn">

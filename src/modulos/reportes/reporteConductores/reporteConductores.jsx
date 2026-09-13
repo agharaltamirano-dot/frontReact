@@ -88,8 +88,9 @@ export default function ReporteConductores() {
       if (fechaParams.fechaFin) params.append('fechaFin', fechaParams.fechaFin)
 
         const authData = (sessionStorage.getItem('authData') ? JSON.parse(sessionStorage.getItem('authData')) : null)
-        params.append('nombreUsuario', authData?.usuario.usuario)
+        params.append('nombreUsuario', authData?.usuario.usuario1)
       const url = `${BASE_URL_REPORTE}/${conductorId}/${type}?${params.toString()}`
+      console.log('Fetching URL:', url)
       const res = await fetch(url, { headers: authHeaders() })
 
       if (!res.ok) throw new Error(`Error ${res.status}`)
@@ -149,9 +150,9 @@ export default function ReporteConductores() {
             endAdornment: searchTerm ? <InputAdornment position="end"><IconButton size="small" aria-label="Limpiar búsqueda" onClick={() => setSearchTerm('')}><Close fontSize="small" /></IconButton></InputAdornment> : null
           }}
         />
-        <FormControl size="small"><InputLabel>Categoría</InputLabel><Select value={categoryFilter} label="Categoría" onChange={(e) => setCategoryFilter(e.target.value)}><MenuItem value="todos">Todas</MenuItem>{categoriesList.map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}</Select></FormControl>
+        {/* <FormControl size="small"><InputLabel>Categoría</InputLabel><Select value={categoryFilter} label="Categoría" onChange={(e) => setCategoryFilter(e.target.value)}><MenuItem value="todos">Todas</MenuItem>{categoriesList.map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}</Select></FormControl>
         <FormControl size="small"><InputLabel>Estado</InputLabel><Select value={statusFilter} label="Estado" onChange={(e) => setStatusFilter(e.target.value)}><MenuItem value="todos">Todos</MenuItem><MenuItem value="activos">Activos</MenuItem><MenuItem value="inactivos">Inactivos</MenuItem></Select></FormControl>
-        <Tooltip title="Recargar"><span><IconButton onClick={() => loadConductores(fechaParams)} disabled={loading} className="reporte-refresh-button"><Refresh fontSize="small" /></IconButton></span></Tooltip>
+        <Tooltip title="Recargar"><span><IconButton onClick={() => loadConductores(fechaParams)} disabled={loading} className="reporte-refresh-button"><Refresh fontSize="small" /></IconButton></span></Tooltip> */}
       </Paper>
 
       {error && <Typography className="reporte-error" role="alert">{error}</Typography>}

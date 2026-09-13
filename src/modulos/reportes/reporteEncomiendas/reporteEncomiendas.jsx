@@ -6,6 +6,8 @@ import {
   Typography,
   TextField,
   Button,
+  IconButton,
+  InputAdornment,
   Table,
   TableBody,
   TableCell,
@@ -22,8 +24,15 @@ import {
   Stack,
   CircularProgress
 } from '@mui/material'
-import { getEncomiendas } from '../../encomiendas/encomiendasServices'
+import { getEncomiendas,getEncomiendasReport } from '../../encomiendas/encomiendasServices'
+import { getClientes } from '../../clientes/clientesService'
+import { getPuntosVenta } from '../../puntoVenta/puntoVentaService'
+import { fetchUsuarios } from '../../usuarios/usuarioService'
 import './reporteEncomiendas.css'
+import { DatePicker } from '@mui/x-date-pickers/DatePicker'
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns'
+import esLocale from 'date-fns/locale/es'
 
 // Íconos SVG
 const SearchIcon = (props) => (
@@ -103,11 +112,15 @@ export default function ReporteEncomiendas() {
     entregaFechaDesde: '',
     entregaFechaHasta: '',
     numero: '',
-    pagado: ''
+    pagado: '',
+    usuarioId: ''
   })
 
   // Estado de datos
   const [encomiendas, setEncomiendas] = useState([])
+  const [clientes, setClientes] = useState([])
+  const [puntosVenta, setPuntosVenta] = useState([])
+  const [usuarios, setUsuarios] = useState([])
   const [loading, setLoading] = useState(false)
   const [exporting, setExporting] = useState({ pdf: false, excel: false })
 
@@ -119,21 +132,50 @@ export default function ReporteEncomiendas() {
     setFilters(prev => ({ ...prev, [field]: value }))
   }
 
+  // Convierte un valor de fecha (Date u otros) a 'yyyy-MM-dd' usando fecha local
+  const formatToYMD = (val) => {
+    if (!val) return ''
+    const d = val instanceof Date ? val : new Date(val)
+    if (Number.isNaN(d.getTime())) return ''
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  }
+
   const buildFiltersForAPI = () => {
     const user = getUserFromSession()
     const apiFilters = {}
-    
+
     if (filters.clienteRemitenteId) apiFilters.clienteRemitenteId = parseInt(filters.clienteRemitenteId)
     if (filters.clienteConsignatarioId) apiFilters.clienteConsignatarioId = parseInt(filters.clienteConsignatarioId)
     if (filters.destino) apiFilters.destino = filters.destino
     if (filters.estado !== '') apiFilters.estado = filters.estado === 'true'
-    if (filters.recepcionFechaDesde) apiFilters.recepcionFechaDesde = filters.recepcionFechaDesde
-    if (filters.recepcionFechaHasta) apiFilters.recepcionFechaHasta = filters.recepcionFechaHasta
-    if (filters.entregaFechaDesde) apiFilters.entregaFechaDesde = filters.entregaFechaDesde
-    if (filters.entregaFechaHasta) apiFilters.entregaFechaHasta = filters.entregaFechaHasta
+
+    // Usuario seleccionado (filtro)
+    if (filters.usuarioId) apiFilters.usuarioId = parseInt(filters.usuarioId)
+
+    // Convertir las 4 fechas a 'yyyy-MM-dd' (fecha local) para evitar desfases UTC
+    if (filters.recepcionFechaDesde) {
+      const v = formatToYMD(filters.recepcionFechaDesde)
+      if (v) apiFilters.recepcionFechaDesde = v
+    }
+    if (filters.recepcionFechaHasta) {
+      const v = formatToYMD(filters.recepcionFechaHasta)
+      if (v) apiFilters.recepcionFechaHasta = v
+    }
+    if (filters.entregaFechaDesde) {
+      const v = formatToYMD(filters.entregaFechaDesde)
+      if (v) apiFilters.entregaFechaDesde = v
+    }
+    if (filters.entregaFechaHasta) {
+      const v = formatToYMD(filters.entregaFechaHasta)
+      if (v) apiFilters.entregaFechaHasta = v
+    }
+
     if (filters.numero) apiFilters.numero = filters.numero
     if (filters.pagado !== '') apiFilters.pagado = filters.pagado === 'true'
-    
+
     // Añadir usuario automáticamente
     if (user.usuario) apiFilters.nombreUsuario = user.usuario
 
@@ -144,8 +186,10 @@ export default function ReporteEncomiendas() {
     setLoading(true)
     try {
       const apiFilters = buildFiltersForAPI()
-      const data = await getEncomiendas(apiFilters)
+      const data = await getEncomiendasReport(apiFilters)
       setEncomiendas(data || [])
+      console.log('Encomiendas cargadas:', data)
+      console.log('Filtros enviados a la API:', apiFilters)
     } catch (err) {
       console.error('Error al cargar encomiendas:', err)
       setEncomiendas([])
@@ -175,6 +219,33 @@ export default function ReporteEncomiendas() {
     })
     setPage(0)
   }
+
+  // Llamar automáticamente a fetchEncomiendas cada vez que cambien los filtros
+  useEffect(() => {
+    setPage(0)
+    fetchEncomiendas()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters])
+
+  useEffect(() => {
+    let mounted = true
+    const fetchLists = async () => {
+      try {
+        const [clientesRes, puntosRes, usuariosRes] = await Promise.all([getClientes(), getPuntosVenta(), fetchUsuarios()])
+        if (!mounted) return
+        setClientes(Array.isArray(clientesRes) ? clientesRes : [])
+        setPuntosVenta(Array.isArray(puntosRes) ? puntosRes : [])
+        setUsuarios(Array.isArray(usuariosRes) ? usuariosRes : [])
+      } catch (err) {
+        console.error('Error cargando clientes o puntos de venta:', err)
+        setClientes([])
+        setPuntosVenta([])
+        setUsuarios([])
+      }
+    }
+    fetchLists()
+    return () => { mounted = false }
+  }, [])
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage)
@@ -208,7 +279,7 @@ export default function ReporteEncomiendas() {
       const url = `http://localhost:5093/api/reporteEncomiendas/reporte-encomiendas/pdf${filters ? '?' + new URLSearchParams(filters).toString() : ''}`
       const token = getToken()
       const headers = token ? { Authorization: `Bearer ${token}` } : {}
-      
+      console.log('URL de pdf', url, 'con filtros', filters)
       const response = await fetch(url, { headers })
       if (!response.ok) throw new Error(`Error ${response.status}`)
       
@@ -300,33 +371,54 @@ export default function ReporteEncomiendas() {
           </Typography>
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6} md={3}>
-              <TextField
-                fullWidth
-                size="small"
-                label="ID Remitente"
-                type="number"
-                value={filters.clienteRemitenteId}
-                onChange={(e) => handleFilterChange('clienteRemitenteId', e.target.value)}
-              />
+              <FormControl fullWidth size="small" variant="outlined" sx={{ width: '100%', minWidth: 160 }}>
+                <InputLabel>Remitente</InputLabel>
+                <Select
+                  fullWidth
+                  value={filters.clienteRemitenteId || ''}
+                  label="Remitente"
+                  onChange={(e) => handleFilterChange('clienteRemitenteId', e.target.value)}
+                >
+                  <MenuItem value="">Todos</MenuItem>
+                  {clientes.map(c => (
+                    <MenuItem key={c.id} value={c.id}>{c.nombreCompleto || c.usuario || c.nombre}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Grid>
+
             <Grid item xs={12} sm={6} md={3}>
-              <TextField
-                fullWidth
-                size="small"
-                label="ID Consignatario"
-                type="number"
-                value={filters.clienteConsignatarioId}
-                onChange={(e) => handleFilterChange('clienteConsignatarioId', e.target.value)}
-              />
+              <FormControl fullWidth size="small" variant="outlined" sx={{ width: '100%', minWidth: 160 }}>
+                <InputLabel>Consignatario</InputLabel>
+                <Select
+                  fullWidth
+                  value={filters.clienteConsignatarioId || ''}
+                  label="Consignatario"
+                  onChange={(e) => handleFilterChange('clienteConsignatarioId', e.target.value)}
+                >
+                  <MenuItem value="">Todos</MenuItem>
+                  {clientes.map(c => (
+                    <MenuItem key={c.id} value={c.id}>{c.nombreCompleto || c.usuario || c.nombre}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Grid>
+
             <Grid item xs={12} sm={6} md={3}>
-              <TextField
-                fullWidth
-                size="small"
-                label="Destino"
-                value={filters.destino}
-                onChange={(e) => handleFilterChange('destino', e.target.value)}
-              />
+              <FormControl fullWidth size="small" variant="outlined" sx={{ width: '100%', minWidth: 160 }}>
+                <InputLabel>Destino</InputLabel>
+                <Select
+                  fullWidth
+                  value={filters.destino || ''}
+                  label="Destino"
+                  onChange={(e) => handleFilterChange('destino', e.target.value)}
+                >
+                  <MenuItem value="">Todos</MenuItem>
+                  {puntosVenta.map(pv => (
+                    <MenuItem key={pv.id} value={pv.nombre}>{pv.nombre}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
               <TextField
@@ -338,9 +430,10 @@ export default function ReporteEncomiendas() {
               />
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
-              <FormControl fullWidth size="small">
+              <FormControl fullWidth size="small" variant="outlined" sx={{ width: '100%', minWidth: 160 }}>
                 <InputLabel>Estado</InputLabel>
                 <Select
+                  fullWidth
                   value={filters.estado}
                   label="Estado"
                   onChange={(e) => handleFilterChange('estado', e.target.value)}
@@ -352,9 +445,10 @@ export default function ReporteEncomiendas() {
               </FormControl>
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
-              <FormControl fullWidth size="small">
+              <FormControl fullWidth size="small" variant="outlined" sx={{ width: '100%', minWidth: 160 }}>
                 <InputLabel>Pagado</InputLabel>
                 <Select
+                  fullWidth
                   value={filters.pagado}
                   label="Pagado"
                   onChange={(e) => handleFilterChange('pagado', e.target.value)}
@@ -365,52 +459,107 @@ export default function ReporteEncomiendas() {
                 </Select>
               </FormControl>
             </Grid>
+
             <Grid item xs={12} sm={6} md={3}>
-              <TextField
-                fullWidth
-                size="small"
-                label="Recepción Desde"
-                type="date"
-                InputLabelProps={{ shrink: true }}
-                value={filters.recepcionFechaDesde}
-                onChange={(e) => handleFilterChange('recepcionFechaDesde', e.target.value)}
-              />
+              <FormControl fullWidth size="small" variant="outlined" sx={{ width: '100%', minWidth: 160 }}>
+                <InputLabel>Usuario</InputLabel>
+                <Select
+                  fullWidth
+                  value={filters.usuarioId || ''}
+                  label="Usuario"
+                  onChange={(e) => handleFilterChange('usuarioId', e.target.value)}
+                >
+                  <MenuItem value="">Todos</MenuItem>
+                  {usuarios.map(u => (
+                    <MenuItem key={u.id} value={u.id}>{u.usuario || u.usuario1 || u.nombre || u.nombreCompleto}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <TextField
-                fullWidth
-                size="small"
-                label="Recepción Hasta"
-                type="date"
-                InputLabelProps={{ shrink: true }}
-                value={filters.recepcionFechaHasta}
-                onChange={(e) => handleFilterChange('recepcionFechaHasta', e.target.value)}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <TextField
-                fullWidth
-                size="small"
-                label="Entrega Desde"
-                type="date"
-                InputLabelProps={{ shrink: true }}
-                value={filters.entregaFechaDesde}
-                onChange={(e) => handleFilterChange('entregaFechaDesde', e.target.value)}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <TextField
-                fullWidth
-                size="small"
-                label="Entrega Hasta"
-                type="date"
-                InputLabelProps={{ shrink: true }}
-                value={filters.entregaFechaHasta}
-                onChange={(e) => handleFilterChange('entregaFechaHasta', e.target.value)}
-              />
-            </Grid>
+            <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={esLocale}>
+  <Grid item xs={12} sm={6} md={3}>
+    <DatePicker
+      label="Recepción Desde"
+      value={filters.recepcionFechaDesde || null} // Asegura null si está vacío
+      onChange={(newVal) => handleFilterChange('recepcionFechaDesde', newVal)}
+      slotProps={{
+        field: {
+          clearable: true,
+          onClear: () => handleFilterChange('recepcionFechaDesde', null),
+        },
+        textField: {
+          fullWidth: true,
+          size: "small",
+          variant: "outlined",
+          InputLabelProps: { shrink: true }
+        }
+      }}
+    />
+  </Grid>
+
+  <Grid item xs={12} sm={6} md={3}>
+    <DatePicker
+      label="Recepción Hasta"
+      value={filters.recepcionFechaHasta || null}
+      onChange={(newVal) => handleFilterChange('recepcionFechaHasta', newVal)}
+      slotProps={{
+        field: {
+          clearable: true,
+          onClear: () => handleFilterChange('recepcionFechaHasta', null),
+        },
+        textField: {
+          fullWidth: true,
+          size: "small",
+          variant: "outlined",
+          InputLabelProps: { shrink: true }
+        }
+      }}
+    />
+  </Grid>
+
+  <Grid item xs={12} sm={6} md={3}>
+    <DatePicker
+      label="Entrega Desde"
+      value={filters.entregaFechaDesde || null}
+      onChange={(newVal) => handleFilterChange('entregaFechaDesde', newVal)}
+      slotProps={{
+        field: {
+          clearable: true,
+          onClear: () => handleFilterChange('entregaFechaDesde', null),
+        },
+        textField: {
+          fullWidth: true,
+          size: "small",
+          variant: "outlined",
+          InputLabelProps: { shrink: true }
+        }
+      }}
+    />
+  </Grid>
+
+  <Grid item xs={12} sm={6} md={3}>
+    <DatePicker
+      label="Entrega Hasta"
+      value={filters.entregaFechaHasta || null}
+      onChange={(newVal) => handleFilterChange('entregaFechaHasta', newVal)}
+      slotProps={{
+        field: {
+          clearable: true,
+          onClear: () => handleFilterChange('entregaFechaHasta', null),
+        },
+        textField: {
+          fullWidth: true,
+          size: "small",
+          variant: "outlined",
+          InputLabelProps: { shrink: true }
+        }
+      }}
+    />
+  </Grid>
+</LocalizationProvider>
+
           </Grid>
-          <Stack direction="row" spacing={2} sx={{ mt: 3 }}>
+          {/* <Stack direction="row" spacing={2} sx={{ mt: 3 }}>
             <Button
               variant="contained"
               startIcon={<SearchIcon />}
@@ -428,7 +577,7 @@ export default function ReporteEncomiendas() {
             >
               Limpiar
             </Button>
-          </Stack>
+          </Stack> */}
         </CardContent>
       </Card>
 

@@ -88,6 +88,49 @@ export async function getEncomiendas(filters = {}) {
     return []
   }
 }
+//para reporte listado JSON
+export async function getEncomiendasReport(filters = {}) {
+  try {
+    // Construir query string con los filtros
+    const queryParams = new URLSearchParams()
+    if (filters.clienteRemitenteId) queryParams.append('clienteRemitenteId', filters.clienteRemitenteId)
+    if (filters.clienteConsignatarioId) queryParams.append('clienteConsignatarioId', filters.clienteConsignatarioId)
+    if (filters.destino) queryParams.append('destino', filters.destino)
+    if (filters.estado !== undefined && filters.estado !== null && filters.estado !== '') {
+      queryParams.append('estado', filters.estado)
+    }
+    if (filters.recepcionFechaDesde) queryParams.append('recepcionFechaDesde', filters.recepcionFechaDesde)
+    if (filters.recepcionFechaHasta) queryParams.append('recepcionFechaHasta', filters.recepcionFechaHasta)
+    if (filters.entregaFechaDesde) queryParams.append('entregaFechaDesde', filters.entregaFechaDesde)
+    if (filters.entregaFechaHasta) queryParams.append('entregaFechaHasta', filters.entregaFechaHasta)
+    if (filters.numero) queryParams.append('numero', filters.numero)
+    if (filters.pagado !== undefined && filters.pagado !== null && filters.pagado !== '') {
+      queryParams.append('pagado', filters.pagado)
+    }
+    if (filters.usuarioId) queryParams.append('usuarioId', filters.usuarioId)
+    queryParams.append('nombreUsuario', 'usuarioActual')
+
+    const queryString = queryParams.toString()
+    const BASE_URL_REPORT = `http://localhost:5093/api/reporteEncomiendas/reporte-encomiendas/json`
+    const url = queryString ? `${BASE_URL_REPORT}?${queryString}` : BASE_URL_REPORT
+    console.log('URL de consulta de encomiendas:', url)
+
+    const res = await fetch(url, { headers: authHeaders() })
+    if (!res.ok) {
+      console.warn(`API encomiendas respondió ${res.status}. Usando datos de respaldo.`)
+      return []
+    }
+    const data = await res.json()
+    console.log('Datos recibidos de la API de encomiendas:', data.encomiendas)
+    if (Array.isArray(data.encomiendas) && data.encomiendas.length > 0) {
+      return data.encomiendas
+    }
+    return []
+  } catch (err) {
+    console.warn('No se pudo conectar a la API de encomiendas. Usando datos de respaldo:', err.message)
+    return []
+  }
+}
 
 export async function deleteEncomienda(id) {
   try {

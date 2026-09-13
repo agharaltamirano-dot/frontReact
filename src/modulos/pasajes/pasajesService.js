@@ -1,5 +1,5 @@
 const BASE_URL_PASAJES = 'http://localhost:5093/api/pasajes'
-
+const BASE_URL_PASAJES_REPORTE = 'http://localhost:5093/api/reportePasajes'
 function getToken() {
   try {
     const authData = JSON.parse(sessionStorage.getItem('authData') || '{}')
@@ -40,13 +40,21 @@ export async function getPasajes(filters = {}) {
   }
   return res.json()
 }
-
+export async function getReportePasajes(filters = {}) {
+  const res = await fetch(withQuery(`${BASE_URL_PASAJES_REPORTE}/reporte-pasajes/json`, filters), { headers: authHeaders() })
+  if (!res.ok) {
+    const txt = await res.text()
+    throw new Error(`Error fetching pasajes: ${res.status} ${txt}`)
+  }
+  const data = await res.json()
+  return data.pasajes
+}
 export function getReportePasajesPdf(filters = {}) {
-  return getFile('http://localhost:5093/api/reportePasajes/reporte-pasajes/pdf', filters)
+  return getFile(`${BASE_URL_PASAJES_REPORTE}/reporte-pasajes/pdf`, filters)
 }
 
 export function getReportePasajesXlsx(filters = {}) {
-  return getFile('http://localhost:5093/api/reportePasajes/reporte-pasajes/xlsx', filters)
+  return getFile(`${BASE_URL_PASAJES_REPORTE}/reporte-pasajes/xlsx`, filters)
 }
 
 export async function deletePasaje(id) {

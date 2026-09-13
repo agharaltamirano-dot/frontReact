@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import autoImg from '../../assets/auto.jpeg'
 import logoImg from '../../assets/logo3.jpeg'
@@ -28,6 +28,7 @@ function Login() {
     })
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
+    const [successMsg, setSuccessMsg] = useState('')
     const [showPassword, setShowPassword] = useState(false)
     // Forgot password modal state
     const [showForgotModal, setShowForgotModal] = useState(false)
@@ -38,6 +39,11 @@ function Login() {
     const [forgotCode, setForgotCode] = useState('')
     const [verifyLoading, setVerifyLoading] = useState(false)
     const [verifyError, setVerifyError] = useState('')
+    const [preservedUsuario, setPreservedUsuario] = useState('')
+    const [secondsRemaining, setSecondsRemaining] = useState(0)
+    const [newPassword, setNewPassword] = useState('')
+    const [confirmNewPassword, setConfirmNewPassword] = useState('')
+    
 
     const handleChange = (e) => {
         const { name, value } = e.target
@@ -89,9 +95,12 @@ function Login() {
     const openForgotModal = () => {
         setShowForgotModal(true)
         setForgotStep(1)
-        setForgotForm({ nombre: '', correo: '' })
+        setForgotForm({ correo: '' })
         setForgotError('')
         setForgotLoading(false)
+        setPreservedUsuario('')
+        setForgotCode('')
+        setSecondsRemaining(0)
     }
 
     const closeForgotModal = () => {
@@ -112,10 +121,11 @@ function Login() {
         setForgotError('')
 
         try {
+            const payload = { nombre: forgotForm.nombre, correo: forgotForm.correo }
             const response = await fetch('http://localhost:5093/api/auth/login/send-code', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(forgotForm)
+                body: JSON.stringify(payload)
             })
 
             if (!response.ok) {
@@ -126,8 +136,10 @@ function Login() {
                 throw e
             }
 
-            // Si recibimos 200 ok, avanzamos al siguiente paso
+            // Si recibimos 200 ok, guardamos el usuario, avanzamos al siguiente paso y arrancamos contador (3 minutos)
+            setPreservedUsuario(forgotForm.nombre || '')
             setForgotStep(2)
+            setSecondsRemaining(180)
         } catch (err) {
             // Log the error as requested and show a friendly message
             console.log(err)
@@ -144,24 +156,74 @@ function Login() {
     }
 
     const handleVerifyCode = async () => {
-        // For now advance locally when 6 digits entered
+        // Validaciones
         if (forgotCode.length !== 6) {
             setVerifyError('Ingrese un código de 6 dígitos')
             return
         }
 
+        if (secondsRemaining <= 0) {
+            setVerifyError('El código ha expirado, reenvíe el código')
+            return
+        }
+
+        if (!newPassword || !confirmNewPassword) {
+            setVerifyError('Complete la nueva contraseña y su confirmación')
+            return
+        }
+        if (newPassword.length < 6) {
+            setVerifyError('La contraseña debe tener al menos 6 caracteres')
+            return
+        }
+        if (newPassword !== confirmNewPassword) {
+            setVerifyError('Las contraseñas no coinciden')
+            return
+        }
+
         setVerifyLoading(true)
         try {
-            // If you later add an API call to verify the code, do it here.
-            console.log('Código ingresado:', forgotCode)
-            setForgotStep(3)
+            const payload = { nombre: preservedUsuario, correo: forgotForm.correo, code: forgotCode, nuevaClave: newPassword }
+            const resp = await fetch('http://localhost:5093/api/auth/login/verify-code', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+            })
+            if (!resp.ok) {
+                const j = await resp.json().catch(()=>({}))
+                throw new Error(j.message || 'Error en verificación/restablecimiento')
+            }
+            // Éxito: cerrar modal y mostrar mensaje
+            setShowForgotModal(false)
+            setForgotStep(1)
+            setForgotCode('')
+            setNewPassword('')
+            setConfirmNewPassword('')
+            setPreservedUsuario('')
+            setSecondsRemaining(0)
+            setSuccessMsg('Contraseña restablecida correctamente')
+            setTimeout(() => setSuccessMsg(''), 4000)
         } catch (e) {
             console.log(e)
-            setVerifyError('Error al verificar el código')
+            setVerifyError(e.message || 'Error al verificar/restablecer')
         } finally {
             setVerifyLoading(false)
         }
     }
+
+    // Countdown effect for secondsRemaining
+    useEffect(() => {
+        if (forgotStep !== 2 || secondsRemaining <= 0) return
+        const t = setInterval(() => {
+            setSecondsRemaining((s) => {
+                if (s <= 1) {
+                    clearInterval(t)
+                    return 0
+                }
+                return s - 1
+            })
+        }, 1000)
+        return () => clearInterval(t)
+    }, [forgotStep, secondsRemaining])
+
+    
 
     return (
 
@@ -200,16 +262,25 @@ function Login() {
                         <p className="form-subtitle">Ingrese sus credenciales para acceder al sistema</p>
                     </div>
 
-                    {error && (
-                        <div className="alert alert-error">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <circle cx="12" cy="12" r="10" />
-                                <line x1="15" y1="9" x2="9" y2="15" />
-                                <line x1="9" y1="9" x2="15" y2="15" />
-                            </svg>
-                            <span>{error}</span>
-                        </div>
-                    )}
+                            {error && (
+                                <div className="alert alert-error">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <line x1="15" y1="9" x2="9" y2="15" />
+                                        <line x1="9" y1="9" x2="15" y2="15" />
+                                    </svg>
+                                    <span>{error}</span>
+                                </div>
+                            )}
+                            {successMsg && (
+                                <div className="alert alert-success">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                                        <polyline points="22 4 12 14.01 9 11.01" />
+                                    </svg>
+                                    <span>{successMsg}</span>
+                                </div>
+                            )}
 
                     <form onSubmit={handleSubmit} className="login-form">
                         <div className="input-group">
@@ -356,13 +427,7 @@ function Login() {
                                         label="Usuario"
                                         variant="outlined"
                                         fullWidth
-                                        InputProps={{
-                                            startAdornment: (
-                                                <InputAdornment position="start">
-                                                    <PersonIcon />
-                                                </InputAdornment>
-                                            ),
-                                        }}
+                                        InputProps={{ startAdornment: (<InputAdornment position="start"><PersonIcon /></InputAdornment>) }}
                                     />
 
                                     <TextField
@@ -385,7 +450,7 @@ function Login() {
 
                                     <DialogActions sx={{ px: 0 }}>
                                         <Button variant="text" onClick={closeForgotModal} disabled={forgotLoading}>Cancelar</Button>
-                                        <Button variant="contained" type="submit" disabled={forgotLoading} endIcon={!forgotLoading ? <SendIcon /> : null}>
+                                        <Button variant="contained" type="submit" disabled={forgotLoading || !forgotForm.nombre} endIcon={!forgotLoading ? <SendIcon /> : null}>
                                             {forgotLoading ? (
                                                 <CircularProgress size={18} color="inherit" />
                                             ) : (
@@ -397,26 +462,27 @@ function Login() {
                             )}
 
                             {forgotStep === 2 && (
-                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                <Box component="form" sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                         <CheckCircleIcon color="success" />
-                                        <Box>Hemos enviado un enlace o código a su correo.</Box>
+                                        <Box>Hemos enviado un código a su correo: <strong>{forgotForm.correo}</strong></Box>
                                     </Box>
 
-                                    <DialogActions sx={{ px: 0 }}>
-                                        <Button variant="outlined" onClick={() => setForgotStep(1)}>Volver</Button>
-                                        <Button variant="contained" onClick={() => setForgotStep(3)}>Siguiente</Button>
-                                    </DialogActions>
-                                </Box>
-                            )}
+                                    <TextField
+                                        label="Código (6 dígitos)"
+                                        value={forgotCode}
+                                        onChange={handleCodeChange}
+                                        inputProps={{ maxLength: 6, inputMode: 'numeric', pattern: '[0-9]*' }}
+                                        fullWidth
+                                    />
 
-                            {forgotStep === 3 && (
-                                <Box component="form" sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                                     <TextField
                                         type="password"
                                         label="Nueva contraseña"
                                         variant="outlined"
                                         fullWidth
+                                        value={newPassword}
+                                        onChange={(e)=>setNewPassword(e.target.value)}
                                         InputProps={{ startAdornment: (<InputAdornment position="start"><LockIcon /></InputAdornment>) }}
                                     />
 
@@ -425,15 +491,28 @@ function Login() {
                                         label="Confirmar contraseña"
                                         variant="outlined"
                                         fullWidth
+                                        value={confirmNewPassword}
+                                        onChange={(e)=>setConfirmNewPassword(e.target.value)}
                                         InputProps={{ startAdornment: (<InputAdornment position="start"><LockIcon /></InputAdornment>) }}
                                     />
 
-                                    <DialogActions sx={{ px: 0 }}>
-                                        <Button variant="outlined" onClick={() => setForgotStep(2)}>Volver</Button>
-                                        <Button variant="contained" onClick={closeForgotModal}>Guardar</Button>
-                                    </DialogActions>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <Box sx={{ color: secondsRemaining > 0 ? 'text.primary' : 'error.main' }}>
+                                            {secondsRemaining > 0 ? `Tiempo restante: ${Math.floor(secondsRemaining/60).toString().padStart(2,'0')}:${(secondsRemaining%60).toString().padStart(2,'0')}` : 'Código expirado'}
+                                        </Box>
+                                        <Box sx={{ display: 'flex', gap: 1 }}>
+                                            <Button size="small" variant="text" onClick={() => setForgotStep(1)}>Volver</Button>
+                                            <Button size="small" variant="outlined" onClick={handleForgotSubmit} disabled={forgotLoading}>Reenviar</Button>
+                                            <Button size="small" variant="contained" onClick={handleVerifyCode} disabled={verifyLoading}>
+                                                {verifyLoading ? <CircularProgress size={16} color="inherit" /> : 'Restablecer'}
+                                            </Button>
+                                        </Box>
+                                    </Box>
+                                    {verifyError && <Box sx={{ color: 'error.main' }}>{verifyError}</Box>}
                                 </Box>
                             )}
+
+                            {/* now using two-step flow: step 1 = send-code, step 2 = verify-code + reset */}
                         </DialogContent>
                     </Dialog>
 

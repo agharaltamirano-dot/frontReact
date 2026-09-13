@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
-  Box, Button, CircularProgress, Divider, FormControl, IconButton, InputAdornment,
+  Box, Button, CircularProgress, Divider, FormControl, IconButton,
   InputLabel, MenuItem, Paper, Select, Stack, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, TextField, Tooltip, Typography
+  TableContainer, TableHead, TableRow, Tooltip, Typography
 } from '@mui/material'
-import { Close, Download, PictureAsPdf, Refresh, Search } from '@mui/icons-material'
-import { getPasajes, getReportePasajesPdf, getReportePasajesXlsx } from '../../pasajes/pasajesService'
+import { Download, PictureAsPdf, Refresh, Search } from '@mui/icons-material'
+import { getPasajes, getReportePasajes, getReportePasajesPdf, getReportePasajesXlsx } from '../../pasajes/pasajesService'
+import { getClientes } from '../../clientes/clientesService'
 import './reportePasajes.css'
+import { es } from "date-fns/locale";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
 
-const EMPTY_FILTERS = { cliente: '', destino: 'todos', movil: 'todos', usuario: 'todos' }
+const EMPTY_FILTERS = { clienteId: '', destino: 'todos', movil: 'todos', usuarioId: 'todos', fechaDesde: null, fechaHasta: null, reserva: null }
 
 function downloadBlob(blob, name) {
   const url = URL.createObjectURL(blob)
@@ -34,15 +38,28 @@ export default function ReportePasajes() {
     return authData?.usuario?.usuario1 || ''
   }
   const [filters, setFilters] = useState(EMPTY_FILTERS)
+  const [clientes, setClientes] = useState([])
   const [pasajes, setPasajes] = useState([])
   const [loading, setLoading] = useState(false)
   const [exporting, setExporting] = useState({ pdf: false, xlsx: false })
   const [error, setError] = useState('')
 
-  const apiFilters = Object.fromEntries(Object.entries(filters).filter(([, value]) => value && value !== 'todos'))
+  const apiFilters = Object.fromEntries(Object.entries(filters).filter(([_, value]) => value !== '' && value !== null && value !== undefined && value !== 'todos'))
   const destinos = [...new Set(pasajes.map((pasaje) => pasaje.destino).filter(Boolean))]
   const moviles = [...new Set(pasajes.map((pasaje) => pasaje.movil).filter(Boolean))]
-  const usuarios = [...new Set(pasajes.map((pasaje) => pasaje.usuario?.usuario || pasaje.usuario?.usuario1 || pasaje.usuario).filter(Boolean))]
+  const usuariosMap = new Map()
+  pasajes.forEach((pasaje) => {
+    const u = pasaje.usuario
+    if (!u) return
+    if (typeof u === 'object') {
+      const id = u.id ?? u.usuario ?? u.usuario1 ?? JSON.stringify(u)
+      const label = u.usuario ?? u.usuario1 ?? u.nombre ?? id
+      usuariosMap.set(String(id), String(label))
+    } else {
+      usuariosMap.set(String(u), String(u))
+    }
+  })
+  const usuarios = Array.from(usuariosMap.entries()).map(([id, label]) => ({ id, label }))
 
   const loadPasajes = useCallback(async (appliedFilters = {}) => {
     setLoading(true)
@@ -57,6 +74,54 @@ export default function ReportePasajes() {
       setLoading(false)
     }
   }, [])
+
+  // Cargar clientes para el filtro
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      try {
+        const data = await getClientes()
+        if (!mounted) return
+        setClientes(Array.isArray(data) ? data : [])
+      } catch (e) {
+        console.error('Error cargando clientes', e)
+      }
+    })()
+    return () => { mounted = false }
+  }, [])
+
+  // Construye filtros a enviar al API (convierte fechas y maneja reserva)
+  const buildApiFilters = (f) => {
+    const out = { ...f }
+    if (out.fechaDesde instanceof Date) out.fechaDesde = out.fechaDesde.toISOString().slice(0, 10)
+    if (out.fechaHasta instanceof Date) out.fechaHasta = out.fechaHasta.toISOString().slice(0, 10)
+    // si clienteId está vacío o es 'todos' lo removemos
+    if (!out.clienteId) delete out.clienteId
+    if (out.destino === 'todos') delete out.destino
+    if (out.movil === 'todos') delete out.movil
+    if (out.usuarioId === 'todos') delete out.usuarioId
+    if (out.reserva === null || out.reserva === undefined) delete out.reserva
+    return out
+  }
+
+  // Cada vez que cambien los filtros, llamar a getReportePasajes
+  useEffect(() => {
+    const t = setTimeout(async () => {
+      setLoading(true)
+      setError('')
+      try {
+        const apiF = buildApiFilters(filters)
+        const data = await getReportePasajes(apiF)
+        setPasajes(Array.isArray(data) ? data : (data || []))
+      } catch (err) {
+        setPasajes([])
+        setError(`Error al generar reporte: ${err.message}`)
+      } finally {
+        setLoading(false)
+      }
+    }, 150)
+    return () => clearTimeout(t)
+  }, [filters])
 
   useEffect(() => {
     const timer = setTimeout(() => loadPasajes(), 0)
@@ -106,13 +171,66 @@ export default function ReportePasajes() {
       <Divider sx={{ my: 2 }} />
 
       <Paper elevation={0} className="reporte-pasajes-filter-paper">
-        <TextField size="small" placeholder="Buscar cliente..." value={filters.cliente} onChange={(event) => setFilter('cliente', event.target.value)}
-          onKeyDown={(event) => { if (event.key === 'Enter') loadPasajes(apiFilters) }}
-          InputProps={{ startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment>, endAdornment: filters.cliente ? <InputAdornment position="end"><IconButton size="small" aria-label="Limpiar cliente" onClick={() => setFilter('cliente', '')}><Close fontSize="small" /></IconButton></InputAdornment> : null }} />
+        <FormControl size="small">
+          <InputLabel>Cliente</InputLabel>
+          <Select value={filters.clienteId} label="Cliente" onChange={(event) => setFilter('clienteId', event.target.value)} sx={{ minWidth: 220 }}>
+            <MenuItem value="">Todos</MenuItem>
+            {clientes.map((c) => <MenuItem key={c.id} value={c.id}>{c.nombreCompleto || c.nombre || c.razonSocial || c.usuario || c.id}</MenuItem>)}
+          </Select>
+        </FormControl>
         <FormControl size="small"><InputLabel>Destino</InputLabel><Select value={filters.destino} label="Destino" onChange={(event) => setFilter('destino', event.target.value)}><MenuItem value="todos">Todos los destinos</MenuItem>{destinos.map((destino) => <MenuItem key={destino} value={destino}>{destino}</MenuItem>)}</Select></FormControl>
         <FormControl size="small"><InputLabel>Vehículo</InputLabel><Select value={filters.movil} label="Vehículo" onChange={(event) => setFilter('movil', event.target.value)}><MenuItem value="todos">Todos</MenuItem>{moviles.map((movil) => <MenuItem key={movil} value={movil}>{movil}</MenuItem>)}</Select></FormControl>
-        <FormControl size="small"><InputLabel>Usuario</InputLabel><Select value={filters.usuario} label="Usuario" onChange={(event) => setFilter('usuario', event.target.value)}><MenuItem value="todos">Todos</MenuItem>{usuarios.map((usuario) => <MenuItem key={usuario} value={usuario}>{usuario}</MenuItem>)}</Select></FormControl>
-        <Stack direction="row" spacing={1}><Button variant="contained" startIcon={<Search />} onClick={() => loadPasajes(apiFilters)} disabled={loading}>Buscar</Button><Tooltip title="Recargar"><span><IconButton onClick={() => loadPasajes(apiFilters)} disabled={loading} className="reporte-refresh-button"><Refresh fontSize="small" /></IconButton></span></Tooltip></Stack>
+        <FormControl size="small"><InputLabel>Usuario</InputLabel><Select value={filters.usuarioId} label="Usuario" onChange={(event) => setFilter('usuarioId', event.target.value)}><MenuItem value="todos">Todos</MenuItem>{usuarios.map((usuario) => <MenuItem key={usuario.id} value={usuario.id}>{usuario.label}</MenuItem>)}</Select></FormControl>
+        <FormControl size="small">
+          <InputLabel>Tipo</InputLabel>
+          <Select
+            value={filters.reserva === null ? 'todos' : filters.reserva === true ? 'reservas' : 'pagados'}
+            label="Tipo"
+            onChange={(e) => {
+              const v = e.target.value
+              setFilter('reserva', v === 'todos' ? null : v === 'reservas' ? true : false)
+            }}
+          >
+            <MenuItem value="todos">Todos</MenuItem>
+            <MenuItem value="reservas">Reservas</MenuItem>
+            <MenuItem value="pagados">Pagados</MenuItem>
+          </Select>
+        </FormControl>
+        <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
+  <DatePicker
+    label="Fecha Desde"
+    value={filters.fechaDesde}
+    onChange={(newVal) => setFilter("fechaDesde", newVal)}
+    slotProps={{
+      field: {
+        clearable: true,
+        onClear: () => setFilter("fechaDesde", null),
+      },
+      textField: {
+        size: "small",
+        InputLabelProps: { shrink: true },
+        sx: { minWidth: 160 },
+      },
+    }}
+  />
+
+  <DatePicker
+    label="Fecha Hasta"
+    value={filters.fechaHasta}
+    onChange={(newVal) => setFilter("fechaHasta", newVal)}
+    slotProps={{
+      field: {
+        clearable: true,
+        onClear: () => setFilter("fechaHasta", null),
+      },
+      textField: {
+        size: "small",
+        InputLabelProps: { shrink: true },
+        sx: { minWidth: 160 },
+      },
+    }}
+  />
+</LocalizationProvider>
       </Paper>
 
       {error && <Typography className="reporte-error" role="alert">{error}</Typography>}

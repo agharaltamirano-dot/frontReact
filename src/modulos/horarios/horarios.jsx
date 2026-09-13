@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import TextField from '@mui/material/TextField'
+import IconButton from '@mui/material/IconButton'
+import InputAdornment from '@mui/material/InputAdornment'
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns'
 import { DatePicker } from '@mui/x-date-pickers/DatePicker'
@@ -557,14 +559,27 @@ function Horarios() {
               ))}
             </select>
 
-            <LocalizationProvider dateAdapter={AdapterDateFns}>
-              <DatePicker
-                label="Fecha"
-                value={dateFilter}
-                onChange={(newVal) => setDateFilter(newVal || new Date())}
-                renderInput={(params) => <TextField {...params} size="small" sx={{ minWidth: 160 }} />}
-              />
-            </LocalizationProvider>
+<LocalizationProvider dateAdapter={AdapterDateFns}>
+  <DatePicker
+    label="Fecha"
+    value={dateFilter}
+    onChange={(newVal) => setDateFilter(newVal)}
+    slotProps={{
+      field: {
+        clearable: true, // Esto añade el botón "✖" de forma nativa
+        onClear: () => setDateFilter(null),
+      },
+      textField: {
+        size: "small",
+        variant: "outlined",
+        sx: { minWidth: 160 },
+        InputLabelProps: { shrink: true }
+      }
+    }}
+  />
+</LocalizationProvider>
+
+
 
             {/* <select
               value={statusFilter}

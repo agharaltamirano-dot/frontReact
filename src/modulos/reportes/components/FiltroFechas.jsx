@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Box, Button, FormControl, InputLabel, MenuItem, Select, TextField } from '@mui/material'
+import { Box, Button, FormControl, InputLabel, MenuItem, Select, TextField, IconButton, InputAdornment } from '@mui/material'
 import { CalendarToday } from '@mui/icons-material'
 import './FiltroFechas.css'
-
+import { es } from "date-fns/locale";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
 const FiltroFechas = ({ onDateChange }) => {
   const [tipoFecha, setTipoFecha] = useState('este-mes')
   const [fechaDesde, setFechaDesde] = useState('')
@@ -78,27 +80,46 @@ const FiltroFechas = ({ onDateChange }) => {
       </FormControl>
 
       {tipoFecha === 'personalizado' && (
-        <Box className="filtro-fechas-custom">
-          <TextField
-            size="small"
-            type="date"
-            label="Desde"
-            value={fechaDesde}
-            onChange={(e) => setFechaDesde(e.target.value)}
-            InputLabelProps={{ shrink: true }}
-            inputProps={{ max: fechaHasta || undefined }}
-          />
-          <TextField
-            size="small"
-            type="date"
-            label="Hasta"
-            value={fechaHasta}
-            onChange={(e) => setFechaHasta(e.target.value)}
-            InputLabelProps={{ shrink: true }}
-            inputProps={{ min: fechaDesde || undefined }}
-          />
-        </Box>
-      )}
+  <Box className="filtro-fechas-custom">
+    <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
+      <DatePicker
+        label="Desde"
+        value={fechaDesde || null}
+        onChange={(newVal) => setFechaDesde(newVal)}
+        slotProps={{
+          field: {
+            clearable: true,
+            onClear: () => setFechaDesde(null),
+          },
+          textField: {
+            size: "small",
+            InputLabelProps: { shrink: true },
+            sx: { minWidth: 160 },
+            inputProps: { max: fechaHasta || undefined },
+          },
+        }}
+      />
+
+      <DatePicker
+        label="Hasta"
+        value={fechaHasta || null}
+        onChange={(newVal) => setFechaHasta(newVal)}
+        slotProps={{
+          field: {
+            clearable: true,
+            onClear: () => setFechaHasta(null),
+          },
+          textField: {
+            size: "small",
+            InputLabelProps: { shrink: true },
+            sx: { minWidth: 160 },
+            inputProps: { min: fechaDesde || undefined },
+          },
+        }}
+      />
+    </LocalizationProvider>
+  </Box>
+)}
     </Box>
   )
 }

@@ -30,6 +30,11 @@ export default function VentaPasajes() {
   const requestAnular = (pasajeId) => setConfirmAnular({ open: true, pasajeId })
   const cancelAnular = () => setConfirmAnular({ open: false, pasajeId: null })
 
+  // Confirmación para convertir reserva a pasaje (marcar reserva=false)
+  const [confirmConvert, setConfirmConvert] = useState({ open: false, pasajeId: null })
+  const requestConvert = (pasajeId) => setConfirmConvert({ open: true, pasajeId })
+  const cancelConvert = () => setConfirmConvert({ open: false, pasajeId: null })
+
   // Modal editar pasaje
   const [editPasaje, setEditPasaje] = useState({ open: false, pasaje: null })
   const [editForm, setEditForm] = useState({
@@ -599,6 +604,54 @@ export default function VentaPasajes() {
     }
   }
 
+  const performConvert = async () => {
+    const pasajeId = confirmConvert.pasajeId
+    if (!pasajeId) return cancelConvert()
+    try {
+      // Buscar el pasaje en el horario local
+      const pasaje = (horario?.pasajes || []).find(p => p.id === pasajeId)
+      if (!pasaje) return showNotification('Pasaje no encontrado', 'error')
+
+      const usuarioId = getAuthUsuarioId()
+      const payload = {
+        fechaHora: pasaje.fechaHora || formatFechaHoraNow(),
+        monto: Number(pasaje.monto) || 0,
+        movil: pasaje.movil || horario?.vehiculo?.movil || '',
+        estado: pasaje.estado !== false,
+        destino: pasaje.destino || '',
+        asientoId: pasaje.asiento?.id || pasaje.asientoId,
+        reserva: false,
+        horarioId: pasaje.horarioId || horario?.id,
+        usuarioId: usuarioId,
+        clienteId: pasaje.cliente?.id || undefined
+      }
+      Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k])
+
+      await putPasaje(pasajeId, payload)
+
+      // Actualizar estado local inmediatamente
+      setHorario(prev => {
+        if (!prev) return prev
+        const nuevos = (prev.pasajes || []).map(p => p.id === pasajeId ? { ...p, reserva: false } : p)
+        return { ...prev, pasajes: nuevos }
+      })
+      showNotification('Reserva convertida a pasaje con éxito', 'success')
+
+      // Refrescar horario desde API
+      try {
+        const fresh = await getHorarioById(horario?.id ?? id)
+        setHorario(fresh)
+      } catch (fetchErr) {
+        console.warn('No se pudo refrescar horario tras convertir reserva:', fetchErr)
+      }
+    } catch (err) {
+      console.error('Error convirtiendo reserva:', err)
+      showNotification('Error al convertir reserva: ' + (err.message || ''), 'error')
+    } finally {
+      cancelConvert()
+    }
+  }
+
   const renderSeatGrid = (horario) => {
     const asientos = horario?.vehiculo?.distribucion?.asientos || []
     const maxFila = asientos.reduce((m, a) => Math.max(m, a.fila || 0), 0) || 1
@@ -674,6 +727,23 @@ export default function VentaPasajes() {
                       <path d="M6 14h12v7H6z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
                     </svg>
                   </button>
+                  {pasaje.reserva === true && (
+                    <button
+                      className="seat-accept-btn"
+                      title="Aceptar reserva"
+                      aria-label="Aceptar reserva"
+                      onClick={(e) => { e.stopPropagation(); requestConvert(pasaje.id) }}
+                      disabled={pasaje.estado === false || pasaje.despachado || !isSaleAllowed()}
+                      style={{ marginLeft: 6 }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                        <rect x="2" y="6" width="20" height="12" rx="2" stroke="#10b981" strokeWidth="1.2"/>
+                        <path d="M2 10h20" stroke="#10b981" strokeWidth="1.2"/>
+                        <circle cx="8" cy="12" r="1" fill="#10b981"/>
+                        <circle cx="16" cy="12" r="1" fill="#10b981"/>
+                      </svg>
+                    </button>
+                  )}
                 </>
               ) : (
                 <>
@@ -1000,7 +1070,10 @@ export default function VentaPasajes() {
                             </Box>
 
                             <Box sx={{ml:1, display:'flex', flexDirection:'column', gap:0.5}}>
-                              <Button variant="outlined" size="small" onClick={() => reimprimirPasaje(p.id)} sx={{textTransform:'none', minWidth:80}}>Imprimir</Button>
+                                        <Button variant="outlined" size="small" onClick={() => reimprimirPasaje(p.id)} sx={{textTransform:'none', minWidth:80}}>Imprimir</Button>
+                                        {p.reserva === true && (
+                                          <Button variant="contained" size="small" color="success" onClick={() => requestConvert(p.id)} disabled={p.estado === false || p.despachado || !isSaleAllowed()} sx={{textTransform:'none', minWidth:80}}>Listo</Button>
+                                        )}
                               <Tooltip
                                 title={
                                   !isSaleAllowed()
@@ -1055,6 +1128,18 @@ export default function VentaPasajes() {
                     <DialogActions>
                       <Button onClick={cancelAnular}>Cancelar</Button>
                       <Button onClick={performAnular} color="error" variant="contained">Anular</Button>
+                    </DialogActions>
+                  </Dialog>
+
+                  {/* Dialog de confirmación para convertir reserva a pasaje */}
+                  <Dialog open={confirmConvert.open} onClose={cancelConvert}>
+                    <DialogTitle>Confirmar reserva</DialogTitle>
+                    <DialogContent>
+                      ¿aceptar reserva?
+                    </DialogContent>
+                    <DialogActions>
+                      <Button onClick={cancelConvert}>Cancelar</Button>
+                      <Button onClick={performConvert} color="success" variant="contained">Confirmar</Button>
                     </DialogActions>
                   </Dialog>
 

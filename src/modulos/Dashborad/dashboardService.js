@@ -125,19 +125,23 @@ export async function getDashboardData() {
     }))
 
   // 2. PASAJES
-  const pasajesActivosList = pasajes.filter(p => p.estado !== false)
-  const pasajesAnuladosCount = pasajes.filter(p => p.estado === false).length
-  const totalPasajesCount = pasajes.length
-  const pasajesReservasCount = pasajesActivosList.filter(p => p.reserva === true).length
+  // Excluir pasajes con `reserva === true` de todos los cálculos (montos, destinos, conteos)
+  console.log('Pasajes filtrados-----------------------------:', pasajes)
+  const pasajesActivosList = pasajes.filter(p => p.estado !== false && p.reserva !== true)
+  const pasajesAnuladosCount = pasajes.filter(p => p.estado === false && p.reserva !== true).length
+  const totalPasajesCount = pasajes.filter(p => p.reserva !== true).length
+  // Contar reservas aparte (no forman parte de los totales ni destinos concurridos)
+  const pasajesReservasCount = pasajes.filter(p => p.reserva === true && p.estado !== false).length
 
   // Fecha de hoy en formato yyyy-MM-dd (local)
   const todayStr = new Date().toLocaleDateString('en-CA')
 
   // REGLA: sumar solo los pasajes cuya fecha (primer segmento de fechaHora) sea hoy
+  // Pasajes de hoy excluyendo reservas
   const pasajesHoy = pasajes.filter(p => {
     try {
       const fechaPart = String(p.fechaHora || '').split(' ')[0]
-      return fechaPart === todayStr && (p.estado === true || p.estado === undefined)
+      return fechaPart === todayStr && (p.estado === true || p.estado === undefined) && p.reserva !== true
     } catch {
       return false
     }
