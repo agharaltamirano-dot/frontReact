@@ -105,8 +105,6 @@ export default function PuntoVenta() {
   const validate = () => {
     const errors = {}
     if (!form.nombre.trim()) errors.nombre = 'El nombre es requerido'
-    if (!form.direccion.trim()) errors.direccion = 'La dirección es requerida'
-    if (!form.telefono.trim()) errors.telefono = 'El teléfono es requerido'
     setFormErrors(errors)
     return Object.keys(errors).length === 0
   }
@@ -116,6 +114,7 @@ export default function PuntoVenta() {
     setSaving(true)
     try {
       if (editing) {
+        console.log('Updating punto de venta with ID:', editing.id, 'with data:', form)
         await updatePuntoVenta(editing.id, form)
         showSnack('Punto de venta actualizado correctamente', 'success')
       } else {
@@ -341,10 +340,10 @@ export default function PuntoVenta() {
               <StorefrontIcon sx={{ fontSize: 20, color: '#0ea5e9' }} />
             </Box>
             <Box>
-              <Typography fontWeight={700} fontSize={16}>
+              <Typography fontWeight={700} fontSize={16} sx={{ color: '#1e293b' }}>
                 {editing ? 'Editar Punto de Venta' : 'Nuevo Punto de Venta'}
               </Typography>
-              <Typography variant="caption" color="#64748b">
+              <Typography variant="caption" sx={{ color: '#1e293b' }}>
                 {editing ? `Modificando: ${editing.nombre}` : 'Completa los datos del punto de venta'}
               </Typography>
             </Box>

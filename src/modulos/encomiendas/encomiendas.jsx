@@ -388,7 +388,24 @@ export default function Encomiendas() {
       const res = await fetch(url, opts);
       if (!res.ok) throw new Error("Error al obtener horarios");
       const data = await res.json();
-      setHorariosOptions(Array.isArray(data) ? data : []);
+      // ordenar por fecha (día) ascendente y luego por hora
+      const arr = Array.isArray(data) ? data.slice() : [];
+      arr.sort((a, b) => {
+        const da = a && a.fecha ? new Date(a.fecha) : null;
+        const db = b && b.fecha ? new Date(b.fecha) : null;
+        if (da && db) {
+          const cmp = da - db;
+          if (cmp !== 0) return cmp;
+        } else if (da && !db) return -1;
+        else if (!da && db) return 1;
+        // fallback: ordenar por hora string si existe
+        const ha = (a.hora || a.horaSalida || '').toString();
+        const hb = (b.hora || b.horaSalida || '').toString();
+        return ha.localeCompare(hb);
+      });
+      // invertir el orden: mostrar lista en reversa
+      arr.reverse();
+      setHorariosOptions(arr);
     } catch (err) {
       if (err.name === 'AbortError') return;
       console.error(err);
@@ -1399,11 +1416,18 @@ function coincideDestino(destino) {
             getOptionLabel={(h) => {
               if (!h) return "";
               const hora = h.hora || h.horaSalida || "";
-              const fecha = h.fecha ? String(h.fecha).split("T")[0] : "";
+              const fechaIso = h.fecha ? String(h.fecha).split("T")[0] : "";
+              let dayName = "";
+              if (h.fecha) {
+                try {
+                  dayName = new Date(h.fecha).toLocaleDateString('es-ES', { weekday: 'long' });
+                } catch {}
+              }
               const vehMovil = h.vehiculo?.movil ?? h.movil ?? (h.vehiculoId ? String(h.vehiculoId) : "");
               const conductor = h.vehiculo?.conductor ? `${h.vehiculo.conductor.nombres || ''} ${h.vehiculo.conductor.apellidos || ''}`.trim() : (h.conductor ? `${h.conductor.nombres || ''} ${h.conductor.apellidos || ''}`.trim() : '');
               const ruta = h.ruta?.origenNombre && h.ruta?.destinoNombre ? `${h.ruta.origenNombre} → ${h.ruta.destinoNombre}` : (h.ruta?.origenNombre || h.ruta?.destinoNombre || '');
-              return `${hora ? hora + ' — ' : ''}${conductor || 'Sin conductor'}${vehMovil ? ' — Móvil ' + vehMovil : ''}${ruta ? ' — ' + ruta : ''}`;
+              const prefix = fechaIso ? `${dayName ? (dayName.charAt(0).toUpperCase() + dayName.slice(1)) + ' ' : ''}${fechaIso} — ` : '';
+              return `${prefix}${hora ? hora + ' — ' : ''}${conductor || 'Sin conductor'}${vehMovil ? ' — Móvil ' + vehMovil : ''}${ruta ? ' — ' + ruta : ''}`;
             }}
             value={selectedHorarioObj}
             onChange={(e, newVal) => {
@@ -1416,6 +1440,11 @@ function coincideDestino(destino) {
             onInputChange={(e, newInput) => setConductorSearch(newInput)}
             renderOption={(props, h) => {
               const hora = h.hora || h.horaSalida || "";
+              const fechaIso = h.fecha ? String(h.fecha).split("T")[0] : "";
+              let dayName = "";
+              if (h.fecha) {
+                try { dayName = new Date(h.fecha).toLocaleDateString('es-ES', { weekday: 'long' }); } catch {}
+              }
               const vehMovil = h.vehiculo?.movil ?? h.movil ?? (h.vehiculoId ? String(h.vehiculoId) : "");
               const conductor = h.vehiculo?.conductor ? `${h.vehiculo.conductor.nombres || ''} ${h.vehiculo.conductor.apellidos || ''}`.trim() : (h.conductor ? `${h.conductor.nombres || ''} ${h.conductor.apellidos || ''}`.trim() : 'Sin conductor');
               const ruta = h.ruta?.origenNombre && h.ruta?.destinoNombre ? `${h.ruta.origenNombre} → ${h.ruta.destinoNombre}` : (h.ruta?.origenNombre || h.ruta?.destinoNombre || '');
@@ -1424,9 +1453,10 @@ function coincideDestino(destino) {
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Typography sx={{ fontWeight: 700, color: '#0f172a' }}>{hora}</Typography>
-                      <Typography sx={{ fontWeight: 700, color: '#0f172a' }}>{conductor}</Typography>
+                      <Typography sx={{ fontSize: 12, color: '#64748b', ml: 0.5 }}>{fechaIso ? `${dayName ? (dayName.charAt(0).toUpperCase() + dayName.slice(1)) + ' ' : ''}${fechaIso}` : ''}</Typography>
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography sx={{ fontWeight: 700, color: '#0f172a' }}>{conductor}</Typography>
                       <PhoneIcon />
                       <Typography variant="body2" sx={{ color: '#475569' }}>{vehMovil || 'N/A'}</Typography>
                       {ruta ? (

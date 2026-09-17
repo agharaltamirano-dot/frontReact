@@ -39,6 +39,7 @@ export default function Clientes() {
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [formErrors, setFormErrors] = useState({})
+  const [canSubmit, setCanSubmit] = useState(false)
 
   // Confirmación eliminar
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, id: null, nombre: '' })
@@ -102,12 +103,40 @@ export default function Clientes() {
   }
 
   const validate = () => {
-    const errors = {}
-    if (!form.nombreCompleto.trim()) errors.nombreCompleto = 'El nombre es requerido'
-    if (!form.ci.trim()) errors.ci = 'El CI es requerido'
-    if (!form.telefono.trim()) errors.telefono = 'El teléfono es requerido'
+    const errors = computeErrors(form)
     setFormErrors(errors)
     return Object.keys(errors).length === 0
+  }
+
+  // Computa errores incluyendo duplicados (ignora el mismo registro cuando se edita)
+  const computeErrors = (f) => {
+    const errors = {}
+    if (!f.nombreCompleto.trim()) errors.nombreCompleto = 'El nombre es requerido'
+    if (!f.ci.trim()) errors.ci = 'El CI es requerido'
+    if (!f.telefono.trim()) errors.telefono = 'El teléfono es requerido'
+
+    const nameQ = (f.nombreCompleto || '').trim().toLowerCase()
+    const ciQ = (f.ci || '').trim().toLowerCase()
+
+    if (nameQ) {
+      const dup = clientes.some(c => {
+        if (!c) return false
+        if (editing && c.id === editing.id) return false
+        return (c.nombreCompleto || '').trim().toLowerCase() === nameQ
+      })
+      if (dup) errors.nombreCompleto = 'Ya existe un cliente con ese nombre'
+    }
+
+    if (ciQ) {
+      const dupCi = clientes.some(c => {
+        if (!c) return false
+        if (editing && c.id === editing.id) return false
+        return (c.ci || '').trim().toLowerCase() === ciQ
+      })
+      if (dupCi) errors.ci = 'El CI ya está registrado'
+    }
+
+    return errors
   }
 
   const handleSave = async () => {
@@ -129,6 +158,13 @@ export default function Clientes() {
       setSaving(false)
     }
   }
+
+  // Validación en tiempo real: recalcula errores al cambiar el formulario o la lista de clientes
+  useEffect(() => {
+    const errors = computeErrors(form)
+    setFormErrors(errors)
+    setCanSubmit(Object.keys(errors).length === 0)
+  }, [form, clientes, editing])
 
   // ── Eliminar ────────────────────────────────────────────────────────────────
   const requestDelete = (cliente) => {
@@ -338,10 +374,10 @@ export default function Clientes() {
               <PersonIcon sx={{ fontSize: 20, color: '#6366f1' }} />
             </Box>
             <Box>
-              <Typography fontWeight={700} fontSize={16}>
+              <Typography fontWeight={700} fontSize={16} sx={{ color: '#1e293b' }}>
                 {editing ? 'Editar Cliente' : 'Nuevo Cliente'}
               </Typography>
-              <Typography variant="caption" color="#64748b">
+              <Typography variant="caption" sx={{ color: '#1e293b' }}>
                 {editing ? `Modificando: ${editing.nombreCompleto}` : 'Completa los datos del cliente'}
               </Typography>
             </Box>
@@ -400,7 +436,7 @@ export default function Clientes() {
           </Button>
           <Button
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || !canSubmit}
             variant="contained"
             disableElevation
             className="btn-save"

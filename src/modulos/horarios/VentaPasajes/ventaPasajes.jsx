@@ -805,11 +805,15 @@ export default function VentaPasajes() {
   }, 0)
 
   // Suma de montos de todos los pasajes del horario (solo activos)
-  const sumaPasajes = (horario?.pasajes || []).reduce((acc, p) => {
-    if (!p || p.estado !== true) return acc
+const sumaPasajes = (horario?.pasajes || []).reduce((acc, p) => {
+  if (!p) return acc
+  if (p.estado === true && p.reserva === false) {
     const m = parseFloat(String(p.monto || 0).replace(',', '.'))
     return acc + (isNaN(m) ? 0 : m)
-  }, 0)
+  }
+  return acc
+}, 0)
+
 
   // Encomiendas (valor por defecto 0 si no viene en el horario)
   const encomiendasBs = Number(horario?.encomiendasBs) || 0
