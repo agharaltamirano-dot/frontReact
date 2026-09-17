@@ -599,13 +599,42 @@ console.log("Payload a enviar:", payload);
     }
   };
 
-  // Handler Imprimir Ticket
-  const handleOpenPrintModal = (encomienda) => {
-    setPrintModal({ open: true, encomienda });
-    showNotification(
-      `Generando vista de comprobante para ${encomienda.numero}...`,
-      'info',
-    );
+  // Handler Imprimir Ticket: llama a GET api/encomienda/recibo/${id}
+  const handleOpenPrintModal = async (encomienda) => {
+    showNotification(`Generando comprobante para ${encomienda.numero}...`, 'info');
+    try {
+      const res = await fetch(`/api/encomienda/recibo/${encomienda.id}`, { headers: authHeaders() });
+      if (!res.ok) throw new Error(`Error al obtener recibo (${res.status})`);
+
+      const contentType = res.headers.get('content-type') || '';
+      // Si es PDF, abrir en nueva pestaña
+      if (contentType.includes('application/pdf')) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        // revocar después de un tiempo
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+        showNotification('Comprobante abierto en nueva pestaña', 'success');
+        return;
+      }
+
+      // Si devuelve JSON (por ejemplo HTML o datos), mostrar en modal
+      if (contentType.includes('application/json')) {
+        const data = await res.json();
+        setPrintModal({ open: true, encomienda: data });
+        return;
+      }
+
+      // Fallback: tratar como blob y abrir
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      showNotification('Comprobante abierto en nueva pestaña', 'success');
+    } catch (err) {
+      console.error(err);
+      showNotification(`No se pudo obtener el recibo: ${err.message || err}`, 'error');
+    }
   };
 function coincideDestino(destino) {
   try {

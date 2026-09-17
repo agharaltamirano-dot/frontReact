@@ -331,7 +331,7 @@ export default function VentaPasajes() {
     }
   }
 
-  const reimprimirPasaje = async (pasajeId) => {
+ const reimprimirPasaje = async (pasajeId) => {
   if (!pasajeId) return showNotification("ID de pasaje inválido", "warning")
 
   showNotification("Generando ticket...", "info")
@@ -362,47 +362,26 @@ export default function VentaPasajes() {
 
     iframe.onload = () => {
       try {
-        // Verificar que el documento esté listo
-        const checkReady = setInterval(() => {
-          if (iframe.contentDocument?.readyState === "complete") {
-            clearInterval(checkReady)
+        iframe.contentWindow.focus()
+        
+        // Esperamos un momento breve para asegurar el renderizado del PDF
+        setTimeout(() => {
+          try {
+            // Escuchamos el cierre del diálogo de impresión ANTES de dispararlo
+            iframe.contentWindow.addEventListener('afterprint', () => {
+              try { document.body.removeChild(iframe) } catch (_) {}
+              try { URL.revokeObjectURL(blobUrl) } catch (_) {}
+            })
 
-            try {
-              iframe.contentWindow.focus()
-              // Dar tiempo suficiente para que el PDF se renderice
-              setTimeout(() => {
-                try {
-                  iframe.contentWindow.print()
-                } catch (e) {
-                  console.warn("print() en iframe falló:", e)
-                  // Fallback: abrir en nueva pestaña
-                  const a = document.createElement("a")
-                  a.href = blobUrl
-                  a.target = "_blank"
-                  a.rel = "noopener"
-                  a.click()
-                }
-
-                // Limpieza después de unos segundos
-                setTimeout(() => {
-                  try { document.body.removeChild(iframe) } catch (_) {}
-                  try { URL.revokeObjectURL(blobUrl) } catch (_) {}
-                }, 3000)
-              }, 1200) // delay mayor para estabilidad
-            } catch (e) {
-              console.warn("Error al invocar print:", e)
-            }
+            iframe.contentWindow.print()
+          } catch (e) {
+            console.warn("print() en iframe falló:", e)
+            abrirFallbackNuevaPestana(blobUrl)
           }
-        }, 300)
+        }, 500) // 500ms suele ser suficiente tras el onload
       } catch (e) {
         console.warn("Error en iframe.onload:", e)
-        // Fallback inmediato
-        const a = document.createElement("a")
-        a.href = blobUrl
-        a.target = "_blank"
-        a.rel = "noopener"
-        a.click()
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 60000)
+        abrirFallbackNuevaPestana(blobUrl)
       }
     }
 
@@ -412,6 +391,18 @@ export default function VentaPasajes() {
     showNotification("Error al generar ticket: " + (err.message || ""), "error")
   }
 }
+
+// Función auxiliar para el caso de emergencia
+const abrirFallbackNuevaPestana = (url) => {
+  const a = document.createElement("a")
+  a.href = url
+  a.target = "_blank"
+  a.rel = "noopener"
+  a.click()
+  // En pestaña nueva le damos un minuto antes de borrarlo de memoria
+  setTimeout(() => URL.revokeObjectURL(url), 60000)
+}
+
 
 
   const openHojaRuta = async () => {
@@ -439,47 +430,26 @@ export default function VentaPasajes() {
 
     iframe.onload = () => {
       try {
-        // Verificar que el documento esté listo
-        const checkReady = setInterval(() => {
-          if (iframe.contentDocument?.readyState === "complete") {
-            clearInterval(checkReady)
+        iframe.contentWindow.focus()
+        
+        // Retraso breve para asegurar la carga completa del PDF en el visor
+        setTimeout(() => {
+          try {
+            // Escuchar de forma segura el cierre del diálogo (Imprimir o Cancelar)
+            iframe.contentWindow.addEventListener('afterprint', () => {
+              try { document.body.removeChild(iframe) } catch (_) {}
+              try { URL.revokeObjectURL(blobUrl) } catch (_) {}
+            })
 
-            try {
-              iframe.contentWindow.focus()
-              // Dar tiempo suficiente para que el PDF se renderice
-              setTimeout(() => {
-                try {
-                  iframe.contentWindow.print()
-                } catch (e) {
-                  console.warn("print() en iframe falló:", e)
-                  // Fallback: abrir en nueva pestaña
-                  const a = document.createElement("a")
-                  a.href = blobUrl
-                  a.target = "_blank"
-                  a.rel = "noopener"
-                  a.click()
-                }
-
-                // Limpieza después de unos segundos
-                setTimeout(() => {
-                  try { document.body.removeChild(iframe) } catch (_) {}
-                  try { URL.revokeObjectURL(blobUrl) } catch (_) {}
-                }, 3000)
-              }, 1200) // delay mayor para estabilidad
-            } catch (e) {
-              console.warn("Error al invocar print:", e)
-            }
+            iframe.contentWindow.print()
+          } catch (e) {
+            console.warn("print() en iframe falló:", e)
+            abrirHojaRutaFallback(blobUrl)
           }
-        }, 300)
+        }, 500)
       } catch (e) {
         console.warn("Error en iframe.onload:", e)
-        // Fallback inmediato
-        const a = document.createElement("a")
-        a.href = blobUrl
-        a.target = "_blank"
-        a.rel = "noopener"
-        a.click()
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 60000)
+        abrirHojaRutaFallback(blobUrl)
       }
     }
 
@@ -489,6 +459,18 @@ export default function VentaPasajes() {
     showNotification("Error al generar hoja: " + (err.message || ""), "error")
   }
 }
+
+// Función auxiliar de emergencia para hoja de ruta
+const abrirHojaRutaFallback = (url) => {
+  const a = document.createElement("a")
+  a.href = url
+  a.target = "_blank"
+  a.rel = "noopener"
+  a.click()
+  // Le damos tiempo suficiente en la nueva pestaña antes de liberar la memoria
+  setTimeout(() => URL.revokeObjectURL(url), 60000)
+}
+
 
 
   const getDestinoName = (destinoId) => {
