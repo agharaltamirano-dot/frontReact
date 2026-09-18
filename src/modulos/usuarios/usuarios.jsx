@@ -82,8 +82,9 @@ function Usuarios() {
       const res = await fetch("http://localhost:5093/api/puntos-venta", { headers: authHeaders() })
       if (!res.ok) throw new Error(`Error ${res.status}`)
       const data = await res.json()
+
     console.log('puntos de venta: ', data);
-      setPuntosVenta(data)
+      setPuntosVenta(data.filter(pv => pv && pv.esPuntoVenta === true))
     } catch (err) {
       console.error(err)
       showNotification('Error al cargar puntos de venta: ' + err.message, 'error')

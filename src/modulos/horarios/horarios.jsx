@@ -1,367 +1,454 @@
-import { useState, useEffect, useRef } from 'react'
-import TextField from '@mui/material/TextField'
-import IconButton from '@mui/material/IconButton'
-import InputAdornment from '@mui/material/InputAdornment'
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns'
-import { DatePicker } from '@mui/x-date-pickers/DatePicker'
-import format from 'date-fns/format'
-import { useNavigate } from 'react-router-dom'
-import './horarios.css'
+import { useState, useEffect, useRef } from "react";
+import TextField from "@mui/material/TextField";
+import IconButton from "@mui/material/IconButton";
+import InputAdornment from "@mui/material/InputAdornment";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import format from "date-fns/format";
+import { useNavigate } from "react-router-dom";
+import "./horarios.css";
 
-const BASE_URL_HORARIOS = 'http://localhost:5093/api/horarios'
-const BASE_URL_RUTAS = 'http://localhost:5093/api/rutas'
-const BASE_URL_VEHICULOS = 'http://localhost:5093/api/vehiculos'
-const BASE_URL_PUNTOS = 'http://localhost:5093/api/puntos-venta'
+const BASE_URL_HORARIOS = "http://localhost:5093/api/horarios";
+const BASE_URL_RUTAS = "http://localhost:5093/api/rutas";
+const BASE_URL_VEHICULOS = "http://localhost:5093/api/vehiculos";
+const BASE_URL_PUNTOS = "http://localhost:5093/api/puntos-venta";
 
 function getToken() {
   try {
-    const authData = JSON.parse(sessionStorage.getItem('authData') || '{}')
-    return authData.token || ''
+    const authData = JSON.parse(sessionStorage.getItem("authData") || "{}");
+    return authData.token || "";
   } catch {
-    return ''
+    return "";
   }
 }
 
 function authHeaders() {
   return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${getToken()}`
-  }
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${getToken()}`,
+  };
 }
 
 function Horarios() {
-
-  const [loading, setLoading] = useState(false)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [rutaFilter, setRutaFilter] = useState('todos')
-  const [origenFilter, setOrigenFilter] = useState('todos')
-  const [destinoFilter, setDestinoFilter] = useState('todos')
-  const [statusFilter, setStatusFilter] = useState('todos')
+  const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [rutaFilter, setRutaFilter] = useState("todos");
+  const [origenFilter, setOrigenFilter] = useState("todos");
+  const [destinoFilter, setDestinoFilter] = useState("todos");
+  const [statusFilter, setStatusFilter] = useState("todos");
   // Fecha filter (por defecto hoy)
-  const [dateFilter, setDateFilter] = useState(new Date())
+  const [dateFilter, setDateFilter] = useState(new Date());
 
   // datasets
-  const [horarios, setHorarios] = useState([])
-  const [puntosVenta, setPuntosVenta] = useState([])
-  const [rutas, setRutas] = useState([])
-  const [vehiculos, setVehiculos] = useState([])
+  const [horarios, setHorarios] = useState([]);
+  const [puntosVenta, setPuntosVenta] = useState([]);
+  const [rutas, setRutas] = useState([]);
+  const [vehiculos, setVehiculos] = useState([]);
 
   // Paginación
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(5)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
 
   // Modales y Notificaciones
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [editingHorario, setEditingHorario] = useState(null)
-  const [notification, setNotification] = useState(null)
-  const [horarioToDelete, setHorarioToDelete] = useState(null)
-  const [saving, setSaving] = useState(false)
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingHorario, setEditingHorario] = useState(null);
+  const [notification, setNotification] = useState(null);
+  const [horarioToDelete, setHorarioToDelete] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   // Formulario
   const [formData, setFormData] = useState({
-    fecha: new Date().toLocaleDateString('en-CA'),
-    hora: '',
+    fecha: new Date().toLocaleDateString("en-CA"),
+    hora: "",
     estado: true,
-    vehiculoId: '',
-  })
+    vehiculoId: "",
+  });
 
   // Selector de horas (buscable)
-  const [timeSearch, setTimeSearch] = useState('')
-  const [showTimeList, setShowTimeList] = useState(false)
-  const timeListRef = useRef(null)
-  const [timeError, setTimeError] = useState('')
+  const [timeSearch, setTimeSearch] = useState("");
+  const [showTimeList, setShowTimeList] = useState(false);
+  const timeListRef = useRef(null);
+  const [timeError, setTimeError] = useState("");
 
   // Selector de vehículos (buscable)
-  const [vehicleSearch, setVehicleSearch] = useState('')
-  const [showVehicleList, setShowVehicleList] = useState(false)
-  const vehicleListRef = useRef(null)
+  const [vehicleSearch, setVehicleSearch] = useState("");
+  const [showVehicleList, setShowVehicleList] = useState(false);
+  const vehicleListRef = useRef(null);
 
   // generar lista de horas cada 30 minutos
-  const allTimes = []
+  const allTimes = [];
   for (let h = 0; h < 24; h++) {
     for (let m = 0; m < 60; m += 30) {
-      const hh = String(h).padStart(2, '0')
-      const mm = String(m).padStart(2, '0')
-      allTimes.push(`${hh}:${mm}`)
+      const hh = String(h).padStart(2, "0");
+      const mm = String(m).padStart(2, "0");
+      allTimes.push(`${hh}:${mm}`);
     }
   }
 
-  const filteredTimes = allTimes.filter(t => t.includes(timeSearch))
-  const filteredVehicles = vehiculos.filter(v => {
-    const normalize = (s = '') => String(s).normalize('NFD').replace(/\u0300-\u036f|[\u0300-\u036f]/g, '').replace(/\p{Diacritic}/gu, '').replace(/[\u0300-\u036f]/g, '').normalize().toLowerCase()
+  const filteredTimes = allTimes.filter((t) => t.includes(timeSearch));
+  const filteredVehicles = vehiculos.filter((v) => {
+    const normalize = (s = "") =>
+      String(s)
+        .normalize("NFD")
+        .replace(/\u0300-\u036f|[\u0300-\u036f]/g, "")
+        .replace(/\p{Diacritic}/gu, "")
+        .replace(/[\u0300-\u036f]/g, "")
+        .normalize()
+        .toLowerCase();
     // fallback normalize without advanced regex if environment lacks \p support
-    const simpleNormalize = (s = '') => String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    const simpleNormalize = (s = "") =>
+      String(s)
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
     const tryNormalize = (s) => {
-      try { return normalize(s) } catch { return simpleNormalize(s) }
-    }
+      try {
+        return normalize(s);
+      } catch {
+        return simpleNormalize(s);
+      }
+    };
 
-    const term = tryNormalize(vehicleSearch)
-    const fullname = tryNormalize(`${v.conductor?.nombres || ''} ${v.conductor?.apellidos || ''}`)
-    const placa = tryNormalize(v.placa || '')
-    const movil = tryNormalize(String(v.movil) || '')
+    const term = tryNormalize(vehicleSearch);
+    const fullname = tryNormalize(
+      `${v.conductor?.nombres || ""} ${v.conductor?.apellidos || ""}`,
+    );
+    const placa = tryNormalize(v.placa || "");
+    const movil = tryNormalize(String(v.movil) || "");
 
     return (
       !term ||
       placa.includes(term) ||
       movil.includes(term) ||
       fullname.includes(term)
-    )
-  })
+    );
+  });
 
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (timeListRef.current && !timeListRef.current.contains(e.target)) {
-        setShowTimeList(false)
+        setShowTimeList(false);
       }
-      if (vehicleListRef.current && !vehicleListRef.current.contains(e.target)) {
-        setShowVehicleList(false)
+      if (
+        vehicleListRef.current &&
+        !vehicleListRef.current.contains(e.target)
+      ) {
+        setShowVehicleList(false);
       }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-  const showNotification = (message, type = 'success') => {
-    setNotification({ message, type })
-    setTimeout(() => setNotification(null), 3500)
-  }
+  const showNotification = (message, type = "success") => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 3500);
+  };
 
   // ── GET Datasets Auxiliares ──────────────────────────────────────────────────
   const fetchAuxiliaryData = async () => {
     try {
-      const resPuntos = await fetch(BASE_URL_PUNTOS, { headers: authHeaders() })
+      const resPuntos = await fetch(BASE_URL_PUNTOS, {
+        headers: authHeaders(),
+      });
       if (resPuntos.ok) {
-        const dataP = await resPuntos.json()
-        if (Array.isArray(dataP) && dataP.length > 0) setPuntosVenta(dataP)
+        const dataP = await resPuntos.json();
+        if (Array.isArray(dataP) && dataP.length > 0) setPuntosVenta(dataP);
       }
 
-      const resRutas = await fetch(BASE_URL_RUTAS, { headers: authHeaders() })
+      const resRutas = await fetch(BASE_URL_RUTAS, { headers: authHeaders() });
       if (resRutas.ok) {
-        const dataR = await resRutas.json()
-        if (Array.isArray(dataR) && dataR.length > 0) setRutas(dataR)
+        const dataR = await resRutas.json();
+        if (Array.isArray(dataR) && dataR.length > 0) setRutas(dataR);
       }
 
-      const resVeh = await fetch(BASE_URL_VEHICULOS, { headers: authHeaders() })
+      const resVeh = await fetch(BASE_URL_VEHICULOS, {
+        headers: authHeaders(),
+      });
       if (resVeh.ok) {
-        const dataV = await resVeh.json()
-        if (Array.isArray(dataV) && dataV.length > 0) setVehiculos(dataV)
+        const dataV = await resVeh.json();
+        if (Array.isArray(dataV) && dataV.length > 0) setVehiculos(dataV);
       }
     } catch (err) {
-      console.log('Usando datos auxiliares locales para Horarios:', err.message)
+      console.log(
+        "Usando datos auxiliares locales para Horarios:",
+        err.message,
+      );
     }
-  }
+  };
 
   // ── GET Horarios ('api/horarios') ───────────────────────────────────────────
   const fetchHorarios = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-      const res = await fetch(BASE_URL_HORARIOS, { headers: authHeaders() })
+      const res = await fetch(BASE_URL_HORARIOS, { headers: authHeaders() });
       if (res.ok) {
-        const data = await res.json()
-        if (Array.isArray(data) && data.length > 0) setHorarios(data)
-          console.log('lista de horarios:', data)
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) setHorarios(data);
+        console.log("lista de horarios:", data);
       }
     } catch (err) {
-      console.log('Usando datos locales de horarios para pruebas:', err.message)
+      console.log(
+        "Usando datos locales de horarios para pruebas:",
+        err.message,
+      );
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchAuxiliaryData()
-    fetchHorarios()
-  }, [])
+    fetchAuxiliaryData();
+    fetchHorarios();
+  }, []);
 
   useEffect(() => {
-    setCurrentPage(1)
-  }, [searchTerm, rutaFilter, origenFilter, destinoFilter, statusFilter, itemsPerPage, dateFilter])
+    setCurrentPage(1);
+  }, [
+    searchTerm,
+    rutaFilter,
+    origenFilter,
+    destinoFilter,
+    statusFilter,
+    itemsPerPage,
+    dateFilter,
+  ]);
 
-  const getPunto = (id) => puntosVenta.find(p => Number(p.id) === Number(id)) || { nombre: `Punto #${id}` }
+  const getPunto = (id) =>
+    puntosVenta.find((p) => Number(p.id) === Number(id)) || {
+      nombre: `Punto #${id}`,
+    };
 
   const getRutaObj = (id) => {
-    const r = rutas.find(item => Number(item.id) === Number(id))
-    if (!r) return { origenNombre: 'Origen N/A', destinoNombre: 'Destino N/A', tarifa: 0 }
+    const r = rutas.find((item) => Number(item.id) === Number(id));
+    if (!r)
+      return {
+        origenNombre: "Origen N/A",
+        destinoNombre: "Destino N/A",
+        tarifa: 0,
+      };
 
     // Si la ruta incluye un arreglo `destinos`, usar el primer/último según orden
     if (Array.isArray(r.destinos) && r.destinos.length) {
-      const sorted = [...r.destinos].sort((a, b) => (a.orden || 0) - (b.orden || 0))
-      const first = sorted[0]
-      const last = sorted[sorted.length - 1]
+      const sorted = [...r.destinos].sort(
+        (a, b) => (a.orden || 0) - (b.orden || 0),
+      );
+      const first = sorted[0];
+      const last = sorted[sorted.length - 1];
 
-      const origenIdOrObj = first?.puntoVenta || first?.puntoVenta?.id || first?.puntoVenta
-      const destinoIdOrObj = last?.puntoVenta || last?.puntoVenta?.id || last?.puntoVenta
+      const origenIdOrObj =
+        first?.puntoVenta || first?.puntoVenta?.id || first?.puntoVenta;
+      const destinoIdOrObj =
+        last?.puntoVenta || last?.puntoVenta?.id || last?.puntoVenta;
 
-      const origenObj = typeof origenIdOrObj === 'object' ? (origenIdOrObj) : getPunto(origenIdOrObj)
-      const destinoObj = typeof destinoIdOrObj === 'object' ? (destinoIdOrObj) : getPunto(destinoIdOrObj)
+      const origenObj =
+        typeof origenIdOrObj === "object"
+          ? origenIdOrObj
+          : getPunto(origenIdOrObj);
+      const destinoObj =
+        typeof destinoIdOrObj === "object"
+          ? destinoIdOrObj
+          : getPunto(destinoIdOrObj);
 
       return {
         ...r,
-        origenNombre: origenObj?.nombre || origenObj?.nombre || 'Origen N/A',
-        destinoNombre: destinoObj?.nombre || destinoObj?.nombre || 'Destino N/A',
-        tarifa: r.tarifa ?? 0
-      }
+        origenNombre: origenObj?.nombre || origenObj?.nombre || "Origen N/A",
+        destinoNombre:
+          destinoObj?.nombre || destinoObj?.nombre || "Destino N/A",
+        tarifa: r.tarifa ?? 0,
+      };
     }
 
     // Fallback a campos directos cuando no hay `destinos`
-    const origenObj = getPunto(r.origenId || r.origen?.id)
-    const destinoObj = getPunto(r.destinoId || r.destino?.id)
+    const origenObj = getPunto(r.origenId || r.origen?.id);
+    const destinoObj = getPunto(r.destinoId || r.destino?.id);
 
     return {
       ...r,
       origenNombre: origenObj.nombre,
       destinoNombre: destinoObj.nombre,
-      tarifa: r.tarifa ?? 0
-    }
-  }
+      tarifa: r.tarifa ?? 0,
+    };
+  };
 
   const getVehiculoObj = (id) => {
-    const v = vehiculos.find(item => Number(item.id) === Number(id))
-    if (!v) return { movil: `${id}`, placa: 'N/A', marca: 'Vehículo', modelo: '' }
-    return v
-  }
+    const v = vehiculos.find((item) => Number(item.id) === Number(id));
+    if (!v)
+      return { movil: `${id}`, placa: "N/A", marca: "Vehículo", modelo: "" };
+    return v;
+  };
 
   const formatDate = (dateStr) => {
     try {
-      if (!dateStr) return ''
-      const s = String(dateStr)
+      if (!dateStr) return "";
+      const s = String(dateStr);
 
       // If date is plain 'YYYY-MM-DD', construct local Date to avoid UTC shift
-      const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/)
-      let d
+      const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      let d;
       if (m) {
-        const y = Number(m[1])
-        const mo = Number(m[2]) - 1
-        const da = Number(m[3])
-        d = new Date(y, mo, da) // local midnight
+        const y = Number(m[1]);
+        const mo = Number(m[2]) - 1;
+        const da = Number(m[3]);
+        d = new Date(y, mo, da); // local midnight
       } else {
-        d = new Date(s)
+        d = new Date(s);
       }
 
-      if (isNaN(d)) return dateStr
-      return new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' }).format(d)
+      if (isNaN(d)) return dateStr;
+      return new Intl.DateTimeFormat("es-ES", {
+        weekday: "long",
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }).format(d);
     } catch {
-      return dateStr
+      return dateStr;
     }
-  }
+  };
 
   // Comprueba si acciones (editar/eliminar) están permitidas según fecha/hora
   const isHorarioActionAllowed = (h) => {
     try {
-      const todayStr = new Date().toLocaleDateString('en-CA')
-      const now = new Date()
-      const nowStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0')
-      if (!h) return true
-      if (!h.fecha) return true
-      if (h.fecha < todayStr) return false
-      if (h.fecha === todayStr && h.hora && h.hora < nowStr) return false
-      return true
+      const todayStr = new Date().toLocaleDateString("en-CA");
+      const now = new Date();
+      const nowStr =
+        String(now.getHours()).padStart(2, "0") +
+        ":" +
+        String(now.getMinutes()).padStart(2, "0");
+      if (!h) return true;
+      if (!h.fecha) return true;
+      if (h.fecha < todayStr) return false;
+      if (h.fecha === todayStr && h.hora && h.hora < nowStr) return false;
+      return true;
     } catch (err) {
-      return true
+      return true;
     }
-  }
+  };
 
   // ── Toggle Estado Rápido ──────────────────────────────────────────────────────
   const toggleEstado = async (horario) => {
-    const nuevoEstado = !horario.estado
-    setHorarios(prev => prev.map(h => h.id === horario.id ? { ...h, estado: nuevoEstado } : h))
+    const nuevoEstado = !horario.estado;
+    setHorarios((prev) =>
+      prev.map((h) =>
+        h.id === horario.id ? { ...h, estado: nuevoEstado } : h,
+      ),
+    );
 
     try {
       await fetch(`${BASE_URL_HORARIOS}/${horario.id}`, {
-        method: 'PUT',
+        method: "PUT",
         headers: authHeaders(),
-        body: JSON.stringify({ ...horario, estado: nuevoEstado })
-      })
+        body: JSON.stringify({ ...horario, estado: nuevoEstado }),
+      });
     } catch (err) {
-      console.log('PUT backend horarios no disponible:', err.message)
+      console.log("PUT backend horarios no disponible:", err.message);
     }
 
-    showNotification(`Horario ${horario.fecha} ${horario.hora} actualizado a ${nuevoEstado ? 'Activo' : 'Inactivo'}`, 'success')
-  }
+    showNotification(
+      `Horario ${horario.fecha} ${horario.hora} actualizado a ${nuevoEstado ? "Activo" : "Inactivo"}`,
+      "success",
+    );
+  };
 
   // ── Modales ──────────────────────────────────────────────────────────────────
   const handleAddNew = () => {
-    const todayStr = new Date().toLocaleDateString('en-CA') // YYYY-MM-DD in local time
+    const todayStr = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD in local time
     setFormData({
       fecha: todayStr,
-      hora: '',
+      hora: "",
       estado: true,
-      rutaId: '',
-      vehiculoId: ''
-    })
-    setEditingHorario(null)
-    setTimeSearch('')
-    setVehicleSearch('')
-    setShowTimeList(false)
-    setShowVehicleList(false)
-    setTimeError('')
-    setShowAddModal(true)
-  }
+      rutaId: "",
+      vehiculoId: "",
+    });
+    setEditingHorario(null);
+    setTimeSearch("");
+    setVehicleSearch("");
+    setShowTimeList(false);
+    setShowVehicleList(false);
+    setTimeError("");
+    setShowAddModal(true);
+  };
 
   const handleEdit = (horario) => {
     setFormData({
-      fecha: horario.fecha || new Date().toLocaleDateString('en-CA'),
-      hora: horario.hora || '',
+      fecha: horario.fecha || new Date().toLocaleDateString("en-CA"),
+      hora: horario.hora || "",
       estado: horario.estado ?? true,
-      rutaId: horario.rutaId || horario.ruta?.id || '',
-      vehiculoId: horario.vehiculoId || horario.vehiculo?.id || ''
-    })
-    setEditingHorario(horario)
-    setTimeSearch('')
-    setVehicleSearch('')
-    setShowTimeList(false)
-    setShowVehicleList(false)
-    setTimeError('')
-    setShowAddModal(true)
-  }
+      rutaId: horario.rutaId || horario.ruta?.id || "",
+      vehiculoId: horario.vehiculoId || horario.vehiculo?.id || "",
+    });
+    setEditingHorario(horario);
+    setTimeSearch("");
+    setVehicleSearch("");
+    setShowTimeList(false);
+    setShowVehicleList(false);
+    setTimeError("");
+    setShowAddModal(true);
+  };
 
   // ── Guardar ──────────────────────────────────────────────────────────────────
   const handleSave = async (e) => {
-    e.preventDefault()
-    setSaving(true)
+    e.preventDefault();
+    setSaving(true);
 
     // Validaciones
-    const todayStr = new Date().toLocaleDateString('en-CA') // YYYY-MM-DD local
+    const todayStr = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD local
     if (!formData.fecha || formData.fecha < todayStr) {
-      showNotification('La fecha no puede ser anterior a hoy', 'error')
-      setSaving(false)
-      return
+      showNotification("La fecha no puede ser anterior a hoy", "error");
+      setSaving(false);
+      return;
     }
     if (!formData.hora) {
-      showNotification('La hora es obligatoria', 'error')
-      setSaving(false)
-      return
+      showNotification("La hora es obligatoria", "error");
+      setSaving(false);
+      return;
     }
     // Si la fecha es hoy, la hora no puede ser menor a la hora actual
     if (formData.fecha === todayStr) {
-      const now = new Date()
-      const nowStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0')
+      const now = new Date();
+      const nowStr =
+        String(now.getHours()).padStart(2, "0") +
+        ":" +
+        String(now.getMinutes()).padStart(2, "0");
       if (formData.hora < nowStr) {
-        showNotification('Si la fecha es hoy, la hora no puede ser menor a la hora actual', 'error')
-        setSaving(false)
-        return
+        showNotification(
+          "Si la fecha es hoy, la hora no puede ser menor a la hora actual",
+          "error",
+        );
+        setSaving(false);
+        return;
       }
     }
     if (!formData.vehiculoId) {
-      showNotification('Seleccione un vehículo válido', 'error')
-      setSaving(false)
-      return
+      showNotification("Seleccione un vehículo válido", "error");
+      setSaving(false);
+      return;
     }
 
     // Validar que no exista ya un horario con la misma fecha, hora y vehículo
-    const isDuplicate = horarios.some(h =>
-      h.fecha?.split('T')[0] === formData.fecha &&
-      h.hora === formData.hora &&
-      Number(h.vehiculoId || h.vehiculo?.id) === Number(formData.vehiculoId) &&
-      (!editingHorario || h.id !== editingHorario.id)
-    )
+    const isDuplicate = horarios.some(
+      (h) =>
+        h.fecha?.split("T")[0] === formData.fecha &&
+        h.hora === formData.hora &&
+        Number(h.vehiculoId || h.vehiculo?.id) ===
+          Number(formData.vehiculoId) &&
+        (!editingHorario || h.id !== editingHorario.id),
+    );
     if (isDuplicate) {
-      const veh = vehiculos.find(v => Number(v.id) === Number(formData.vehiculoId))
-      const vehLabel = veh ? `${veh.movil} (${veh.placa})` : `Vehículo #${formData.vehiculoId}`
-      showNotification(`Ya existe un horario el ${formData.fecha} a las ${formData.hora} para ${vehLabel}`, 'error')
-      setSaving(false)
-      return
+      const veh = vehiculos.find(
+        (v) => Number(v.id) === Number(formData.vehiculoId),
+      );
+      const vehLabel = veh
+        ? `${veh.movil} (${veh.placa})`
+        : `Vehículo #${formData.vehiculoId}`;
+      showNotification(
+        `Ya existe un horario el ${formData.fecha} a las ${formData.hora} para ${vehLabel}`,
+        "error",
+      );
+      setSaving(false);
+      return;
     }
 
     const payload = {
@@ -369,150 +456,215 @@ function Horarios() {
       hora: formData.hora,
       estado: Boolean(formData.estado),
       rutaId: Number(formData.rutaId),
-      vehiculoId: Number(formData.vehiculoId)
-    }
+      vehiculoId: Number(formData.vehiculoId),
+    };
 
     try {
       if (editingHorario) {
         try {
-          await fetch(`${BASE_URL_HORARIOS}/${editingHorario.id}`, {
-            method: 'PUT',
-            headers: authHeaders(),
-            body: JSON.stringify({ ...payload, id: editingHorario.id })
-          })
-        } catch (err) {
-          console.log('PUT backend horarios no disponible:', err.message)
-        }
+          const response = await fetch(
+            `${BASE_URL_HORARIOS}/${editingHorario.id}`,
+            {
+              method: "PUT",
+              headers: authHeaders(),
+              body: JSON.stringify({ ...payload, id: editingHorario.id }),
+            },
+          );
 
-        setHorarios(prev => prev.map(h => h.id === editingHorario.id ? { ...payload, id: editingHorario.id } : h))
-        showNotification('Horario actualizado exitosamente')
-      } else {
-        const newId = Date.now()
-        const newHorario = { ...payload, id: newId }
-        try {
-          const res = await fetch(BASE_URL_HORARIOS, {
-            method: 'POST',
-            headers: authHeaders(),
-            body: JSON.stringify(payload)
-          })
-          if (res.ok) {
-            const data = await res.json()
-            newHorario.id = data.id || newId
+          if (!response.ok) {
+            // Si el backend devuelve BadRequest (400), aquí lo capturas
+            const errorData = await response.json();
+            console.log("PUT error message:", errorData.message);
+            showNotification("Error al actualizar horario: " + errorData.message, "error");
+          } else {
+            const data = await response.json();
+            console.log("PUT success:", data);
+             setHorarios((prev) =>
+          prev.map((h) =>
+            h.id === editingHorario.id
+              ? { ...payload, id: editingHorario.id }
+              : h,
+          ),
+        );
+        showNotification("Horario actualizado exitosamente");
           }
         } catch (err) {
-          console.log('POST backend horarios no disponible:', err.message)
+          console.log("PUT backend horarios no disponible:", err.message);
         }
 
-        setHorarios(prev => [newHorario, ...prev])
-        showNotification('Nuevo horario programado exitosamente')
+       
+      } else {
+        const newId = Date.now();
+        const newHorario = { ...payload, id: newId };
+        try {
+          const res = await fetch(BASE_URL_HORARIOS, {
+            method: "POST",
+            headers: authHeaders(),
+            body: JSON.stringify(payload),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            newHorario.id = data.id || newId;
+          }
+        } catch (err) {
+          console.log("POST backend horarios no disponible:", err.message);
+        }
+
+        setHorarios((prev) => [newHorario, ...prev]);
+        showNotification("Nuevo horario programado exitosamente");
       }
 
-      setShowAddModal(false)
-      setEditingHorario(null)
+      setShowAddModal(false);
+      setEditingHorario(null);
     } catch (err) {
-      showNotification('Error al guardar horario: ' + err.message, 'error')
+      showNotification("Error al guardar horario: " + err.message, "error");
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
   // ── Eliminar ─────────────────────────────────────────────────────────────────
-  const handleDelete = (horario) => setHorarioToDelete(horario)
+  const handleDelete = (horario) => setHorarioToDelete(horario);
 
   const confirmDelete = async () => {
-    if (!horarioToDelete) return
-    setHorarios(prev => prev.filter(h => h.id !== horarioToDelete.id))
+    if (!horarioToDelete) return;
+    setHorarios((prev) => prev.filter((h) => h.id !== horarioToDelete.id));
 
     try {
       await fetch(`${BASE_URL_HORARIOS}/${horarioToDelete.id}`, {
-        method: 'DELETE',
-        headers: authHeaders()
-      })
+        method: "DELETE",
+        headers: authHeaders(),
+      });
     } catch (err) {
-      console.log('DELETE backend horarios no disponible:', err.message)
+      console.log("DELETE backend horarios no disponible:", err.message);
     }
 
-    showNotification('Horario eliminado del sistema', 'error')
-    setHorarioToDelete(null)
-  }
+    showNotification("Horario eliminado del sistema", "error");
+    setHorarioToDelete(null);
+  };
 
   // ── Filtrado ─────────────────────────────────────────────────────────────────
-  const filteredHorarios = horarios.filter(h => {
-    const rutaObj = getRutaObj(h.rutaId || h.ruta?.id)
-    const vehObj = getVehiculoObj(h.vehiculoId || h.vehiculo?.id)
+  const filteredHorarios = horarios.filter((h) => {
+    const rutaObj = getRutaObj(h.rutaId || h.ruta?.id);
+    const vehObj = getVehiculoObj(h.vehiculoId || h.vehiculo?.id);
 
     // Search: only by conductor full name or vehículo móvil number
-    const term = String(searchTerm || '').trim().toLowerCase()
-    let matchesSearch = true
+    const term = String(searchTerm || "")
+      .trim()
+      .toLowerCase();
+    let matchesSearch = true;
     if (term) {
-      const conductorFull = vehObj?.conductor ? `${vehObj.conductor.nombres || ''} ${vehObj.conductor.apellidos || ''}`.trim().toLowerCase() : ''
-      const movil = String(vehObj?.movil || '').toLowerCase()
-      matchesSearch = (conductorFull && conductorFull.includes(term)) || (movil && movil.includes(term))
+      const conductorFull = vehObj?.conductor
+        ? `${vehObj.conductor.nombres || ""} ${vehObj.conductor.apellidos || ""}`
+            .trim()
+            .toLowerCase()
+        : "";
+      const movil = String(vehObj?.movil || "").toLowerCase();
+      matchesSearch =
+        (conductorFull && conductorFull.includes(term)) ||
+        (movil && movil.includes(term));
     }
 
     // derive origin/destination from ruta.destinos when possible
     const obtenerOrigenDestino = (hr) => {
       // prefer ruta embebida
-      const rutaPayload = hr.ruta || null
-      let destinos = null
+      const rutaPayload = hr.ruta || null;
+      let destinos = null;
 
-      if (rutaPayload && Array.isArray(rutaPayload.destinos) && rutaPayload.destinos.length) {
-        destinos = rutaPayload.destinos
+      if (
+        rutaPayload &&
+        Array.isArray(rutaPayload.destinos) &&
+        rutaPayload.destinos.length
+      ) {
+        destinos = rutaPayload.destinos;
       } else if (hr.rutaId) {
         // intentar encontrar la ruta en el dataset `rutas` cuando solo hay rutaId
-        const rutaLocal = rutas.find(r => Number(r.id) === Number(hr.rutaId))
-        if (rutaLocal && Array.isArray(rutaLocal.destinos) && rutaLocal.destinos.length) destinos = rutaLocal.destinos
+        const rutaLocal = rutas.find((r) => Number(r.id) === Number(hr.rutaId));
+        if (
+          rutaLocal &&
+          Array.isArray(rutaLocal.destinos) &&
+          rutaLocal.destinos.length
+        )
+          destinos = rutaLocal.destinos;
       }
 
-      if (!destinos || destinos.length === 0) return { origen: null, destino: null }
+      if (!destinos || destinos.length === 0)
+        return { origen: null, destino: null };
 
-      const sorted = [...destinos].sort((a,b)=> (a.orden||0)-(b.orden||0))
-      const first = sorted[0]
-      const last = sorted[sorted.length -1]
-      return { origen: first?.puntoVenta?.id || first?.puntoVenta || null, destino: last?.puntoVenta?.id || last?.puntoVenta || null }
-    }
+      const sorted = [...destinos].sort(
+        (a, b) => (a.orden || 0) - (b.orden || 0),
+      );
+      const first = sorted[0];
+      const last = sorted[sorted.length - 1];
+      return {
+        origen: first?.puntoVenta?.id || first?.puntoVenta || null,
+        destino: last?.puntoVenta?.id || last?.puntoVenta || null,
+      };
+    };
 
-    const { origen: hOrigen, destino: hDestino } = obtenerOrigenDestino(h)
+    const { origen: hOrigen, destino: hDestino } = obtenerOrigenDestino(h);
 
-    const matchesRuta = rutaFilter === 'todos' || Number(h.rutaId || h.ruta?.id) === Number(rutaFilter)
-    const matchesOrigen = origenFilter === 'todos' || (hOrigen && Number(hOrigen) === Number(origenFilter))
-    const matchesDestino = destinoFilter === 'todos' || (hDestino && Number(hDestino) === Number(destinoFilter))
+    const matchesRuta =
+      rutaFilter === "todos" ||
+      Number(h.rutaId || h.ruta?.id) === Number(rutaFilter);
+    const matchesOrigen =
+      origenFilter === "todos" ||
+      (hOrigen && Number(hOrigen) === Number(origenFilter));
+    const matchesDestino =
+      destinoFilter === "todos" ||
+      (hDestino && Number(hDestino) === Number(destinoFilter));
 
-    const matchesStatus = statusFilter === 'todos' ||
-      (statusFilter === 'activos' && h.estado) ||
-      (statusFilter === 'inactivos' && !h.estado)
+    const matchesStatus =
+      statusFilter === "todos" ||
+      (statusFilter === "activos" && h.estado) ||
+      (statusFilter === "inactivos" && !h.estado);
 
     // Date filter: compare only YYYY-MM-DD part
-    let matchesDate = true
+    let matchesDate = true;
     if (dateFilter) {
       try {
-        const selected = format(dateFilter, 'yyyy-MM-dd')
-        const horarioDate = (h.fecha || '').split('T')[0]
-        matchesDate = horarioDate === selected
+        const selected = format(dateFilter, "yyyy-MM-dd");
+        const horarioDate = (h.fecha || "").split("T")[0];
+        matchesDate = horarioDate === selected;
       } catch (e) {
-        matchesDate = true
+        matchesDate = true;
       }
     }
 
-    return matchesSearch && matchesRuta && matchesOrigen && matchesDestino && matchesStatus && matchesDate
-  })
+    return (
+      matchesSearch &&
+      matchesRuta &&
+      matchesOrigen &&
+      matchesDestino &&
+      matchesStatus &&
+      matchesDate
+    );
+  });
 
   // Paginación
-  const totalItems = filteredHorarios.length
-  const totalPages = Math.ceil(totalItems / itemsPerPage) || 1
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const paginatedHorarios = filteredHorarios.slice(startIndex, startIndex + itemsPerPage)
+  const totalItems = filteredHorarios.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedHorarios = filteredHorarios.slice(
+    startIndex,
+    startIndex + itemsPerPage,
+  );
 
-  const navigate = useNavigate()
-  const openVentaPasajes = (id) => navigate(`/horarios/venta/${id}`)
+  const navigate = useNavigate();
+  const openVentaPasajes = (id) => navigate(`/horarios/venta/${id}`);
 
   return (
     <div className="horarios-view">
       {/* Toast Notification */}
       {notification && (
         <div className={`notification ${notification.type}`}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            {notification.type === 'success' ? (
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            {notification.type === "success" ? (
               <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
             ) : (
               <>
@@ -532,7 +684,12 @@ function Horarios() {
         <div className="toolbar">
           <div className="filter-group">
             <div className="search-box">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
@@ -545,41 +702,51 @@ function Horarios() {
               />
             </div>
 
-            <select value={origenFilter} onChange={(e) => setOrigenFilter(e.target.value)} className="filter-select">
+            <select
+              value={origenFilter}
+              onChange={(e) => setOrigenFilter(e.target.value)}
+              className="filter-select"
+            >
               <option value="todos">Todos los Orígenes</option>
-              {puntosVenta.map(p => (
-                <option key={p.id} value={p.id}>{p.nombre}</option>
+              {puntosVenta.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nombre}
+                </option>
               ))}
             </select>
 
-            <select value={destinoFilter} onChange={(e) => setDestinoFilter(e.target.value)} className="filter-select">
+            <select
+              value={destinoFilter}
+              onChange={(e) => setDestinoFilter(e.target.value)}
+              className="filter-select"
+            >
               <option value="todos">Todos los Destinos</option>
-              {puntosVenta.map(p => (
-                <option key={p.id} value={p.id}>{p.nombre}</option>
+              {puntosVenta.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nombre}
+                </option>
               ))}
             </select>
 
-<LocalizationProvider dateAdapter={AdapterDateFns}>
-  <DatePicker
-    label="Fecha"
-    value={dateFilter}
-    onChange={(newVal) => setDateFilter(newVal)}
-    slotProps={{
-      field: {
-        clearable: true, // Esto añade el botón "✖" de forma nativa
-        onClear: () => setDateFilter(null),
-      },
-      textField: {
-        size: "small",
-        variant: "outlined",
-        sx: { minWidth: 160 },
-        InputLabelProps: { shrink: true }
-      }
-    }}
-  />
-</LocalizationProvider>
-
-
+            <LocalizationProvider dateAdapter={AdapterDateFns}>
+              <DatePicker
+                label="Fecha"
+                value={dateFilter}
+                onChange={(newVal) => setDateFilter(newVal)}
+                slotProps={{
+                  field: {
+                    clearable: true, // Esto añade el botón "✖" de forma nativa
+                    onClear: () => setDateFilter(null),
+                  },
+                  textField: {
+                    size: "small",
+                    variant: "outlined",
+                    sx: { minWidth: 160 },
+                    InputLabelProps: { shrink: true },
+                  },
+                }}
+              />
+            </LocalizationProvider>
 
             {/* <select
               value={statusFilter}
@@ -593,7 +760,12 @@ function Horarios() {
           </div>
 
           <button className="add-btn" onClick={handleAddNew}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
@@ -605,7 +777,13 @@ function Horarios() {
         <div className="table-container">
           {loading ? (
             <div className="empty-state">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: 'spin 1s linear infinite' }}>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                style={{ animation: "spin 1s linear infinite" }}
+              >
                 <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
               </svg>
               <h3>Cargando horarios...</h3>
@@ -622,33 +800,53 @@ function Horarios() {
                   <th>Movil</th>
                   <th>Conductor</th>
                   {/* <th>Estado</th> */}
-                  <th style={{ textAlign: 'right' }}>Acciones</th>
+                  <th style={{ textAlign: "right" }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedHorarios.map((h, idx) => {
                   const nro = startIndex + idx + 1;
-                  const rutaInfo = getRutaObj(h.rutaId || h.ruta?.id)
-                  const vehInfo = getVehiculoObj(h.vehiculoId || h.vehiculo?.id)
+                  const rutaInfo = getRutaObj(h.rutaId || h.ruta?.id);
+                  const vehInfo = getVehiculoObj(
+                    h.vehiculoId || h.vehiculo?.id,
+                  );
 
                   // derive origin/destination names from h.ruta.destinos if available
-                  let origenName = rutaInfo.origenNombre || '';
-                  let destinoName = rutaInfo.destinoNombre || '';
+                  let origenName = rutaInfo.origenNombre || "";
+                  let destinoName = rutaInfo.destinoNombre || "";
                   const rutaFromPayload = h.ruta || null;
-                  if (rutaFromPayload && Array.isArray(rutaFromPayload.destinos) && rutaFromPayload.destinos.length) {
-                    const sorted = [...rutaFromPayload.destinos].sort((a,b)=> (a.orden||0)-(b.orden||0));
+                  if (
+                    rutaFromPayload &&
+                    Array.isArray(rutaFromPayload.destinos) &&
+                    rutaFromPayload.destinos.length
+                  ) {
+                    const sorted = [...rutaFromPayload.destinos].sort(
+                      (a, b) => (a.orden || 0) - (b.orden || 0),
+                    );
                     const first = sorted[0];
-                    const last = sorted[sorted.length-1];
-                    origenName = first?.puntoVenta?.nombre || first?.puntoVenta || origenName;
-                    destinoName = last?.puntoVenta?.nombre || last?.puntoVenta || destinoName;
+                    const last = sorted[sorted.length - 1];
+                    origenName =
+                      first?.puntoVenta?.nombre ||
+                      first?.puntoVenta ||
+                      origenName;
+                    destinoName =
+                      last?.puntoVenta?.nombre ||
+                      last?.puntoVenta ||
+                      destinoName;
                   }
 
-                  const conductorFull = vehInfo?.conductor ? `${vehInfo.conductor.nombres || ''} ${vehInfo.conductor.apellidos || ''}`.trim() : '';
+                  const conductorFull = vehInfo?.conductor
+                    ? `${vehInfo.conductor.nombres || ""} ${vehInfo.conductor.apellidos || ""}`.trim()
+                    : "";
 
-                  const actionAllowed = isHorarioActionAllowed(h)
+                  const actionAllowed = isHorarioActionAllowed(h);
 
                   return (
-                    <tr key={h.id} onClick={() => openVentaPasajes(h.id)} style={{ cursor: 'pointer' }}>
+                    <tr
+                      key={h.id}
+                      onClick={() => openVentaPasajes(h.id)}
+                      style={{ cursor: "pointer" }}
+                    >
                       <td>{nro}</td>
                       <td>
                         <span className="date-pill">{formatDate(h.fecha)}</span>
@@ -663,22 +861,40 @@ function Horarios() {
                         <div>{destinoName}</div>
                       </td>
                       <td>
-                        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                          <div style={{ background:'#0f172a', color:'#fff', borderRadius:8, padding:'6px 10px', fontSize:18, fontWeight:700 }}>
-                            {vehInfo?.movil ?? ''}
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 10,
+                          }}
+                        >
+                          <div
+                            style={{
+                              background: "#0f172a",
+                              color: "#fff",
+                              borderRadius: 8,
+                              padding: "6px 10px",
+                              fontSize: 18,
+                              fontWeight: 700,
+                            }}
+                          >
+                            {vehInfo?.movil ?? ""}
                           </div>
                         </div>
                       </td>
                       <td>
-                        <div style={{ fontSize:14 }}>{conductorFull}</div>
+                        <div style={{ fontSize: 14 }}>{conductorFull}</div>
                       </td>
                       {/* <td>
                         <span className={`status-badge ${h.estado ? 'active' : 'inactive'}`}>
                           {h.estado ? 'Activo' : 'Inactivo'}
                         </span>
                       </td> */}
-                      <td style={{ textAlign: 'right' }}>
-                        <div className="action-buttons" style={{ justifyContent: 'flex-end' }}>
+                      <td style={{ textAlign: "right" }}>
+                        <div
+                          className="action-buttons"
+                          style={{ justifyContent: "flex-end" }}
+                        >
                           {/* <button
                             onClick={() => toggleEstado(h)}
                             className="action-btn edit-btn"
@@ -692,52 +908,118 @@ function Horarios() {
                           </button> */}
                           <button
                             onClick={(e) => {
-                              e.stopPropagation()
-                              if (actionAllowed) return handleEdit(h)
-                              const todayStr = new Date().toLocaleDateString('en-CA')
-                              const now = new Date()
-                              const nowStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0')
+                              e.stopPropagation();
+                              if (actionAllowed) return handleEdit(h);
+                              const todayStr = new Date().toLocaleDateString(
+                                "en-CA",
+                              );
+                              const now = new Date();
+                              const nowStr =
+                                String(now.getHours()).padStart(2, "0") +
+                                ":" +
+                                String(now.getMinutes()).padStart(2, "0");
                               if (!h.fecha) {
-                                showNotification('No se puede editar: fecha inválida', 'error')
+                                showNotification(
+                                  "No se puede editar: fecha inválida",
+                                  "error",
+                                );
                               } else if (h.fecha < todayStr) {
-                                showNotification('No se puede editar: la fecha del horario ya pasó', 'error')
-                              } else if (h.fecha === todayStr && h.hora && h.hora < nowStr) {
-                                showNotification('No se puede editar: la hora del horario ya pasó', 'error')
+                                showNotification(
+                                  "No se puede editar: la fecha del horario ya pasó",
+                                  "error",
+                                );
+                              } else if (
+                                h.fecha === todayStr &&
+                                h.hora &&
+                                h.hora < nowStr
+                              ) {
+                                showNotification(
+                                  "No se puede editar: la hora del horario ya pasó",
+                                  "error",
+                                );
                               } else {
-                                showNotification('No se puede editar este horario', 'error')
+                                showNotification(
+                                  "No se puede editar este horario",
+                                  "error",
+                                );
                               }
                             }}
                             className="action-btn edit-btn"
-                            title={actionAllowed ? 'Editar Horario' : 'No se puede editar: horario con fecha/hora pasada'}
-                            style={{ opacity: actionAllowed ? 1 : 0.5, cursor: actionAllowed ? 'pointer' : 'not-allowed' }}
+                            title={
+                              actionAllowed
+                                ? "Editar Horario"
+                                : "No se puede editar: horario con fecha/hora pasada"
+                            }
+                            style={{
+                              opacity: actionAllowed ? 1 : 0.5,
+                              cursor: actionAllowed ? "pointer" : "not-allowed",
+                            }}
                           >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            >
                               <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
                               <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
                             </svg>
                           </button>
                           <button
                             onClick={(e) => {
-                              e.stopPropagation()
-                              if (actionAllowed) return handleDelete(h)
-                              const todayStr = new Date().toLocaleDateString('en-CA')
-                              const now = new Date()
-                              const nowStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0')
+                              e.stopPropagation();
+                              if (actionAllowed) return handleDelete(h);
+                              const todayStr = new Date().toLocaleDateString(
+                                "en-CA",
+                              );
+                              const now = new Date();
+                              const nowStr =
+                                String(now.getHours()).padStart(2, "0") +
+                                ":" +
+                                String(now.getMinutes()).padStart(2, "0");
                               if (!h.fecha) {
-                                showNotification('No se puede eliminar: fecha inválida', 'error')
+                                showNotification(
+                                  "No se puede eliminar: fecha inválida",
+                                  "error",
+                                );
                               } else if (h.fecha < todayStr) {
-                                showNotification('No se puede eliminar: la fecha del horario ya pasó', 'error')
-                              } else if (h.fecha === todayStr && h.hora && h.hora < nowStr) {
-                                showNotification('No se puede eliminar: la hora del horario ya pasó', 'error')
+                                showNotification(
+                                  "No se puede eliminar: la fecha del horario ya pasó",
+                                  "error",
+                                );
+                              } else if (
+                                h.fecha === todayStr &&
+                                h.hora &&
+                                h.hora < nowStr
+                              ) {
+                                showNotification(
+                                  "No se puede eliminar: la hora del horario ya pasó",
+                                  "error",
+                                );
                               } else {
-                                showNotification('No se puede eliminar este horario', 'error')
+                                showNotification(
+                                  "No se puede eliminar este horario",
+                                  "error",
+                                );
                               }
                             }}
                             className="action-btn delete-btn"
-                            title={actionAllowed ? 'Eliminar Horario' : 'No se puede eliminar: horario con fecha/hora pasada'}
-                            style={{ opacity: actionAllowed ? 1 : 0.5, cursor: actionAllowed ? 'pointer' : 'not-allowed' }}
+                            title={
+                              actionAllowed
+                                ? "Eliminar Horario"
+                                : "No se puede eliminar: horario con fecha/hora pasada"
+                            }
+                            style={{
+                              opacity: actionAllowed ? 1 : 0.5,
+                              cursor: actionAllowed ? "pointer" : "not-allowed",
+                            }}
                           >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            >
                               <polyline points="3 6 5 6 21 6" />
                               <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
                               <line x1="10" y1="11" x2="10" y2="17" />
@@ -747,7 +1029,7 @@ function Horarios() {
                         </div>
                       </td>
                     </tr>
-                  )
+                  );
                 })}
               </tbody>
             </table>
@@ -755,7 +1037,12 @@ function Horarios() {
 
           {!loading && filteredHorarios.length === 0 && (
             <div className="empty-state">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
@@ -769,7 +1056,9 @@ function Horarios() {
         {!loading && filteredHorarios.length > 0 && (
           <div className="pagination-container">
             <div className="pagination-info">
-              Mostrando {startIndex + 1} a {Math.min(startIndex + itemsPerPage, totalItems)} de {totalItems} horarios
+              Mostrando {startIndex + 1} a{" "}
+              {Math.min(startIndex + itemsPerPage, totalItems)} de {totalItems}{" "}
+              horarios
               <select
                 value={itemsPerPage}
                 onChange={(e) => setItemsPerPage(Number(e.target.value))}
@@ -783,15 +1072,15 @@ function Horarios() {
             <div className="pagination-controls">
               <button
                 className="page-btn"
-                onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
                 disabled={currentPage === 1}
               >
                 « Anterior
               </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
                 <button
                   key={p}
-                  className={`page-btn ${currentPage === p ? 'active' : ''}`}
+                  className={`page-btn ${currentPage === p ? "active" : ""}`}
                   onClick={() => setCurrentPage(p)}
                 >
                   {p}
@@ -799,7 +1088,9 @@ function Horarios() {
               ))}
               <button
                 className="page-btn"
-                onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(p + 1, totalPages))
+                }
                 disabled={currentPage === totalPages}
               >
                 Siguiente »
@@ -814,9 +1105,17 @@ function Horarios() {
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>{editingHorario ? 'Editar Horario' : 'Nuevo Horario'}</h2>
-              <button className="modal-close" onClick={() => setShowAddModal(false)}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <h2>{editingHorario ? "Editar Horario" : "Nuevo Horario"}</h2>
+              <button
+                className="modal-close"
+                onClick={() => setShowAddModal(false)}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
                   <line x1="18" y1="6" x2="6" y2="18" />
                   <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
@@ -831,19 +1130,25 @@ function Horarios() {
                     type="date"
                     className="input-field"
                     value={formData.fecha}
-                    min={new Date().toLocaleDateString('en-CA')}
+                    min={new Date().toLocaleDateString("en-CA")}
                     onChange={(e) => {
-                      const newFecha = e.target.value
-                      setFormData({ ...formData, fecha: newFecha })
+                      const newFecha = e.target.value;
+                      setFormData({ ...formData, fecha: newFecha });
                       // si la fecha seleccionada es hoy, validar la hora seleccionada
-                      const todayStr = new Date().toLocaleDateString('en-CA')
+                      const todayStr = new Date().toLocaleDateString("en-CA");
                       if (newFecha === todayStr && formData.hora) {
-                        const now = new Date()
-                        const nowStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0')
-                        if (formData.hora < nowStr) setTimeError('La hora no puede ser menor a la hora actual')
-                        else setTimeError('')
+                        const now = new Date();
+                        const nowStr =
+                          String(now.getHours()).padStart(2, "0") +
+                          ":" +
+                          String(now.getMinutes()).padStart(2, "0");
+                        if (formData.hora < nowStr)
+                          setTimeError(
+                            "La hora no puede ser menor a la hora actual",
+                          );
+                        else setTimeError("");
                       } else {
-                        setTimeError('')
+                        setTimeError("");
                       }
                     }}
                     required
@@ -852,53 +1157,78 @@ function Horarios() {
 
                 <div className="input-group" ref={timeListRef}>
                   <label className="input-label">Hora de Salida</label>
-                  <div style={{ position: 'relative' }}>
+                  <div style={{ position: "relative" }}>
                     <input
                       type="text"
                       className="input-field"
-                      placeholder={formData.hora || 'Buscar hora, ej. 08:30'}
+                      placeholder={formData.hora || "Buscar hora, ej. 08:30"}
                       value={timeSearch}
-                      onChange={(e) => { setTimeSearch(e.target.value); setShowTimeList(true) }}
+                      onChange={(e) => {
+                        setTimeSearch(e.target.value);
+                        setShowTimeList(true);
+                      }}
                       onFocus={() => setShowTimeList(true)}
                       aria-label="Buscar hora"
                     />
                     <input type="hidden" value={formData.hora} />
 
                     {showTimeList && (
-                      <div style={{
-                        position: 'absolute',
-                        zIndex: 40,
-                        left: 0,
-                        right: 0,
-                        maxHeight: 200,
-                        overflow: 'auto',
-                        background: '#fff',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: 6,
-                        boxShadow: '0 6px 18px rgba(15,23,42,0.08)'
-                      }}>
-                          {(filteredTimes.length === 0) ? (
-                          <div style={{ padding: 10, color: '#374151' }}>No hay horas</div>
+                      <div
+                        style={{
+                          position: "absolute",
+                          zIndex: 40,
+                          left: 0,
+                          right: 0,
+                          maxHeight: 200,
+                          overflow: "auto",
+                          background: "#fff",
+                          border: "1px solid #e5e7eb",
+                          borderRadius: 6,
+                          boxShadow: "0 6px 18px rgba(15,23,42,0.08)",
+                        }}
+                      >
+                        {filteredTimes.length === 0 ? (
+                          <div style={{ padding: 10, color: "#374151" }}>
+                            No hay horas
+                          </div>
                         ) : (
-                          filteredTimes.map(t => (
+                          filteredTimes.map((t) => (
                             <div
                               key={t}
                               onClick={() => {
                                 // select time and validate if fecha is today
-                                const newHora = t
-                                const todayStr = new Date().toLocaleDateString('en-CA')
-                                const now = new Date()
-                                const nowStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0')
-                                if (formData.fecha === todayStr && newHora < nowStr) {
-                                  setTimeError('La hora no puede ser menor a la hora actual')
+                                const newHora = t;
+                                const todayStr = new Date().toLocaleDateString(
+                                  "en-CA",
+                                );
+                                const now = new Date();
+                                const nowStr =
+                                  String(now.getHours()).padStart(2, "0") +
+                                  ":" +
+                                  String(now.getMinutes()).padStart(2, "0");
+                                if (
+                                  formData.fecha === todayStr &&
+                                  newHora < nowStr
+                                ) {
+                                  setTimeError(
+                                    "La hora no puede ser menor a la hora actual",
+                                  );
                                 } else {
-                                  setTimeError('')
+                                  setTimeError("");
                                 }
-                                setFormData({ ...formData, hora: newHora })
-                                setShowTimeList(false)
-                                setTimeSearch('')
+                                setFormData({ ...formData, hora: newHora });
+                                setShowTimeList(false);
+                                setTimeSearch("");
                               }}
-                              style={{ padding: '8px 10px', cursor: 'pointer', background: formData.hora === t ? '#eef2ff' : 'transparent', color: '#0f172a' }}
+                              style={{
+                                padding: "8px 10px",
+                                cursor: "pointer",
+                                background:
+                                  formData.hora === t
+                                    ? "#eef2ff"
+                                    : "transparent",
+                                color: "#0f172a",
+                              }}
                             >
                               {t}
                             </div>
@@ -908,7 +1238,11 @@ function Horarios() {
                     )}
                   </div>
                   {timeError && (
-                    <div style={{ color: '#dc2626', fontSize: 13, marginTop: 6 }}>{timeError}</div>
+                    <div
+                      style={{ color: "#dc2626", fontSize: 13, marginTop: 6 }}
+                    >
+                      {timeError}
+                    </div>
                   )}
                 </div>
               </div>
@@ -919,17 +1253,20 @@ function Horarios() {
                 <select
                   className="input-field"
                   value={formData.rutaId}
-                  onChange={(e) => setFormData({ ...formData, rutaId: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, rutaId: e.target.value })
+                  }
                   required
                 >
                   <option value="">Seleccione una ruta...</option>
-                  {rutas.map(r => {
-                    const rObj = getRutaObj(r.id)
+                  {rutas.map((r) => {
+                    const rObj = getRutaObj(r.id);
                     return (
                       <option key={r.id} value={r.id}>
-                        {rObj.origenNombre} → {rObj.destinoNombre} (Tarifa: Bs. {Number(rObj.tarifa).toFixed(2)})
+                        {rObj.origenNombre} → {rObj.destinoNombre} (Tarifa: Bs.{" "}
+                        {Number(rObj.tarifa).toFixed(2)})
                       </option>
-                    )
+                    );
                   })}
                 </select>
               </div>
@@ -937,47 +1274,77 @@ function Horarios() {
               {/* Vehículo Asignado (vehiculoId) */}
               <div className="input-group">
                 <label className="input-label">Vehículo Asignado</label>
-                <div ref={vehicleListRef} style={{ position: 'relative' }}>
+                <div ref={vehicleListRef} style={{ position: "relative" }}>
                   {(() => {
-                    const sel = getVehiculoObj(formData.vehiculoId)
-                    const selText = sel?.placa ? `Móvil ${sel.movil} - Placa ${sel.placa} ${sel.conductor ? `- ${sel.conductor.nombres || ''} ${sel.conductor.apellidos || ''}` : ''}` : ''
+                    const sel = getVehiculoObj(formData.vehiculoId);
+                    const selText = sel?.placa
+                      ? `Móvil ${sel.movil} - Placa ${sel.placa} ${sel.conductor ? `- ${sel.conductor.nombres || ""} ${sel.conductor.apellidos || ""}` : ""}`
+                      : "";
                     return (
                       <input
                         type="text"
                         className="input-field"
-                        placeholder={selText || 'Buscar vehículo por placa, móvil o conductor...'}
+                        placeholder={
+                          selText ||
+                          "Buscar vehículo por placa, móvil o conductor..."
+                        }
                         value={vehicleSearch}
-                        onChange={(e) => { setVehicleSearch(e.target.value); setShowVehicleList(true) }}
+                        onChange={(e) => {
+                          setVehicleSearch(e.target.value);
+                          setShowVehicleList(true);
+                        }}
                         onFocus={() => setShowVehicleList(true)}
                         aria-label="Buscar vehículo"
                       />
-                    )
+                    );
                   })()}
 
                   {showVehicleList && (
-                    <div style={{
-                      position: 'absolute',
-                      zIndex: 40,
-                      left: 0,
-                      right: 0,
-                      maxHeight: 220,
-                      overflow: 'auto',
-                      background: '#fff',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: 6,
-                      boxShadow: '0 6px 18px rgba(15,23,42,0.08)'
-                    }}>
-                      {(filteredVehicles.length === 0) ? (
-                        <div style={{ padding: 10, color: '#374151' }}>No hay vehículos</div>
+                    <div
+                      style={{
+                        position: "absolute",
+                        zIndex: 40,
+                        left: 0,
+                        right: 0,
+                        maxHeight: 220,
+                        overflow: "auto",
+                        background: "#fff",
+                        border: "1px solid #e5e7eb",
+                        borderRadius: 6,
+                        boxShadow: "0 6px 18px rgba(15,23,42,0.08)",
+                      }}
+                    >
+                      {filteredVehicles.length === 0 ? (
+                        <div style={{ padding: 10, color: "#374151" }}>
+                          No hay vehículos
+                        </div>
                       ) : (
-                        filteredVehicles.map(v => (
+                        filteredVehicles.map((v) => (
                           <div
                             key={v.id}
-                            onClick={() => { setFormData({ ...formData, vehiculoId: v.id }); setShowVehicleList(false); setVehicleSearch('') }}
-                            style={{ padding: '8px 10px', cursor: 'pointer', background: Number(formData.vehiculoId) === Number(v.id) ? '#eef2ff' : 'transparent', color: '#0f172a' }}
+                            onClick={() => {
+                              setFormData({ ...formData, vehiculoId: v.id });
+                              setShowVehicleList(false);
+                              setVehicleSearch("");
+                            }}
+                            style={{
+                              padding: "8px 10px",
+                              cursor: "pointer",
+                              background:
+                                Number(formData.vehiculoId) === Number(v.id)
+                                  ? "#eef2ff"
+                                  : "transparent",
+                              color: "#0f172a",
+                            }}
                           >
-                            <div style={{ fontWeight: 700 }}>{`Móvil ${v.movil} - Placa ${v.placa}`}</div>
-                            <div style={{ fontSize: 12, color: '#374151' }}>{v.conductor ? `${v.conductor.nombres || ''} ${v.conductor.apellidos || ''}` : ''}</div>
+                            <div
+                              style={{ fontWeight: 700 }}
+                            >{`Móvil ${v.movil} - Placa ${v.placa}`}</div>
+                            <div style={{ fontSize: 12, color: "#374151" }}>
+                              {v.conductor
+                                ? `${v.conductor.nombres || ""} ${v.conductor.apellidos || ""}`
+                                : ""}
+                            </div>
                           </div>
                         ))
                       )}
@@ -1015,7 +1382,9 @@ function Horarios() {
                   Cancelar
                 </button>
                 <button type="submit" className="save-btn" disabled={saving}>
-                  {saving ? 'Guardando...' : (editingHorario ? 'Actualizar' : 'Crear') + ' Horario'}
+                  {saving
+                    ? "Guardando..."
+                    : (editingHorario ? "Actualizar" : "Crear") + " Horario"}
                 </button>
               </div>
             </form>
@@ -1028,30 +1397,57 @@ function Horarios() {
         <div className="modal-overlay" onClick={() => setHorarioToDelete(null)}>
           <div
             className="modal-content confirmation-modal"
-            style={{ maxWidth: '420px' }}
+            style={{ maxWidth: "420px" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header">
               <h2>Confirmar Eliminación</h2>
-              <button className="modal-close" onClick={() => setHorarioToDelete(null)}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <button
+                className="modal-close"
+                onClick={() => setHorarioToDelete(null)}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
                   <line x1="18" y1="6" x2="6" y2="18" />
                   <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
               </button>
             </div>
-            <div style={{ padding: '24px 28px' }}>
-                <p style={{ color: 'var(--slate-700)', fontSize: '15px', lineHeight: '1.6', margin: 0 }}>
-                ¿Está seguro que desea eliminar el horario programado para el <strong>{formatDate(horarioToDelete.fecha)} a las {horarioToDelete.hora}</strong>?
+            <div style={{ padding: "24px 28px" }}>
+              <p
+                style={{
+                  color: "var(--slate-700)",
+                  fontSize: "15px",
+                  lineHeight: "1.6",
+                  margin: 0,
+                }}
+              >
+                ¿Está seguro que desea eliminar el horario programado para el{" "}
+                <strong>
+                  {formatDate(horarioToDelete.fecha)} a las{" "}
+                  {horarioToDelete.hora}
+                </strong>
+                ?
               </p>
             </div>
-            <div className="modal-actions" style={{ padding: '20px 28px' }}>
-              <button className="cancel-btn" onClick={() => setHorarioToDelete(null)}>
+            <div className="modal-actions" style={{ padding: "20px 28px" }}>
+              <button
+                className="cancel-btn"
+                onClick={() => setHorarioToDelete(null)}
+              >
                 Cancelar
               </button>
               <button
                 className="save-btn"
-                style={{ background: '#ef4444', borderColor: '#ef4444', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)' }}
+                style={{
+                  background: "#ef4444",
+                  borderColor: "#ef4444",
+                  boxShadow: "0 4px 12px rgba(239, 68, 68, 0.25)",
+                }}
                 onClick={confirmDelete}
               >
                 Eliminar
@@ -1063,7 +1459,7 @@ function Horarios() {
 
       {/* Venta de Pasajes ahora es una ruta: /horarios/venta/:id - navegamos en openVentaPasajes */}
     </div>
-  )
+  );
 }
 
-export default Horarios
+export default Horarios;

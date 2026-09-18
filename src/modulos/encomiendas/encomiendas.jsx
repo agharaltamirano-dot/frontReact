@@ -601,58 +601,106 @@ console.log("Payload a enviar:", payload);
 
   // Handler Imprimir Ticket: llama a GET api/encomienda/recibo/${id}
   const handleOpenPrintModal = async (encomienda) => {
-    showNotification(`Generando comprobante para ${encomienda.numero}...`, 'info');
-    try {
-      const res = await fetch(`/api/encomienda/recibo/${encomienda.id}`, { headers: authHeaders() });
-      if (!res.ok) throw new Error(`Error al obtener recibo (${res.status})`);
+  showNotification(`Generando comprobante para ${encomienda.numero}...`, 'info');
+  
+  try {
+    const res = await fetch(`http://localhost:5093/api/encomienda/recibo/${encomienda.id}`, { headers: authHeaders() });
+    if (!res.ok) throw new Error(`Error al obtener recibo (${res.status})`);
 
-      const contentType = res.headers.get('content-type') || '';
-      // Si es PDF, abrir en nueva pestaña
-      if (contentType.includes('application/pdf')) {
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
-        // revocar después de un tiempo
-        setTimeout(() => URL.revokeObjectURL(url), 60000);
-        showNotification('Comprobante abierto en nueva pestaña', 'success');
-        return;
-      }
+    const contentType = res.headers.get('content-type') || '';
 
-      // Si devuelve JSON (por ejemplo HTML o datos), mostrar en modal
-      if (contentType.includes('application/json')) {
-        const data = await res.json();
-        setPrintModal({ open: true, encomienda: data });
-        return;
-      }
-
-      // Fallback: tratar como blob y abrir
+    // CASO 1: Si es un PDF (Impresión directa via iframe)
+    if (contentType.includes('application/pdf')) {
       const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
-      showNotification('Comprobante abierto en nueva pestaña', 'success');
-    } catch (err) {
-      console.error(err);
-      showNotification(`No se pudo obtener el recibo: ${err.message || err}`, 'error');
+      const blobUrl = URL.createObjectURL(blob);
+
+      const iframe = document.createElement('iframe');
+      Object.assign(iframe.style, {
+        position: 'fixed',
+        right: '0',
+        bottom: '0',
+        width: '0',
+        height: '0',
+        border: '0',
+        opacity: '0',
+      });
+      iframe.src = blobUrl;
+
+      iframe.onload = () => {
+        // Ejecutamos la impresión directamente sobre el iframe
+        setTimeout(() => {
+          try {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+            
+            // ESCUCHA SEGURA: Escuchamos el cierre del diálogo desde nuestra propia ventana
+            // para evitar problemas de CORS o restricciones del PDF
+            window.addEventListener('afterprint', function handleClose() {
+              try { document.body.removeChild(iframe); } catch (_) {}
+              try { URL.revokeObjectURL(blobUrl); } catch (_) {}
+              window.removeEventListener('afterprint', handleClose); // Limpiamos el oyente
+            });
+
+          } catch (e) {
+            console.error('Error al lanzar la impresión:', e);
+            // Si todo falla de verdad, abre el PDF limpio en una pestaña
+            window.open(blobUrl, '_blank');
+          }
+        }, 800); // 800ms da tiempo perfecto al visor de PDF para renderizar
+      };
+
+      document.body.appendChild(iframe);
+      showNotification('Preparando comprobante para imprimir...', 'info');
+      return;
     }
-  };
+
+    // CASO 2: Si devuelve un JSON con datos estructurados para renderizar en un modal
+    if (contentType.includes('application/json')) {
+      const data = await res.json();
+      setPrintModal({ open: true, encomienda: data });
+      return;
+    }
+
+    // CASO 3: Cualquier otro tipo de archivo
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    showNotification('Comprobante abierto en nueva pestaña', 'success');
+
+  } catch (err) {
+    console.error(err);
+    showNotification(`No se pudo obtener el recibo: ${err.message || err}`, 'error');
+  }
+};
+
 function coincideDestino(destino) {
   try {
-    // Obtener datos de sesión
     const authData = JSON.parse(sessionStorage.getItem("authData") || "{}")
-    // Verificar que exista el usuario y su punto de venta
     const puntoVentaNombre = authData?.usuario?.puntoVenta?.nombre
 
-    if (!puntoVentaNombre) {
-      return false
+    if (!puntoVentaNombre || !destino) return false
+
+    const pv = puntoVentaNombre.toUpperCase()
+    const dest = destino.toUpperCase()
+
+    // Caso 1: ambos son TARIJA
+    if (pv === "TARIJA" && dest === "TARIJA") {
+      return true
     }
 
-    // Comparar con el destino recibido
-    return destino.toLowerCase() === puntoVentaNombre.toLowerCase()
+    // Caso 2: ambos son distintos de TARIJA
+    if (pv !== "TARIJA" && dest !== "TARIJA") {
+      return true
+    }
+
+    // Caso contrario
+    return false
   } catch (error) {
+    console.error("Error en coincideDestino:", error)
     return false
   }
 }
+
 
   const handleClosePrintModal = () => {
     setPrintModal({ open: false, encomienda: null });

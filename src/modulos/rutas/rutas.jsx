@@ -55,7 +55,7 @@ function Rutas() {
   // Formulario
   const [formData, setFormData] = useState({
     origenId: 1,
-    destinoId: null,
+    destinoId: 2,
     dias: "",
     estado: true,
     tarifa: 15,
@@ -86,7 +86,7 @@ function Rutas() {
     try {
       const data = await getRutas();
       if (Array.isArray(data) && data.length > 0) setRutas(data);
-      console.log('rutaas',data)
+      console.log("rutaas", data);
     } catch (err) {
       console.log("Usando lista local de rutas:", err.message);
     } finally {
@@ -143,31 +143,27 @@ function Rutas() {
       : null;
 
     // Origin (preserve id if exists)
-    payload
-      .push({
-        ...(existingOrigin?.id ? { id: existingOrigin.id } : {}),
-        esOrigen: true,
-        orden: 1,
-        puntoVentaId: origenIdNum || existingOriginPuntoId,
-        tarifa: existingOrigin?.tarifa ?? 0,
+    payload.push({
+      ...(existingOrigin?.id ? { id: existingOrigin.id } : {}),
+      esOrigen: true,
+      orden: 1,
+      puntoVentaId: origenIdNum || existingOriginPuntoId,
+      tarifa: existingOrigin?.tarifa ?? 0,
+    });
+    // Intermediates from UI (preserve ids when provided)
+    (intermediatesUI || []).forEach((mid, idx) => {
+      const midPunto =
+        mid?.puntoVentaId || mid?.puntoVentaId === 0
+          ? Number(mid.puntoVentaId)
+          : mid?.puntoVenta?.id || mid?.puntoVenta;
+      payload.push({
+        ...(mid?.id ? { id: mid.id } : {}),
+        esOrigen: false,
+        orden: 2 + idx,
+        puntoVentaId: Number(midPunto),
+        tarifa: mid?.tarifa ?? 0,
       });
-      (
-        // Intermediates from UI (preserve ids when provided)
-        intermediatesUI || []
-      )
-      .forEach((mid, idx) => {
-        const midPunto =
-          mid?.puntoVentaId || mid?.puntoVentaId === 0
-            ? Number(mid.puntoVentaId)
-            : mid?.puntoVenta?.id || mid?.puntoVenta;
-        payload.push({
-          ...(mid?.id ? { id: mid.id } : {}),
-          esOrigen: false,
-          orden: 2 + idx,
-          puntoVentaId: Number(midPunto),
-          tarifa: mid?.tarifa ?? 0,
-        });
-      });
+    });
 
     // Destination (preserve id if exists)
     const destOrden =
@@ -219,7 +215,9 @@ function Rutas() {
   const handleAddNew = () => {
     setFormData({
       origenId: 1,
-      destinoId: null,
+      // Mantener destinoId si ya lo definiste en la UI antes de abrir el modal,
+      // de lo contrario usar null como valor por defecto.
+      destinoId: formData?.destinoId ?? null,
       dias: "",
       estado: true,
       tarifa: 0,
@@ -249,14 +247,12 @@ function Rutas() {
       : [];
     const middle =
       sorted.length > 2
-        ? sorted
-            .slice(1, sorted.length - 1)
-            .map((d) => ({
-              id: d.id,
-              puntoVentaId: d.puntoVentaId || d.puntoVenta?.id || d.puntoVenta,
-              orden: d.orden,
-               tarifa: d.tarifa ?? 0,
-            }))
+        ? sorted.slice(1, sorted.length - 1).map((d) => ({
+            id: d.id,
+            puntoVentaId: d.puntoVentaId || d.puntoVenta?.id || d.puntoVenta,
+            orden: d.orden,
+            tarifa: d.tarifa ?? 0,
+          }))
         : [];
 
     const origenPV = sorted.length
@@ -332,9 +328,17 @@ function Rutas() {
     const errors = {};
     if (!formData.origenId) errors.origen = "Seleccione un origen";
     if (!formData.destinoId) errors.destino = "Seleccione un destino";
-    if (formData.origenId && formData.destinoId && Number(formData.origenId) === Number(formData.destinoId)) errors.origenDestino = "El origen y el destino no pueden ser el mismo punto de venta";
-    if (!formData.dias || formData.dias.trim() === "") errors.dias = "Debe seleccionar al menos un día de operación";
-    if (Number(formData.tarifa) <= 0) errors.tarifa = "La tarifa debe ser mayor a 0";
+    if (
+      formData.origenId &&
+      formData.destinoId &&
+      Number(formData.origenId) === Number(formData.destinoId)
+    )
+      errors.origenDestino =
+        "El origen y el destino no pueden ser el mismo punto de venta";
+    if (!formData.dias || formData.dias.trim() === "")
+      errors.dias = "Debe seleccionar al menos un día de operación";
+    if (Number(formData.tarifa) <= 0)
+      errors.tarifa = "La tarifa debe ser mayor a 0";
 
     if (Object.keys(errors).length) {
       setFormErrors(errors);
@@ -396,7 +400,7 @@ function Rutas() {
         //       : r,
         //   ),
         // );
-    fetchRutas();
+        fetchRutas();
 
         showNotification("Ruta actualizada exitosamente");
       } else {
@@ -410,7 +414,7 @@ function Rutas() {
         }
 
         // setRutas((prev) => [newRuta, ...prev]);
-    fetchRutas();
+        fetchRutas();
 
         showNotification("Nueva ruta registrada exitosamente");
       }
@@ -431,34 +435,40 @@ function Rutas() {
     if (!rutaToDelete) return;
     try {
       await deleteRuta(rutaToDelete.id);
-      showNotification(`Ruta ${rutaToDelete.nombre || rutaToDelete.id} ${rutaToDelete.estado ? 'desactivada' : 'activada'}`, rutaToDelete.estado ? 'error' : 'success');
+      showNotification(
+        `Ruta ${rutaToDelete.nombre || rutaToDelete.id} ${rutaToDelete.estado ? "desactivada" : "activada"}`,
+        rutaToDelete.estado ? "error" : "success",
+      );
       fetchRutas();
     } catch (err) {
-      const msg = err.message || 'Error al eliminar ruta';
-      console.log('DELETE ruta error:', msg);
-      showNotification(msg, 'error');
+      const msg = err.message || "Error al eliminar ruta";
+      console.log("DELETE ruta error:", msg);
+      showNotification(msg, "error");
     }
     setRutaToDelete(null);
   };
 
   const updateIntermediateDestinoTarifa = (index, valor) => {
-  const num = Number(valor);
+    const num = Number(valor);
 
-  // Validación: positivo y <= 1000
-  if (isNaN(num) || num <= 0 || num > 1000) {
-    showNotification("La tarifa debe ser mayor a 0 y no superar 1000", "error");
-    return;
-  }
+    // Validación: positivo y <= 1000
+    if (isNaN(num) || num <= 0 || num > 1000) {
+      showNotification(
+        "La tarifa debe ser mayor a 0 y no superar 1000",
+        "error",
+      );
+      return;
+    }
 
-  setFormData((prev) => {
-    const list = [...(prev.destinosUI || [])];
-    list[index] = {
-      ...(list[index] || {}),
-      tarifa: num,
-    };
-    return { ...prev, destinosUI: list };
-  });
-};
+    setFormData((prev) => {
+      const list = [...(prev.destinosUI || [])];
+      list[index] = {
+        ...(list[index] || {}),
+        tarifa: num,
+      };
+      return { ...prev, destinosUI: list };
+    });
+  };
 
   // ── Filtrado ─────────────────────────────────────────────────────────────────
   // Visualización: convertir números de día en abreviatura (1->L,2->Ma...)
@@ -470,20 +480,46 @@ function Rutas() {
 
       // Determine origin (orden === 1) and destination (max orden)
       const originDest = destinosArr.find((d) => Number(d.orden) === 1) || null;
-      const maxOrden = destinosArr.reduce((m, d) => Math.max(m, Number(d.orden || 0)), 0);
-      const destDest = destinosArr.find((d) => Number(d.orden) === maxOrden) || null;
+      const maxOrden = destinosArr.reduce(
+        (m, d) => Math.max(m, Number(d.orden || 0)),
+        0,
+      );
+      const destDest =
+        destinosArr.find((d) => Number(d.orden) === maxOrden) || null;
 
       // Extract puntoVenta id (supports shapes: puntoVenta: {id,...} or puntoVentaId)
-      const origenPuntoId = originDest ? (originDest.puntoVenta?.id ?? originDest.puntoVentaId ?? originDest.puntoVenta) : null;
-      const destinoPuntoId = destDest ? (destDest.puntoVenta?.id ?? destDest.puntoVentaId ?? destDest.puntoVenta) : null;
+      const origenPuntoId = originDest
+        ? (originDest.puntoVenta?.id ??
+          originDest.puntoVentaId ??
+          originDest.puntoVenta)
+        : null;
+      const destinoPuntoId = destDest
+        ? (destDest.puntoVenta?.id ??
+          destDest.puntoVentaId ??
+          destDest.puntoVenta)
+        : null;
 
-      const origenObj = puntosVenta.find((p) => Number(p.id) === Number(origenPuntoId)) || (originDest?.puntoVenta && typeof originDest.puntoVenta === 'object' ? { nombre: originDest.puntoVenta.nombre || `Punto #${origenPuntoId}`, telefono: originDest.puntoVenta.telefono || 'Sin tel.' } : { nombre: `Punto #${origenPuntoId}`, telefono: 'Sin tel.' });
-      const destinoObj = puntosVenta.find((p) => Number(p.id) === Number(destinoPuntoId)) || (destDest?.puntoVenta && typeof destDest.puntoVenta === 'object' ? { nombre: destDest.puntoVenta.nombre || `Punto #${destinoPuntoId}`, telefono: destDest.puntoVenta.telefono || 'Sin tel.' } : { nombre: `Punto #${destinoPuntoId}`, telefono: 'Sin tel.' });
+      const origenObj =
+        puntosVenta.find((p) => Number(p.id) === Number(origenPuntoId)) ||
+        (originDest?.puntoVenta && typeof originDest.puntoVenta === "object"
+          ? {
+              nombre: originDest.puntoVenta.nombre || `Punto #${origenPuntoId}`,
+              telefono: originDest.puntoVenta.telefono || "Sin tel.",
+            }
+          : { nombre: `Punto #${origenPuntoId}`, telefono: "Sin tel." });
+      const destinoObj =
+        puntosVenta.find((p) => Number(p.id) === Number(destinoPuntoId)) ||
+        (destDest?.puntoVenta && typeof destDest.puntoVenta === "object"
+          ? {
+              nombre: destDest.puntoVenta.nombre || `Punto #${destinoPuntoId}`,
+              telefono: destDest.puntoVenta.telefono || "Sin tel.",
+            }
+          : { nombre: `Punto #${destinoPuntoId}`, telefono: "Sin tel." });
 
       // dias: normalizar a array de números
-      const diasRaw = String(r.dias || '');
+      const diasRaw = String(r.dias || "");
       const diasNums = diasRaw
-        .split(',')
+        .split(",")
         .map((s) => s.trim())
         .filter(Boolean)
         .map((n) => Number(n));
@@ -501,32 +537,43 @@ function Rutas() {
     .filter((item) => {
       // Origin/Destination select filters
       if (originFilterId && String(originFilterId).trim() !== "") {
-        if (String(item.origenPuntoId || '') !== String(originFilterId)) return false;
+        if (String(item.origenPuntoId || "") !== String(originFilterId))
+          return false;
       }
 
       if (destinationFilterId && String(destinationFilterId).trim() !== "") {
-        if (String(item.destinoPuntoId || '') !== String(destinationFilterId)) return false;
+        if (String(item.destinoPuntoId || "") !== String(destinationFilterId))
+          return false;
       }
       // Search filter compares against origen and destino nombre (from puntoVenta)
-      if (searchTerm && String(searchTerm).trim() !== '') {
+      if (searchTerm && String(searchTerm).trim() !== "") {
         const s = String(searchTerm).toLowerCase();
-        const matchesOrigin = (item.origenObj?.nombre || '').toLowerCase().includes(s);
-        const matchesDestino = (item.destinoObj?.nombre || '').toLowerCase().includes(s);
-        const matchesDia = item.diasNums.some((d) => (DIAS_SEMANA[d - 1] || '').toLowerCase().includes(s));
+        const matchesOrigin = (item.origenObj?.nombre || "")
+          .toLowerCase()
+          .includes(s);
+        const matchesDestino = (item.destinoObj?.nombre || "")
+          .toLowerCase()
+          .includes(s);
+        const matchesDia = item.diasNums.some((d) =>
+          (DIAS_SEMANA[d - 1] || "").toLowerCase().includes(s),
+        );
         if (!matchesOrigin && !matchesDestino && !matchesDia) return false;
       }
 
       // Day filter
-      if (diaFilter && diaFilter !== 'todos') {
+      if (diaFilter && diaFilter !== "todos") {
         const diaIndex = DIAS_SEMANA.findIndex((dn) => dn === diaFilter);
         const diaNumber = diaIndex >= 0 ? diaIndex + 1 : null;
         if (diaNumber && !item.diasNums.includes(diaNumber)) return false;
       }
 
       // Status filter (expects boolean estado on route)
-      if (statusFilter && statusFilter !== 'todos') {
-        const expectActive = statusFilter === 'activos';
-        const estado = typeof item.__orig.estado === 'boolean' ? item.__orig.estado : item.__orig.estado === 1 || item.__orig.estado === '1';
+      if (statusFilter && statusFilter !== "todos") {
+        const expectActive = statusFilter === "activos";
+        const estado =
+          typeof item.__orig.estado === "boolean"
+            ? item.__orig.estado
+            : item.__orig.estado === 1 || item.__orig.estado === "1";
         if (estado !== expectActive) return false;
       }
 
@@ -599,7 +646,12 @@ function Rutas() {
         <div className="toolbar">
           <div className="filter-group">
             <div className="search-box">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
@@ -612,7 +664,11 @@ function Rutas() {
               />
             </div>
 
-            <select value={diaFilter} onChange={(e) => setDiaFilter(e.target.value)} className="filter-select">
+            <select
+              value={diaFilter}
+              onChange={(e) => setDiaFilter(e.target.value)}
+              className="filter-select"
+            >
               <option value="todos">Todos los Días</option>
               {DIAS_SEMANA.map((d) => (
                 <option key={d} value={d}>
@@ -621,29 +677,50 @@ function Rutas() {
               ))}
             </select>
 
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="filter-select">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="filter-select"
+            >
               <option value="todos">Todos los Estados</option>
               <option value="activos">Activos</option>
               <option value="inactivos">Inactivos</option>
             </select>
-            
-            <select value={originFilterId} onChange={(e) => setOriginFilterId(e.target.value)} className="filter-select">
+
+            <select
+              value={originFilterId}
+              onChange={(e) => setOriginFilterId(e.target.value)}
+              className="filter-select"
+            >
               <option value="">Origen (todos)</option>
               {puntosVenta.map((pv) => (
-                <option key={pv.id} value={pv.id}>{pv.nombre}</option>
+                <option key={pv.id} value={pv.id}>
+                  {pv.nombre}
+                </option>
               ))}
             </select>
 
-            <select value={destinationFilterId} onChange={(e) => setDestinationFilterId(e.target.value)} className="filter-select">
+            <select
+              value={destinationFilterId}
+              onChange={(e) => setDestinationFilterId(e.target.value)}
+              className="filter-select"
+            >
               <option value="">Destino (todos)</option>
               {puntosVenta.map((pv) => (
-                <option key={pv.id} value={pv.id}>{pv.nombre}</option>
+                <option key={pv.id} value={pv.id}>
+                  {pv.nombre}
+                </option>
               ))}
             </select>
           </div>
 
           <button className="add-btn" onClick={handleAddNew}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
@@ -746,8 +823,12 @@ function Rutas() {
                           <button
                             onClick={() => handleDelete(ruta)}
                             className="action-btn edit-btn"
-                            title={ruta.estado ? "Desactivar Ruta" : "Activar Ruta"}
-                            style={{ color: ruta.estado ? "#10b981" : "#94a3b8" }}
+                            title={
+                              ruta.estado ? "Desactivar Ruta" : "Activar Ruta"
+                            }
+                            style={{
+                              color: ruta.estado ? "#10b981" : "#94a3b8",
+                            }}
                           >
                             <svg
                               viewBox="0 0 24 24"
@@ -894,7 +975,8 @@ function Rutas() {
                           ...prev,
                           origenId: Number(e.target.value),
                           destinosUI: (prev.destinosUI || []).filter(
-                            (d) => Number(d.puntoVentaId) !== Number(e.target.value),
+                            (d) =>
+                              Number(d.puntoVentaId) !== Number(e.target.value),
                           ),
                         }))
                       }
@@ -908,13 +990,15 @@ function Rutas() {
                       ))}
                     </select>
                     {(formErrors.origen || formErrors.origenDestino) && (
-                      <div style={{ color: "#ef4444", fontSize: 13, marginTop: 6 }}>
+                      <div
+                        style={{ color: "#ef4444", fontSize: 13, marginTop: 6 }}
+                      >
                         {formErrors.origenDestino || formErrors.origen}
                       </div>
                     )}
                   </div>
 
-                  <div className="input-group">
+                  {/* <div className="input-group">
                     <label className="input-label">Destinos Intermedios</label>
                     <div
                       style={{
@@ -959,7 +1043,6 @@ function Rutas() {
                                 </option>
                               ))}
                             </select>
-                             {/* Nuevo input number */}
  <input
   type="number"
   value={d.tarifa ?? ""}
@@ -1012,7 +1095,7 @@ function Rutas() {
                         Agregar destino intermedio
                       </button>
                     </div>
-                  </div>
+                  </div> */}
 
                   <div className="input-group" data-err="destino">
                     <label className="input-label">Destino</label>
@@ -1021,9 +1104,12 @@ function Rutas() {
                       onChange={(e) =>
                         setFormData((prev) => ({
                           ...prev,
-                          destinoId: e.target.value ? Number(e.target.value) : null,
+                          destinoId: e.target.value
+                            ? Number(e.target.value)
+                            : null,
                           destinosUI: (prev.destinosUI || []).filter(
-                            (d) => Number(d.puntoVentaId) !== Number(e.target.value),
+                            (d) =>
+                              Number(d.puntoVentaId) !== Number(e.target.value),
                           ),
                         }))
                       }
@@ -1031,16 +1117,16 @@ function Rutas() {
                       required
                     >
                       <option value="">Seleccione destino</option>
-                      {modalPuntosList
-                        .filter((pv) => Number(pv.id) !== Number(formData.origenId))
-                        .map((pv) => (
-                          <option key={pv.id} value={pv.id}>
-                            {pv.nombre} - Tel: {pv.telefono}
-                          </option>
-                        ))}
+                      {modalPuntosList.map((pv) => (
+                        <option key={pv.id} value={pv.id}>
+                          {pv.nombre} - Tel: {pv.telefono}
+                        </option>
+                      ))}
                     </select>
                     {formErrors.destino && (
-                      <div style={{ color: "#ef4444", fontSize: 13, marginTop: 6 }}>
+                      <div
+                        style={{ color: "#ef4444", fontSize: 13, marginTop: 6 }}
+                      >
                         {formErrors.destino}
                       </div>
                     )}
@@ -1076,7 +1162,9 @@ function Rutas() {
                     Seleccionados: {formData.dias || "Ninguno"}
                   </span>
                   {formErrors.dias && (
-                    <div style={{ color: "#ef4444", fontSize: 13, marginTop: 6 }}>
+                    <div
+                      style={{ color: "#ef4444", fontSize: 13, marginTop: 6 }}
+                    >
                       {formErrors.dias}
                     </div>
                   )}
@@ -1098,7 +1186,9 @@ function Rutas() {
                       required
                     />
                     {formErrors.tarifa && (
-                      <div style={{ color: "#ef4444", fontSize: 13, marginTop: 6 }}>
+                      <div
+                        style={{ color: "#ef4444", fontSize: 13, marginTop: 6 }}
+                      >
                         {formErrors.tarifa}
                       </div>
                     )}
@@ -1170,7 +1260,9 @@ function Rutas() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header">
-              <h2>Confirmar {rutaToDelete.estado ? 'Desactivación' : 'Activación'}</h2>
+              <h2>
+                Confirmar {rutaToDelete.estado ? "Desactivación" : "Activación"}
+              </h2>
               <button
                 className="modal-close"
                 onClick={() => setRutaToDelete(null)}
@@ -1195,7 +1287,8 @@ function Rutas() {
                   margin: 0,
                 }}
               >
-                ¿Está seguro de que desea {rutaToDelete.estado ? 'desactivar' : 'activar'} la ruta
+                ¿Está seguro de que desea{" "}
+                {rutaToDelete.estado ? "desactivar" : "activar"} la ruta
                 {/* <strong>
                   {
                     getPunto(rutaToDelete.origenId || rutaToDelete.origen?.id)
@@ -1224,7 +1317,9 @@ function Rutas() {
                 style={{
                   background: rutaToDelete.estado ? "#ef4444" : "#10b981",
                   borderColor: rutaToDelete.estado ? "#ef4444" : "#10b981",
-                  boxShadow: rutaToDelete.estado ? "0 4px 12px rgba(239, 68, 68, 0.25)" : "0 4px 12px rgba(16, 185, 129, 0.25)",
+                  boxShadow: rutaToDelete.estado
+                    ? "0 4px 12px rgba(239, 68, 68, 0.25)"
+                    : "0 4px 12px rgba(16, 185, 129, 0.25)",
                 }}
                 onClick={confirmDelete}
               >

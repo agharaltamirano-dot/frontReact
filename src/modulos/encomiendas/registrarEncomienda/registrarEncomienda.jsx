@@ -109,6 +109,14 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
   // Notificaciones
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' })
 
+  const getAuthData = () => {
+  try {
+    const raw = sessionStorage.getItem("authData");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
   // Inicializar / Cargar listas
   useEffect(() => {
     if (open) {
@@ -125,7 +133,14 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
         try {
           const [cliData, pvData] = await Promise.all([getClientes(), getPuntosVenta()])
           setClientesList(cliData)
-          setPuntosVentaList(pvData)
+          console.log('puntos de venta recibidos en registro de enc:', pvData)
+          const authData = getAuthData();
+          const pvId = authData?.usuario?.puntoVenta?.id;
+          setPuntosVentaList(
+            Array.isArray(pvData)
+              ? pvData.filter(pv => pv.id !== pvId)
+              : []
+          )
 
           if (isEditMode && encomiendaToEdit) {
             // Pre-cargar campos con datos del registro a editar

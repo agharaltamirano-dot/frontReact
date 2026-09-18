@@ -167,7 +167,10 @@ export default function VentaPasajes() {
     return {
       id: pv.id,
       nombre: pv.nombre || '',
-      tarifa: rutaDestino?.tarifa ?? horario?.ruta?.tarifa ?? 0,
+      // mostrar la tarifa que trae el punto de venta cuando exista
+      tarifa: pv.tarifa ?? rutaDestino?.tarifa ?? horario?.ruta?.tarifa ?? 0,
+      // monto que se copiará al campo monto al seleccionar este destino
+      monto: pv.monto ?? rutaDestino?.monto ?? pv.tarifa ?? horario?.ruta?.tarifa ?? 0,
       visiblePasajes: !!pv.visiblePasajes
     }
   })
@@ -236,7 +239,9 @@ export default function VentaPasajes() {
 
   const selectDestino = (id, destino) => {
     if (!destino) return
-    setSelectedSeats(prev => prev.map(s => Number(s.id) === Number(id) ? { ...s, destinoId: destino.id, monto: destino.tarifa } : s))
+    // Al seleccionar destino, copiar el `monto` proporcionado por el punto de venta (pv.monto).
+    const montoToCopy = destino.monto ?? destino.tarifa ?? 0
+    setSelectedSeats(prev => prev.map(s => Number(s.id) === Number(id) ? { ...s, destinoId: destino.id, monto: montoToCopy } : s))
   }
 
   const confirmSale = (id) => {
@@ -741,7 +746,14 @@ const abrirHojaRutaFallback = (url) => {
     }
     return rows
   }
-
+const getAuthData = () => {
+  try {
+    const raw = sessionStorage.getItem("authData");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
   useEffect(() => {
     if (!id) return
     const fetchData = async () => {
@@ -754,7 +766,14 @@ const abrirHojaRutaFallback = (url) => {
         console.log('Horario recibido:', horarioData)
         setHorario(horarioData)
         setClientesList(clientesData)
-        setPuntosVentaList(Array.isArray(puntosVentaData) ? puntosVentaData : [])
+        const authData = getAuthData();
+        const pvId = authData?.usuario?.puntoVenta?.id;
+        setPuntosVentaList(
+  Array.isArray(puntosVentaData)
+    ? puntosVentaData.filter(pv => pv.id !== pvId)
+    : []
+);
+        console.log('puntos de venta recibidos:', puntosVentaData)
       } catch (err) {
         console.error('Error al obtener datos iniciales:', err)
       }
@@ -817,18 +836,18 @@ const sumaPasajes = (horario?.pasajes || []).reduce((acc, p) => {
               <div className="horario-item ruta-cards">{(() => {
                 const dests = Array.isArray(horario.ruta?.destinos) ? [...horario.ruta.destinos].sort((a,b)=> (a.orden||0)-(b.orden||0)) : []
                 const origen = dests[0]
-                const restantes = dests.slice(1)
+                const finalDest = dests.length ? dests[dests.length - 1] : null
                 return (
                   <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
                     <Chip label={origen?.puntoVenta?.nombre || 'Origen'} className="chip-origen" />
-                    {restantes.map((d, idx) => (
+                    {finalDest && (String(finalDest.puntoVenta?.id) !== String(origen?.puntoVenta?.id)) && (
                       <Chip
-                        key={d.puntoVenta?.id || d.id || idx}
-                        label={`${d.puntoVenta?.nombre || '-'} · Bs. ${Number(d.tarifa || 0).toFixed(2)}`}
+                        key={finalDest.puntoVenta?.id || finalDest.id || 'final'}
+                        label={`${finalDest.puntoVenta?.nombre || '-'}`}
                         variant="outlined"
                         className="chip-destino"
                       />
-                    ))}
+                    )}
                   </Stack>
                 )
               })()}</div>
