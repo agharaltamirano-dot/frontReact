@@ -1,60 +1,316 @@
 /* ===== HORARIOS MODULE SPECIFIC STYLES ===== */
 @import '../usuarios/usuarios.css';
 
+/* ===== DISEÑO VISUAL MODERNO: TRANSPORTE Y HORARIOS ===== */
 .horarios-view {
+    /* 1. Paleta de 4 colores base + tokens semánticos */
+    --ui-bg: #F4F6F9;          /* Fondo neutral descansado */
+    --ui-text: #1A202C;        /* Texto principal carbón profundo */
+    --ui-brand: #0284C7;       /* Acento/marca: Azul zafiro */
+    --ui-brand-dark: #0369A1;  /* Acento hover */
+    --ui-border: #E2E8F0;      /* Color sutil para bordes/card */
+    --ui-surface: #FFFFFF;     /* Superficie de cards */
+    --ui-thead-bg: #0F172A;    /* Azul noche grafito de alto impacto para thead */
+    --ui-thead-text: #F8FAFC;  /* Blanco titanio para thead */
+
     width: 100%;
     animation: fadeIn 0.3s ease-out;
 }
 
+/* 3. Efectos: Sombras estratificadas y transiciones fluidas */
+.horarios-view .content-card {
+    background-color: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 6px 16px -4px rgba(15, 23, 42, 0.06);
+    transition: box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow: hidden;
+}
+
+.horarios-view .toolbar {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--ui-border);
+    background-color: #FAFCFE;
+}
+
+/* Filtros y buscador alineados */
+.horarios-view .search-box {
+    border: 1px solid var(--ui-border);
+    border-radius: 8px;
+    background: #FFFFFF;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.horarios-view .search-box:focus-within {
+    border-color: var(--ui-brand);
+    box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+}
+
+.horarios-view .filter-select {
+    border: 1px solid var(--ui-border);
+    border-radius: 8px;
+    background: #FFFFFF;
+    color: var(--ui-text);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.horarios-view .filter-select:focus {
+    border-color: var(--ui-brand);
+    box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+}
+
+/* 5. Cabecera de Tablas (thead) con alto impacto y contraste para datos del backend */
+.horarios-view .table-container {
+    overflow-x: auto;
+    padding: 0 24px 24px 24px;
+}
+
+.horarios-view .roles-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid var(--ui-border);
+    border-radius: 10px;
+    overflow: hidden;
+    background-color: var(--ui-surface);
+}
+
+.horarios-view .roles-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background-color: var(--ui-thead-bg);
+    color: var(--ui-thead-text);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 14px 18px;
+    border-bottom: 3px solid var(--ui-brand);
+    white-space: nowrap;
+}
+
+.horarios-view .roles-table thead th:first-child {
+    border-top-left-radius: 9px;
+}
+
+.horarios-view .roles-table thead th:last-child {
+    border-top-right-radius: 9px;
+}
+
+.horarios-view .roles-table tbody td {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--ui-border);
+    color: var(--ui-text);
+    background-color: var(--ui-surface);
+    font-size: 14px;
+    vertical-align: middle;
+    transition: background-color 0.2s ease;
+}
+
+.horarios-view .roles-table tbody tr:hover td {
+    background-color: #F8FAFC;
+}
+
+/* 2. Botones: Estilos con transiciones y efecto :hover sutil */
+.horarios-view .add-btn,
+.horarios-view .save-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 8px;
+    background-color: var(--ui-brand);
+    color: #FFFFFF;
+    font-size: 14px;
+    font-weight: 600;
+    border: 1px solid transparent;
+    cursor: pointer;
+    box-shadow: none;
+    transition: background-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.horarios-view .add-btn:hover:not(:disabled),
+.horarios-view .save-btn:hover:not(:disabled) {
+    background-color: var(--ui-brand-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
+}
+
+.horarios-view .add-btn:active,
+.horarios-view .save-btn:active {
+    transform: translateY(0);
+}
+
+.horarios-view .cancel-btn {
+    padding: 10px 18px;
+    border: 1px solid var(--ui-border);
+    border-radius: 8px;
+    color: var(--ui-text);
+    background-color: transparent;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.horarios-view .cancel-btn:hover {
+    background-color: #F8FAFC;
+    border-color: #CBD5E1;
+}
+
+.horarios-view .add-btn:focus-visible,
+.horarios-view .save-btn:focus-visible,
+.horarios-view .cancel-btn:focus-visible {
+    outline: 2px solid var(--ui-brand);
+    outline-offset: 2px;
+}
+
+/* Botones de acción en tabla */
+.horarios-view .action-btn {
+    border-radius: 8px;
+    border: 1px solid var(--ui-border);
+    background: #FFFFFF;
+    transition: all 0.2s ease;
+}
+
+.horarios-view .action-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.horarios-view .action-btn.edit-btn:hover {
+    border-color: var(--ui-brand);
+    color: var(--ui-brand);
+}
+
+.horarios-view .action-btn.delete-btn:hover {
+    border-color: #EF4444;
+    color: #EF4444;
+    background: #FEF2F2;
+}
+
+/* Paginador moderno */
+.horarios-view .pagination-container {
+    padding: 16px 24px;
+    border-top: 1px solid var(--ui-border);
+    background-color: #FAFCFE;
+}
+
+.horarios-view .page-btn {
+    border: 1px solid var(--ui-border);
+    border-radius: 8px;
+    background: #FFFFFF;
+    color: var(--ui-text);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 12px;
+    transition: all 0.2s ease;
+}
+
+.horarios-view .page-btn:hover:not(:disabled) {
+    border-color: var(--ui-brand);
+    color: var(--ui-brand);
+    background: #F0F9FF;
+}
+
+.horarios-view .page-btn.active {
+    background-color: var(--ui-brand);
+    color: #FFFFFF;
+    border-color: var(--ui-brand);
+    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3);
+}
+
+/* 4. Marcaciones y Etiquetas (Badges / Tags con fondo claro y texto oscuro) */
+.horarios-view .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 6px;
+    line-height: 1.2;
+}
+
+.horarios-view .badge-success,
+.horarios-view .status-badge.active {
+    background-color: #DCFCE7;
+    color: #14532D;
+    border: 1px solid #BBF7D0;
+}
+
+.horarios-view .badge-pending {
+    background-color: #FEF3C7;
+    color: #78350F;
+    border: 1px solid #FDE68A;
+}
+
+.horarios-view .badge-transit,
+.horarios-view .badge-en-ruta {
+    background-color: #E0F2FE;
+    color: #0369A1;
+    border: 1px solid #BAE6FD;
+}
+
+.horarios-view .badge-danger,
+.horarios-view .status-badge.inactive {
+    background-color: #FEE2E2;
+    color: #991B1B;
+    border: 1px solid #FECACA;
+}
+
+/* Pastillas informativas de viajes y tiempos */
 .time-pill {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 6px 14px;
-    border-radius: 30px;
-    background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
-    color: #3730a3;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    background-color: #E0F2FE;
+    color: #0369A1;
     font-weight: 700;
-    font-size: 14px;
-    border: 1px solid rgba(99, 102, 241, 0.2);
+    font-size: 13px;
+    border: 1px solid #BAE6FD;
 }
 
 .time-pill svg {
-    width: 16px;
-    height: 16px;
-    color: var(--primary);
+    width: 15px;
+    height: 15px;
+    color: var(--ui-brand);
 }
 
 .date-pill {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 4px 10px;
+    padding: 5px 10px;
     border-radius: 6px;
-    background: #f1f5f9;
+    background-color: #F1F5F9;
     color: #334155;
     font-size: 13px;
     font-weight: 600;
-    border: 1px solid #e2e8f0;
+    border: 1px solid #E2E8F0;
 }
 
 .route-chip {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 6px 14px;
-    border-radius: var(--radius-sm);
-    background: #f8fafc;
-    color: var(--slate-800);
+    padding: 6px 12px;
+    border-radius: 8px;
+    background-color: #F8FAFC;
+    color: var(--ui-text);
     font-weight: 600;
     font-size: 13px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid #E2E8F0;
 }
 
 .route-chip svg {
     width: 14px;
     height: 14px;
-    color: #10b981;
+    color: #10B981;
 }
 
 .vehicle-chip {
@@ -63,9 +319,9 @@
     gap: 6px;
     padding: 4px 10px;
     border-radius: 6px;
-    background: #f0fdf4;
-    color: #166534;
+    background-color: #DCFCE7;
+    color: #14532D;
     font-size: 12px;
     font-weight: 600;
-    border: 1px solid #bbf7d0;
+    border: 1px solid #BBF7D0;
 }

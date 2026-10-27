@@ -19,7 +19,14 @@
 }
 
 .reporte-horarios-subtitle {
-  color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  border: 1px solid #bae6fd;
+  border-radius: 10px;
+  background: #e0f2fe;
+  color: #075985;
+  font-weight: 700 !important;
 }
 
 .reporte-export-button {
@@ -57,8 +64,10 @@
 
 .reporte-horarios-table-paper {
   margin-top: 20px;
-  border-radius: 12px !important;
+  border-radius: 14px !important;
   border: 1px solid #e2e8f0;
+  background: #fff !important;
+  box-shadow: 0 6px 24px rgba(15, 23, 42, 0.08) !important;
   overflow: hidden;
 }
 
@@ -73,22 +82,49 @@
   min-width: 650px;
 }
 
-.reporte-horarios-table thead {
-  background-color: #f8fafc;
+.reporte-horarios-table thead th {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 14px 18px !important;
+  border-bottom: 3px solid #0284c7 !important;
+  white-space: nowrap;
 }
 
-.reporte-horarios-table th {
-  font-weight: 600 !important;
-  color: #475569;
-  border-bottom: 2px solid #e2e8f0 !important;
+.reporte-horarios-table thead th:first-child {
+  border-top-left-radius: 9px;
 }
 
-.reporte-horarios-table td {
-  border-bottom: 1px solid #f1f5f9 !important;
+.reporte-horarios-table thead th:last-child {
+  border-top-right-radius: 9px;
 }
 
-.reporte-horarios-table tbody tr:hover {
-  background-color: #f8fafc;
+.reporte-horarios-table tbody td {
+  padding: 14px 18px;
+  color: #334155;
+  border-bottom: 1px solid #e2e8f0 !important;
+  transition: background-color 0.2s ease;
+}
+
+.reporte-horarios-table tbody tr:nth-of-type(even) td {
+  background: #f8fafc;
+}
+
+.reporte-horarios-table tbody tr:hover td {
+  background: #f0f9ff;
+}
+
+.reporte-horarios-table tbody tr:last-child td {
+  border-bottom: none !important;
+}
+
+.reporte-horarios-table tbody td:nth-child(2),
+.reporte-horarios-table tbody td:nth-child(3) {
+  color: #0f172a;
+  font-weight: 700;
 }
 
 .reporte-row-inactive {
@@ -111,9 +147,42 @@
   color: #dc2626;
 }
 
+.reporte-horarios-table .reporte-row-inactive {
+  opacity: 1;
+}
+
+.reporte-horarios-table .reporte-row-inactive td {
+  background: #fff7f7 !important;
+}
+
+.reporte-horarios-table .reporte-row-inactive:hover td {
+  background: #fef2f2 !important;
+}
+
+.reporte-horarios-screen .reporte-status {
+  padding: 5px 12px;
+  border: 1px solid #bbf7d0;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #166534;
+  font-weight: 700;
+}
+
+.reporte-horarios-screen .reporte-status--inactive {
+  border-color: #fecaca;
+  background: #fee2e2;
+  color: #991b1b;
+}
+
 @media (max-width: 768px) {
   .reporte-horarios-screen {
     padding: 16px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reporte-horarios-table tbody td {
+      transition: none;
+    }
   }
 
   .reporte-horarios-header {

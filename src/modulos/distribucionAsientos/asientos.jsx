@@ -16,6 +16,8 @@ function Asientos() {
   const [itemsPerPage, setItemsPerPage] = useState(5)
   const [matrixRows, setMatrixRows] = useState(2)
   const MAX_ROWS = 20
+  const MAX_COLUMNS = 4
+  const [matrixCols, setMatrixCols] = useState(4)
   const originalSeatsRef = useRef({})
 
   // Modales y Notificaciones
@@ -70,6 +72,7 @@ function Asientos() {
     })
     originalSeatsRef.current = {}
     setMatrixRows(2)
+    setMatrixCols(3)
     setEditingAsiento(null)
     setShowAddModal(true)
   }
@@ -79,15 +82,20 @@ function Asientos() {
     // build map of original seats to preserve ids when toggling
     const map = {}
     let maxFila = 0
+    let maxCol = 0
     seats.forEach(s => {
       if (s && s.fila) {
         map[`${s.fila}-${s.columna}`] = s
         if (s.fila > maxFila) maxFila = s.fila
+        if (s.columna && s.columna > maxCol) maxCol = s.columna
       }
     })
     originalSeatsRef.current = map
 
-    const initialRows = Math.max(2, maxFila, Math.ceil((asiento.cantidad || 0) / 3))
+    const initialCols = Math.max(4, maxCol)
+    const initialRows = Math.max(2, maxFila, Math.ceil((asiento.cantidad || 0) / initialCols))
+
+    setMatrixCols(initialCols)
 
     setFormData({
       nombre: asiento.nombre || '',
@@ -101,6 +109,10 @@ function Asientos() {
 
   const handleAddRow = () => {
     setMatrixRows(r => Math.min(MAX_ROWS, r + 1))
+  }
+
+  const handleAddColumn = () => {
+    setMatrixCols(c => Math.min(MAX_COLUMNS, c + 1))
   }
 
   const handleSeatToggle = (fila, columna) => {
@@ -309,66 +321,79 @@ fetchAsientos()
               <thead>
                 <tr>
                   <th>Nombre de Distribución</th>
+                  <th>Vista</th>
                   <th>Cant. asientos</th>
                   <th>Estado</th>
                   <th style={{ textAlign: 'right' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {paginatedAsientos.map((a) => (
-                  <tr key={a.id}>
-                    <td>
-                      <strong style={{ color: 'var(--slate-900)', fontSize: '14px' }}>{a.nombre}</strong>
-                    </td>
-                    <td>
-                      <span className="seat-badge">
-                        {(Array.isArray(a.asientos) ? a.asientos.length : (a.cantidad || 0))} Asientos
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`status-badge ${a.estado ? 'active' : 'inactive'}`}>
-                        {a.estado ? 'Activo' : 'Inactivo'}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div className="action-buttons" style={{ justifyContent: 'flex-end' }}>
-                        <button
-                          onClick={() => handleDelete(a)}
-                          className="action-btn edit-btn"
-                          title={a.estado ? 'Desactivar Distribución' : 'Activar Distribución'}
-                          style={{ color: a.estado ? '#10b981' : '#94a3b8' }}
-                        >
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M18.36 6.64a9 9 0 11-12.73 0" />
-                            <line x1="12" y1="2" x2="12" y2="12" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => handleEdit(a)}
-                          className="action-btn edit-btn"
-                          title="Editar Distribución"
-                        >
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-                            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-                          </svg>
-                        </button>
-                        {/* <button
-                          onClick={() => handleDelete(a)}
-                          className="action-btn delete-btn"
-                          title="Eliminar Distribución"
-                        >
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <polyline points="3 6 5 6 21 6" />
-                            <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-                            <line x1="10" y1="11" x2="10" y2="17" />
-                            <line x1="14" y1="11" x2="14" y2="17" />
-                          </svg>
-                        </button> */}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {paginatedAsientos.map((a) => {
+                  const maxFila = a.asientos && a.asientos.length > 0 ? Math.max(...a.asientos.map(s => Number(s.fila) || 1)) : 1
+                  const maxCol = a.asientos && a.asientos.length > 0 ? Math.max(...a.asientos.map(s => Number(s.columna) || 1)) : 3
+                  const cols = maxCol >= 4 ? 4 : 3
+                  const gridColsStyle = cols === 4 ? `repeat(4, 0.85fr)` : `repeat(3, 1fr)`
+
+                  return (
+                    <tr key={a.id}>
+                      <td>
+                        <strong style={{ color: 'var(--slate-900)', fontSize: '14px' }}>{a.nombre}</strong>
+                      </td>
+
+                      <td>
+                        <div className="dist-seats-grid" style={{ width: 120, display: 'grid', gridTemplateColumns: gridColsStyle, gap: 6 }}>
+                          {Array.from({ length: maxFila }).map((_, rIdx) => (
+                            Array.from({ length: cols }).map((_, cIdx) => {
+                              const fila = rIdx + 1
+                              const columna = cIdx + 1
+                              const seat = a.asientos?.find(s => Number(s.fila) === fila && Number(s.columna) === columna)
+                              const filled = !!seat && seat.estado !== false
+                              return (
+                                <div key={`${a.id}-${fila}-${columna}`} className={`seat ${filled ? 'filled' : ''}`} style={{ width: '100%', height: 8 }} title={filled ? `Asiento ${seat?.numero || ''}` : ' '}></div>
+                              )
+                            })
+                          ))}
+                        </div>
+                      </td>
+
+                      <td>
+                        <span className="seat-badge">
+                          {(Array.isArray(a.asientos) ? a.asientos.length : (a.cantidad || 0))} Asientos
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`status-badge ${a.estado ? 'active' : 'inactive'}`}>
+                          {a.estado ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <div className="action-buttons" style={{ justifyContent: 'flex-end' }}>
+                          <button
+                            onClick={() => handleDelete(a)}
+                            className="action-btn edit-btn"
+                            title={a.estado ? 'Desactivar Distribución' : 'Activar Distribución'}
+                            style={{ color: a.estado ? '#10b981' : '#94a3b8' }}
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M18.36 6.64a9 9 0 11-12.73 0" />
+                              <line x1="12" y1="2" x2="12" y2="12" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleEdit(a)}
+                            className="action-btn edit-btn"
+                            title="Editar Distribución"
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           )}
@@ -458,13 +483,13 @@ fetchAsientos()
 
               {/* Sólo pedimos Nombre y Estado; filas/asientos se configuran con la matriz */}
 
-              {/* Matriz de Asientos (3 columnas por fila) */}
+              {/* Matriz de Asientos (4 columnas por fila) */}
               <div style={{ marginTop: 18 }}>
                 <label className="input-label">Configurar Asientos</label>
-                <div className="seat-matrix" style={{ marginTop: 8, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                <div className="seat-matrix" style={{ marginTop: 8, display: 'grid', gridTemplateColumns: `repeat(${matrixCols}, 1fr)`, gap: 8 }}>
                   {Array.from({ length: matrixRows }, (_, rIndex) => {
                     const fila = rIndex + 1
-                    return Array.from({ length: 3 }, (_, cIndex) => {
+                    return Array.from({ length: matrixCols }, (_, cIndex) => {
                       const columna = cIndex + 1
                       const seat = formData.asientos.find(s => s.fila === fila && s.columna === columna)
                       const isConductor = fila === 1 && columna === 1
@@ -514,7 +539,26 @@ fetchAsientos()
                   >
                     + Agregar otra fila
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={handleAddColumn}
+                    disabled={matrixCols >= MAX_COLUMNS}
+                    style={{
+                      background: '#2563eb',
+                      color: '#fff',
+                      padding: '10px 14px',
+                      borderRadius: 10,
+                      border: 'none',
+                      boxShadow: '0 6px 18px rgba(37,99,235,0.12)',
+                      cursor: matrixCols >= MAX_COLUMNS ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    + Agregar columna
+                  </button>
+
                   <small style={{ color: '#64748b' }}>Filas actuales: {matrixRows} (máx {MAX_ROWS})</small>
+                  <small style={{ color: '#64748b' }}>Columnas actuales: {matrixCols} (máx {MAX_COLUMNS})</small>
                 </div>
               </div>
 

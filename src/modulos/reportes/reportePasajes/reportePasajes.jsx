@@ -7,6 +7,7 @@ import {
 import { Download, PictureAsPdf, Refresh, Search } from '@mui/icons-material'
 import { getPasajes, getReportePasajes, getReportePasajesPdf, getReportePasajesXlsx } from '../../pasajes/pasajesService'
 import { getClientes } from '../../clientes/clientesService'
+import { formatShortDateTime } from '../../../utils/formatDate'
 import './reportePasajes.css'
 import { es } from "date-fns/locale";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
@@ -27,8 +28,7 @@ function downloadBlob(blob, name) {
 
 function formatDateTime(value) {
   if (!value) return '-'
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('es-BO')
+  return formatShortDateTime(value, { localizeTime: true })
 }
 
 export default function ReportePasajes() {

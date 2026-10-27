@@ -40,6 +40,7 @@ import {
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers'
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns'
 import esLocale from 'date-fns/locale/es'
+import { formatShortDateTime } from '../../utils/formatDate'
 
 import {
   getEncomiendas,
@@ -798,7 +799,7 @@ function coincideDestino(destino) {
       <Grid container spacing={2.5} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} md={3}>
           <Card
-            className="stat-card"
+            className="stat-card stat-card-total"
             variant="outlined"
             sx={{ borderColor: "rgba(0,0,0,0.08)" }}
           >
@@ -806,6 +807,7 @@ function coincideDestino(destino) {
               sx={{ display: "flex", alignItems: "center", gap: 2, py: 2 }}
             >
               <Box
+                className="stat-icon"
                 sx={{
                   width: 48,
                   height: 48,
@@ -840,7 +842,7 @@ function coincideDestino(destino) {
 
         <Grid item xs={12} sm={6} md={3}>
           <Card
-            className="stat-card"
+            className="stat-card stat-card-recaudado"
             variant="outlined"
             sx={{ borderColor: "rgba(0,0,0,0.08)" }}
           >
@@ -848,6 +850,7 @@ function coincideDestino(destino) {
               sx={{ display: "flex", alignItems: "center", gap: 2, py: 2 }}
             >
               <Box
+                className="stat-icon"
                 sx={{
                   width: 48,
                   height: 48,
@@ -882,7 +885,7 @@ function coincideDestino(destino) {
 
         <Grid item xs={12} sm={6} md={3}>
           <Card
-            className="stat-card"
+            className="stat-card stat-card-pagado"
             variant="outlined"
             sx={{ borderColor: "rgba(0,0,0,0.08)" }}
           >
@@ -890,6 +893,7 @@ function coincideDestino(destino) {
               sx={{ display: "flex", alignItems: "center", gap: 2, py: 2 }}
             >
               <Box
+                className="stat-icon"
                 sx={{
                   width: 48,
                   height: 48,
@@ -924,7 +928,7 @@ function coincideDestino(destino) {
 
         <Grid item xs={12} sm={6} md={3}>
           <Card
-            className="stat-card"
+            className="stat-card stat-card-porpagar"
             variant="outlined"
             sx={{ borderColor: "rgba(0,0,0,0.08)" }}
           >
@@ -932,6 +936,7 @@ function coincideDestino(destino) {
               sx={{ display: "flex", alignItems: "center", gap: 2, py: 2 }}
             >
               <Box
+                className="stat-icon"
                 sx={{
                   width: 48,
                   height: 48,
@@ -1167,6 +1172,7 @@ function coincideDestino(destino) {
                       <Chip
                         label={row.destino}
                         size="small"
+                        className="encomiendas-destino"
                         variant="outlined"
                         sx={{
                           fontWeight: 600,
@@ -1193,7 +1199,7 @@ function coincideDestino(destino) {
                       ) : (
                         <span>
                           {(row.envio.conductor?.nombre ?? "")}
-                          {row.envio.fecha ? ` ${row.envio.fecha}` : ""}
+                          {row.envio.fecha ? ` ${formatShortDateTime(row.envio.fecha)}` : ""}
                         </span>
                       )}
                     </TableCell>
@@ -1240,7 +1246,7 @@ function coincideDestino(destino) {
                         whiteSpace: "nowrap",
                       }}
                     >
-                      {row.fechaRecepcion}
+                      {formatShortDateTime(row.fechaRecepcion)}
                     </TableCell>
 
                     <TableCell

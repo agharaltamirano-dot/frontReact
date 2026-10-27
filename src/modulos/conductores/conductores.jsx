@@ -59,6 +59,9 @@ function Conductores() {
     fotoLicencia: ''
   })
 
+  // Errores de validación del formulario (mensajes visibles en el modal)
+  const [formErrors, setFormErrors] = useState({})
+
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type })
     setTimeout(() => setNotification(null), 3500)
@@ -142,9 +145,59 @@ function Conductores() {
     setShowAddModal(true)
   }
 
+  // ── Validación del formulario (completa y por campo) ─────────────────────────────────
+  const nameRegex = /^[A-Za-zÁÉÍÓÚÜÑáéíóúñü\s]{3,20}$/u // letras y espacios entre 3 y 20
+  const phoneRegex = /^\d{7,10}$/ // dígitos entre 7 y 10
+
+  const validateField = (field, value) => {
+    const v = (value || '').trim()
+    const newErrors = { ...formErrors }
+
+    switch (field) {
+      case 'nombres':
+        if (!v || !nameRegex.test(v)) newErrors.nombres = 'Nombres: entre 3 y 20 letras, solo letras y espacios.'
+        else delete newErrors.nombres
+        break
+      case 'apellidos':
+        if (!v || !nameRegex.test(v)) newErrors.apellidos = 'Apellidos: entre 3 y 20 letras, solo letras y espacios.'
+        else delete newErrors.apellidos
+        break
+      case 'telefono':
+        if (!v || !phoneRegex.test(v)) newErrors.telefono = 'Teléfono: debe tener entre 7 y 10 dígitos.'
+        else delete newErrors.telefono
+        break
+      case 'licencia':
+        if (!v || !phoneRegex.test(v)) newErrors.licencia = 'N° Licencia: debe tener entre 7 y 10 dígitos.'
+        else delete newErrors.licencia
+        break
+      case 'categoria':
+        if (!v) newErrors.categoria = 'Categoría de licencia es obligatoria.'
+        else delete newErrors.categoria
+        break
+      default:
+        break
+    }
+
+    setFormErrors(newErrors)
+    return !newErrors[field]
+  }
+
+  const validateForm = () => {
+    // Ejecuta validación por campo y devuelve si todo está bien
+    const okNombres = validateField('nombres', formData.nombres)
+    const okApellidos = validateField('apellidos', formData.apellidos)
+    const okTelefono = validateField('telefono', formData.telefono)
+    const okLicencia = validateField('licencia', formData.licencia)
+    const okCategoria = validateField('categoria', formData.categoria)
+
+    return okNombres && okApellidos && okTelefono && okLicencia && okCategoria
+  }
+
   // ── Guardar ──────────────────────────────────────────────────────────────────
   const handleSave = async (e) => {
     e.preventDefault()
+    // Validación local del formulario (por si algo cambió desde la última validación en tiempo real)
+    if (!validateForm()) return
 
     // Validar duplicado de licencia
     const isLicenseDuplicate = conductores.some(c =>
@@ -541,54 +594,59 @@ function Conductores() {
             <form onSubmit={handleSave} className="modal-form">
               <div className="form-grid-2">
                 <div className="input-group">
-                  <label className="input-label">Nombres</label>
+                  <label className="input-label">Nombres <span style={{ color: 'red' }}>*</span></label>
                   <input
                     type="text"
                     value={formData.nombres}
-                    onChange={(e) => setFormData({ ...formData, nombres: e.target.value })}
-                    className="input-field"
+                    onChange={(e) => { const v = e.target.value; setFormData({ ...formData, nombres: v }); validateField('nombres', v); }}
+                    className={`input-field ${formErrors.nombres ? 'input-error' : ''}`}
                     placeholder="Ej. Juan Carlos"
                     required
                   />
+                  {formErrors.nombres && <span className="error-text">{formErrors.nombres}</span>}
                 </div>
 
                 <div className="input-group">
-                  <label className="input-label">Apellidos</label>
+                  <label className="input-label">Apellidos <span style={{ color: 'red' }}>*</span></label>
                   <input
                     type="text"
                     value={formData.apellidos}
-                    onChange={(e) => setFormData({ ...formData, apellidos: e.target.value })}
-                    className="input-field"
+                    onChange={(e) => { const v = e.target.value; setFormData({ ...formData, apellidos: v }); validateField('apellidos', v); }}
+                    className={`input-field ${formErrors.apellidos ? 'input-error' : ''}`}
                     placeholder="Ej. Perez Quispe"
                     required
                   />
+                  {formErrors.apellidos && <span className="error-text">{formErrors.apellidos}</span>}
                 </div>
               </div>
 
               <div className="form-grid-2">
                 <div className="input-group">
-                  <label className="input-label">Teléfono / Celular</label>
+                  <label className="input-label">Teléfono / Celular <span style={{ color: 'red' }}>*</span></label>
                   <input
                     type="text"
                     value={formData.telefono}
-                    onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-                    className="input-field"
+                    onChange={(e) => { const v = e.target.value; setFormData({ ...formData, telefono: v }); validateField('telefono', v); }}
+                    className={`input-field ${formErrors.telefono ? 'input-error' : ''}`}
                     placeholder="Ej. 71234567"
                     required
                   />
+                  {formErrors.telefono && <span className="error-text">{formErrors.telefono}</span>}
                 </div>
 
                 <div className="input-group">
-                  <label className="input-label">N° Licencia</label>
+                  <label className="input-label">N° Licencia <span style={{ color: 'red' }}>*</span></label>
                   <input
                     type="text"
                     value={formData.licencia}
-                    onChange={(e) => setFormData({ ...formData, licencia: e.target.value })}
-                    className={`input-field ${licenseExists ? 'input-error' : ''}`}
+                    onChange={(e) => { const v = e.target.value; setFormData({ ...formData, licencia: v }); validateField('licencia', v); }}
+                    className={`input-field ${licenseExists || formErrors.licencia ? 'input-error' : ''}`}
                     placeholder="Ej. 4892019"
                     required
                   />
-                  {licenseExists && (
+                  {formErrors.licencia ? (
+                    <span className="error-text">{formErrors.licencia}</span>
+                  ) : licenseExists ? (
                     <span className="license-warning">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <circle cx="12" cy="12" r="10" />
@@ -597,22 +655,23 @@ function Conductores() {
                       </svg>
                       Esta licencia ya está registrada para otro conductor
                     </span>
-                  )}
+                  ) : null}
                 </div>
               </div>
 
               <div className="form-grid-2">
                 <div className="input-group">
-                  <label className="input-label">Categoría de Licencia</label>
+                  <label className="input-label">Categoría de Licencia <span style={{ color: 'red' }}>*</span></label>
                   <input
                     type="text"
                     value={formData.categoria}
                     maxLength={3}
-                    onChange={(e) => setFormData({ ...formData, categoria: e.target.value.toUpperCase() })}
-                    className="input-field"
+                    onChange={(e) => { const v = e.target.value.toUpperCase(); setFormData({ ...formData, categoria: v }); validateField('categoria', v); }}
+                    className={`input-field ${formErrors.categoria ? 'input-error' : ''}`}
                     placeholder="Ej. A-I (máx 3 caracteres)"
                     required
                   />
+                  {formErrors.categoria && <span className="error-text">{formErrors.categoria}</span>}
                 </div>
 
                 <div className="input-group">

@@ -584,7 +584,7 @@ export default function ReporteEncomiendas() {
       {/* Estadísticas */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card className="stat-card" sx={{ bgcolor: '#f0f9ff', borderRadius: 2 }}>
+          <Card className="stat-card reporte-encomiendas-total" sx={{ bgcolor: '#f0f9ff', borderRadius: 2 }}>
             <CardContent>
               <Typography variant="subtitle2" color="text.secondary">Total Encomiendas</Typography>
               <Typography variant="h4" sx={{ fontWeight: 700, color: '#0369a1' }}>
@@ -594,7 +594,7 @@ export default function ReporteEncomiendas() {
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Card className="stat-card" sx={{ bgcolor: '#f0fdf4', borderRadius: 2 }}>
+          <Card className="stat-card reporte-encomiendas-recaudado" sx={{ bgcolor: '#f0fdf4', borderRadius: 2 }}>
             <CardContent>
               <Typography variant="subtitle2" color="text.secondary">Total Recaudado</Typography>
               <Typography variant="h4" sx={{ fontWeight: 700, color: '#15803d' }}>
@@ -604,7 +604,7 @@ export default function ReporteEncomiendas() {
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Card className="stat-card" sx={{ bgcolor: '#fefce8', borderRadius: 2 }}>
+          <Card className="stat-card reporte-encomiendas-pagadas" sx={{ bgcolor: '#fefce8', borderRadius: 2 }}>
             <CardContent>
               <Typography variant="subtitle2" color="text.secondary">Pagadas</Typography>
               <Typography variant="h4" sx={{ fontWeight: 700, color: '#ca8a04' }}>
@@ -614,7 +614,7 @@ export default function ReporteEncomiendas() {
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Card className="stat-card" sx={{ bgcolor: '#fef2f2', borderRadius: 2 }}>
+          <Card className="stat-card reporte-encomiendas-pendientes" sx={{ bgcolor: '#fef2f2', borderRadius: 2 }}>
             <CardContent>
               <Typography variant="subtitle2" color="text.secondary">Por Pagar</Typography>
               <Typography variant="h4" sx={{ fontWeight: 700, color: '#dc2626' }}>
@@ -714,7 +714,7 @@ export default function ReporteEncomiendas() {
                     </Box>
                   </TableCell>
                   <TableCell>
-                    <Chip label={item.destino || 'N/D'} size="small" color="primary" variant="outlined" />
+                    <Chip className="encomiendas-destino" label={item.destino || 'N/D'} size="small" color="primary" variant="outlined" />
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>

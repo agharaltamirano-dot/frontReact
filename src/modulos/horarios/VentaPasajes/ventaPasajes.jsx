@@ -116,6 +116,12 @@ export default function VentaPasajes() {
       showNotification('Seleccione un asiento', 'warning')
       return
     }
+    // Validar CI (opcional): si se provee, debe tener entre 8 y 10 dígitos
+    const editCiTrim = (editForm.ci || '').trim()
+    if (editCiTrim && (editCiTrim.length <= 7 || editCiTrim.length >= 11)) {
+      showNotification('El CI debe tener entre 8 y 10 dígitos', 'warning')
+      return
+    }
     setSavingEdit(true)
     try {
       const destinoName = getDestinoName(editForm.destinoId)
@@ -493,7 +499,7 @@ const abrirHojaRutaFallback = (url) => {
     }
   }
 
-  const handleAction = async (isReserva) => {
+  const handleAction = async (isReserva, tipo = 1) => {
     if (!selectedSeats || selectedSeats.length === 0) {
       showNotification('No hay asientos seleccionados', 'warning')
       return
@@ -515,6 +521,12 @@ const abrirHojaRutaFallback = (url) => {
         showNotification(`Monto inválido en asiento ${s.numero}`, 'warning')
         return
       }
+      // Validar CI (opcional) para cada asiento: si se provee, debe tener entre 8 y 10 dígitos
+      const ciTrim = (s.ci || '').toString().trim()
+      if (ciTrim && (ciTrim.length <= 7 || ciTrim.length >= 11)) {
+        showNotification(`CI inválido en asiento ${s.numero}: debe tener entre 8 y 10 dígitos`, 'warning')
+        return
+      }
       const destinoName = getDestinoName(s.destinoId)
       const movil = horario?.vehiculo?.movil || ''
       const usuarioId = getAuthUsuarioId()
@@ -526,6 +538,7 @@ const abrirHojaRutaFallback = (url) => {
         destino: destinoName,
         asientoId: s.id,
         reserva: !!isReserva,
+        tipo: tipo,
         horarioId: horario?.id ?? id,
         usuarioId: usuarioId,
         cliente: {
@@ -701,6 +714,9 @@ const abrirHojaRutaFallback = (url) => {
                       </svg>
                       <span className="destino-name" style={{fontSize:'0.85rem', color:'#374151'}}>{pasaje.destino || (seat.pasajes?.destinoId ? getDestinoName(seat.pasajes.destinoId) : '')}</span>
                     </div>
+                    {Number(pasaje.tipo) === 2 && (
+                      <div style={{marginTop:'auto', alignSelf:'center', background:'#0ea5e9', color:'#fff', fontSize:'0.7rem', fontWeight:700, padding:'1px 8px', borderRadius:8}}>por pagar</div>
+                    )}
                   </div>
                   <button
                     className="seat-print-btn"
@@ -808,7 +824,7 @@ const getAuthData = () => {
   // Suma de montos de todos los pasajes del horario (solo activos)
 const sumaPasajes = (horario?.pasajes || []).reduce((acc, p) => {
   if (!p) return acc
-  if (p.estado === true && p.reserva === false) {
+  if (p.estado === true && p.reserva === false && p.tipo!=2) {
     const m = parseFloat(String(p.monto || 0).replace(',', '.'))
     return acc + (isNaN(m) ? 0 : m)
   }
@@ -1017,6 +1033,18 @@ const sumaPasajes = (horario?.pasajes || []).reduce((acc, p) => {
                     >
                       Reservar
                     </Button>
+
+                    <Button
+                      variant="contained"
+                      color="info"
+                      onClick={() => {
+                        if (!isSaleAllowed()) return showNotification('No se puede vender: el horario ya superó el límite de venta (+10 minutos)', 'warning')
+                        handleAction(false, 2)
+                      }}
+                      disabled={!isSaleAllowed()}
+                    >
+                      Por pagar
+                    </Button>
                   </Stack>
                 </Box>
 
@@ -1068,6 +1096,7 @@ const sumaPasajes = (horario?.pasajes || []).reduce((acc, p) => {
                               </Box>
                               <Box sx={{mt:0.5, display:'flex', gap:0.5, flexWrap:'wrap'}}>
                                 {p.reserva && <Chip label="Reserva" size="small" sx={{bgcolor:'#f59e0b', color:'#fff', fontWeight:600}} />}
+                                {Number(p.tipo) === 2 && <Chip label="Por pagar" size="small" sx={{bgcolor:'#0ea5e9', color:'#fff', fontWeight:600}} />}
                                 {p.estado === false && <Chip label="ANULADO" size="small" sx={{bgcolor:'grey.600', color:'#fff', fontWeight:700}} />}
                                 {p.cliente?.telefono && <Chip label={`Tel: ${p.cliente.telefono}`} size="small" />}
                                 {p.cliente?.ci && <Chip label={`CI: ${p.cliente.ci}`} size="small" />}

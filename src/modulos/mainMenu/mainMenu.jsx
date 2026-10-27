@@ -618,7 +618,7 @@ function MainMenu() {
   </header>
 
   {/* Contenido con margen superior para no quedar oculto */}
-  <div style={{ marginTop: "70px" }}>
+  <div style={{ marginTop: "40px" }}>
     {/* Aquí va el contenido scrolleable */}
   </div>
         {/* Modal independiente para Registrar Encomienda accesible desde cualquier lugar */}

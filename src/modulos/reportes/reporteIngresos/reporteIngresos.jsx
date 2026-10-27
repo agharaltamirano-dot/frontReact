@@ -40,6 +40,7 @@ import {
   Legend,
 } from 'recharts';
 import { fetchUsuarios } from '../../usuarios/usuarioService';
+import { formatShortDate } from '../../../utils/formatDate';
 import {
   getResumenIngresos,
   getReporteResumenPdf,
@@ -225,7 +226,7 @@ export default function ReporteIngresos() {
 
       <Divider sx={{ my: 3 }} />
 
-      <Paper elevation={3} sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+      <Paper className="reporte-ingresos-filters" elevation={3} sx={{ p: 3, mb: 3, borderRadius: 2 }}>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={12} sm={6} md={3}>
   <FormControl
@@ -341,7 +342,7 @@ export default function ReporteIngresos() {
         </Typography>
       )}
 
-      <Paper elevation={3} sx={{ p: 3, mb: 3, borderRadius: 2, height: 400 }}>
+      <Paper className="reporte-ingresos-chart" elevation={3} sx={{ p: 3, mb: 3, borderRadius: 2, height: 400 }}>
         <Typography variant="h6" gutterBottom display="flex" alignItems="center">
           <TrendingUp sx={{ mr: 1, color: 'primary.main' }} />
           Tendencia de Ganancias Activas
@@ -381,8 +382,8 @@ export default function ReporteIngresos() {
         )}
       </Paper>
 
-      <TableContainer component={Paper} elevation={3} sx={{ borderRadius: 2 }}>
-        <Table stickyHeader>
+      <TableContainer className="reporte-ingresos-table-container" component={Paper} elevation={3} sx={{ borderRadius: 2 }}>
+        <Table className="reporte-ingresos-table" stickyHeader>
           <TableHead>
             <TableRow>
               <TableCell sx={{ fontWeight: 'bold' }}>Fecha</TableCell>
@@ -404,7 +405,7 @@ export default function ReporteIngresos() {
             ) : (
               data.map((row, index) => (
                 <TableRow key={index} hover>
-                  <TableCell>{row.fecha}</TableCell>
+                  <TableCell>{formatShortDate(row.fecha)}</TableCell>
                   <TableCell align="center">{row.cantPasajes}</TableCell>
                   <TableCell align="center">{row.cantEncomiendas}</TableCell>
                   <TableCell align="right" sx={{ color: 'success.main', fontWeight: 'medium' }}>

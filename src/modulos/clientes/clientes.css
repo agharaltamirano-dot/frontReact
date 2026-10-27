@@ -1,5 +1,16 @@
 /* ===== MÓDULO CLIENTES ===== */
 
+:root {
+  --ui-bg: #F4F6F9;          /* Fondo neutral descansado */
+  --ui-text: #1A202C;        /* Texto principal carbón profundo */
+  --ui-brand: #0284C7;       /* Acento/marca: Azul zafiro */
+  --ui-brand-dark: #0369A1;  /* Acento hover */
+  --ui-border: #E2E8F0;      /* Color sutil para bordes/card */
+  --ui-surface: #FFFFFF;     /* Superficie de cards */
+  --ui-thead-bg: #0F172A;    /* Azul noche grafito de alto impacto para thead */
+  --ui-thead-text: #F8FAFC;  /* Blanco titanio para thead */
+}
+
 .clientes-screen {
   padding: 4px 0 40px 0;
   display: flex;
@@ -22,7 +33,7 @@
 .clientes-title {
   font-size: 22px !important;
   font-weight: 800 !important;
-  color: #0f172a !important;
+  color: var(--ui-text) !important;
   letter-spacing: -0.5px !important;
 }
 
@@ -32,127 +43,162 @@
   margin-top: 2px !important;
 }
 
-/* Botón agregar */
+/* 2. Botón agregar */
 .btn-add-cliente {
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%) !important;
-  color: white !important;
-  border-radius: 10px !important;
-  padding: 8px 18px !important;
-  font-weight: 700 !important;
-  font-size: 13.5px !important;
+  background-color: var(--ui-brand) !important;
+  color: #FFFFFF !important;
+  border-radius: 8px !important;
+  padding: 10px 20px !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
   text-transform: none !important;
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3) !important;
-  transition: all 0.2s ease !important;
+  box-shadow: none !important;
+  transition: background-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease !important;
 }
 
 .btn-add-cliente:hover {
-  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4) !important;
+  background-color: var(--ui-brand-dark) !important;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25) !important;
   transform: translateY(-1px);
+}
+
+.btn-add-cliente:active {
+  transform: translateY(0);
 }
 
 /* Botón refresh */
 .refresh-btn {
   background: white !important;
-  border: 1px solid #e2e8f0 !important;
-  border-radius: 10px !important;
+  border: 1px solid var(--ui-border) !important;
+  border-radius: 8px !important;
   color: #64748b !important;
-  width: 38px !important;
-  height: 38px !important;
+  width: 40px !important;
+  height: 40px !important;
   transition: all 0.2s ease !important;
 }
 
 .refresh-btn:hover {
-  border-color: #6366f1 !important;
-  color: #6366f1 !important;
+  border-color: var(--ui-brand) !important;
+  color: var(--ui-brand) !important;
+  background-color: #F8FAFC !important;
 }
 
-/* Tabla */
+/* 3 y 5. Tabla y Cabecera Thead con Alto Impacto */
 .clientes-table-paper {
-  border: 1px solid #e2e8f0 !important;
-  border-radius: 14px !important;
+  border: 1px solid var(--ui-border) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 6px 16px -4px rgba(15, 23, 42, 0.06) !important;
   overflow: hidden;
+  background-color: var(--ui-surface) !important;
+}
+
+.clientes-table {
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
 .clientes-table thead th {
-  background: #f8fafc;
-  font-size: 11.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.7px;
-  color: #64748b;
-  border-bottom: 1px solid #e2e8f0;
-  padding: 14px 16px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background-color: var(--ui-thead-bg) !important;
+  color: var(--ui-thead-text) !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  padding: 14px 18px !important;
+  border-bottom: 3px solid var(--ui-brand) !important;
+  white-space: nowrap;
+}
+
+.clientes-table thead th:first-child {
+  border-top-left-radius: 9px;
+}
+
+.clientes-table thead th:last-child {
+  border-top-right-radius: 9px;
 }
 
 .clientes-table tbody td {
-  font-size: 13.5px;
-  padding: 12px 16px;
-  border-bottom: 1px solid #f1f5f9;
+  font-size: 14px !important;
+  padding: 14px 18px !important;
+  border-bottom: 1px solid var(--ui-border) !important;
+  color: var(--ui-text) !important;
   vertical-align: middle;
+  transition: background-color 0.2s ease;
 }
 
 .clientes-table tbody tr:last-child td {
-  border-bottom: none;
+  border-bottom: none !important;
 }
 
 .clientes-table tbody tr:hover td {
-  background: #fafbff;
+  background-color: #F8FAFC !important;
 }
 
 .row-inactive td {
-  opacity: 0.55;
+  opacity: 0.6;
 }
 
-/* Avatar */
+/* Avatar con colores consistentes */
 .cliente-avatar {
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%) !important;
+  background-color: #E0F2FE !important;
+  color: #0369A1 !important;
+  border: 2px solid #BAE6FD !important;
   font-weight: 700 !important;
   font-size: 13px !important;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25) !important;
+  box-shadow: none !important;
 }
 
-/* Chips de estado */
+/* 4. Chips de estado (Fondo claro + texto oscuro) */
 .chip-activo {
-  background: #dcfce7 !important;
-  color: #166534 !important;
+  background-color: #DCFCE7 !important;
+  color: #14532D !important;
   font-weight: 700 !important;
   font-size: 11px !important;
-  border: 1px solid #bbf7d0 !important;
+  border: 1px solid #BBF7D0 !important;
+  border-radius: 6px !important;
 }
 
 .chip-inactivo {
-  background: #fee2e2 !important;
-  color: #991b1b !important;
+  background-color: #FEE2E2 !important;
+  color: #991B1B !important;
   font-weight: 700 !important;
   font-size: 11px !important;
-  border: 1px solid #fecaca !important;
+  border: 1px solid #FECACA !important;
+  border-radius: 6px !important;
 }
 
 /* Botones de acción en tabla */
 .btn-action-edit {
-  color: #2563eb !important;
-  background: #eff6ff !important;
+  color: var(--ui-brand) !important;
+  background-color: #F0F9FF !important;
+  border: 1px solid var(--ui-border) !important;
   border-radius: 8px !important;
-  transition: all 0.2s !important;
+  transition: all 0.2s ease !important;
 }
 
 .btn-action-edit:hover {
-  background: #dbeafe !important;
+  background-color: #E0F2FE !important;
+  border-color: var(--ui-brand) !important;
   transform: translateY(-1px);
-  box-shadow: 0 3px 8px rgba(37, 99, 235, 0.2) !important;
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.2) !important;
 }
 
 .btn-action-delete {
-  color: #dc2626 !important;
-  background: #fef2f2 !important;
+  color: #DC2626 !important;
+  background-color: #FEF2F2 !important;
+  border: 1px solid var(--ui-border) !important;
   border-radius: 8px !important;
-  transition: all 0.2s !important;
+  transition: all 0.2s ease !important;
 }
 
 .btn-action-delete:hover {
-  background: #fee2e2 !important;
+  background-color: #FEE2E2 !important;
+  border-color: #EF4444 !important;
   transform: translateY(-1px);
-  box-shadow: 0 3px 8px rgba(220, 38, 38, 0.2) !important;
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.2) !important;
 }
 
 /* Paginación */
@@ -160,24 +206,25 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  border-top: 1px solid #f1f5f9;
-  background: #fafbfc;
+  padding: 16px 24px;
+  border-top: 1px solid var(--ui-border);
+  background-color: #FAFCFE;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 12px;
 }
 
 /* Modal */
 .modal-cliente-paper {
-  border-radius: 16px !important;
-  padding: 4px;
+  border-radius: 12px !important;
+  border: 1px solid var(--ui-border) !important;
+  box-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.05) !important;
 }
 
 .modal-icon-box {
   width: 40px;
   height: 40px;
-  border-radius: 10px;
-  background: #eef2ff;
+  border-radius: 8px;
+  background: #E0F2FE;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -186,19 +233,35 @@
 
 /* Botones del modal */
 .btn-cancel {
-  border-radius: 10px !important;
+  border-radius: 8px !important;
   text-transform: none !important;
   font-weight: 600 !important;
-  border-color: #e2e8f0 !important;
-  color: #475569 !important;
+  border-color: var(--ui-border) !important;
+  color: var(--ui-text) !important;
+  padding: 8px 18px !important;
+  transition: background-color 0.2s ease, border-color 0.2s ease !important;
+}
+
+.btn-cancel:hover {
+  background-color: #F8FAFC !important;
+  border-color: #CBD5E1 !important;
 }
 
 .btn-save {
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%) !important;
-  border-radius: 10px !important;
+  background-color: var(--ui-brand) !important;
+  border-radius: 8px !important;
   text-transform: none !important;
-  font-weight: 700 !important;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3) !important;
+  font-weight: 600 !important;
+  color: #FFFFFF !important;
+  padding: 8px 20px !important;
+  box-shadow: none !important;
+  transition: background-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease !important;
+}
+
+.btn-save:hover:not(:disabled) {
+  background-color: var(--ui-brand-dark) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25) !important;
 }
 
 /* Responsivo */
@@ -213,3 +276,4 @@
     display: none;
   }
 }
+

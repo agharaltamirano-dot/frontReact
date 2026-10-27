@@ -545,7 +545,8 @@ function Usuarios() {
                     />
                     <span className="switch-slider"></span>
                   </label>
-                  <span style={{ fontSize: '14px', fontWeight: '600', color: formData.acceso ? '#10b981' : '#64748b' }}>
+                  <span className={`badge-status ${formData.acceso ? 'active' : 'inactive'}`}>
+                    <span className="badge-status-dot"></span>
                     {formData.acceso ? 'Activo (Permitido)' : 'Inactivo (Bloqueado)'}
                   </span>
                 </div>

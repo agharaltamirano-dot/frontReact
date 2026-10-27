@@ -109,6 +109,10 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
   // Notificaciones
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' })
 
+  // Errores de validación en tiempo real
+  const [formErrors, setFormErrors] = useState({})
+
+
   const getAuthData = () => {
   try {
     const raw = sessionStorage.getItem("authData");
@@ -184,6 +188,11 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
     }
   }, [open])
 
+  // Validación en tiempo real: se ejecuta al cambiar los campos de remitente/consignatario
+  useEffect(() => {
+    setFormErrors(validateFields())
+  }, [remitenteNombre, remitenteCi, remitenteTelefono, consignatarioNombre, consignatarioCi, consignatarioTelefono])
+
   const resetForm = () => {
     setContenido('')
     setMonto('')
@@ -197,6 +206,7 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
     setConsignatarioNombre('')
     setConsignatarioCi('')
     setConsignatarioTelefono('')
+    setFormErrors({})
   }
 
   // Obtener ID del usuario activo desde sessionStorage
@@ -256,6 +266,14 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
   const handleSubmit = async (e, forcedPagado = pagado) => {
     e?.preventDefault?.()
 
+    // Revalidar una vez antes de enviar
+    const latestErrors = validateFields()
+    setFormErrors(latestErrors)
+    if (Object.keys(latestErrors).length > 0) {
+      setSnackbar({ open: true, message: 'Corrija los errores del formulario antes de continuar.', severity: 'warning' })
+      return
+    }
+
     if (!contenido.trim()) {
       setSnackbar({ open: true, message: 'Debe ingresar el contenido de la encomienda.', severity: 'warning' })
       return
@@ -268,14 +286,7 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
       setSnackbar({ open: true, message: 'Debe seleccionar un destino.', severity: 'warning' })
       return
     }
-    if (!remitenteNombre.trim()) {
-      setSnackbar({ open: true, message: 'Debe ingresar el nombre del remitente.', severity: 'warning' })
-      return
-    }
-    if (!consignatarioNombre.trim()) {
-      setSnackbar({ open: true, message: 'Debe ingresar el nombre del consignatario.', severity: 'warning' })
-      return
-    }
+    // nombre remitente/consignatario ya se valida en validateFields
 
     setSubmitting(true)
 
@@ -344,6 +355,59 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
     }
   }
 
+  // Validador: comprueba reglas solicitadas y devuelve objeto de errores
+  function validateFields() {
+    const errors = {}
+
+    // Nombre remitente: obligatorio, min 3, max 30
+    const rName = (remitenteNombre || '').trim()
+    if (!rName) {
+      errors.remitenteNombre = 'El nombre del remitente es requerido'
+    } else if (rName.length < 3) {
+      errors.remitenteNombre = 'El nombre del remitente debe tener al menos 3 caracteres'
+    } else if (rName.length > 30) {
+      errors.remitenteNombre = 'El nombre del remitente no puede superar los 30 caracteres'
+    }
+
+    // CI remitente: opcional, pero si existe debe tener entre 7 y 10
+    const rCi = (remitenteCi || '').trim()
+    if (rCi) {
+      if (rCi.length < 7 || rCi.length > 10) errors.remitenteCi = 'El CI del remitente debe tener entre 7 y 10 caracteres'
+    }
+
+    // Telefono remitente: opcional, si existe entre 7 y 10
+    const rTel = (remitenteTelefono || '').trim()
+    if (rTel) {
+      if (rTel.length < 7 || rTel.length > 10) errors.remitenteTelefono = 'El teléfono del remitente debe tener entre 7 y 10 caracteres'
+    }
+
+    // Nombre consignatario: obligatorio, min 3, max 30
+    const cName = (consignatarioNombre || '').trim()
+    if (!cName) {
+      errors.consignatarioNombre = 'El nombre del consignatario es requerido'
+    } else if (cName.length < 3) {
+      errors.consignatarioNombre = 'El nombre del consignatario debe tener al menos 3 caracteres'
+    } else if (cName.length > 30) {
+      errors.consignatarioNombre = 'El nombre del consignatario no puede superar los 30 caracteres'
+    }
+
+    // CI consignatario: obligatorio, min 7, max 10
+    const cCi = (consignatarioCi || '').trim()
+    if (!cCi) {
+      errors.consignatarioCi = 'El CI del consignatario es requerido'
+    } else if (cCi.length < 7 || cCi.length > 10) {
+      errors.consignatarioCi = 'El CI del consignatario debe tener entre 7 y 10 caracteres'
+    }
+
+    // Telefono consignatario: opcional, si existe entre 7 y 10
+    const cTel = (consignatarioTelefono || '').trim()
+    if (cTel) {
+      if (cTel.length < 7 || cTel.length > 10) errors.consignatarioTelefono = 'El teléfono del consignatario debe tener entre 7 y 10 caracteres'
+    }
+
+    return errors
+  }
+
   return (
     <>
       <Dialog
@@ -380,6 +444,11 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
             </Box>
           ) : (
             <Box component="form" id="form-registrar-encomienda" onSubmit={handleSubmit}>
+              {Object.keys(formErrors).length > 0 && (
+                <Alert severity="warning" sx={{ mb: 2 }}>
+                  Existen errores en el formulario. Corrija los campos indicados antes de continuar.
+                </Alert>
+              )}
               <Grid container spacing={2.5} sx={{ alignItems: 'stretch' }}>
                 <Grid size={{ xs: 12, md: 4 }}>
                   <Box className="client-column-box" sx={{ height: '100%' }}>
@@ -407,7 +476,10 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
                           label="Buscar / Nombre Completo Remitente *"
                           size="small"
                           fullWidth
+                          inputProps={{ maxLength: 30 }}
                           sx={{ mb: 1.5, bgcolor: '#ffffff' }}
+                          error={!!formErrors.remitenteNombre}
+                          helperText={formErrors.remitenteNombre}
                         />
                       )}
                     />
@@ -423,7 +495,10 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
                             setRemitenteCi(e.target.value)
                             if (selectedRemitente) setSelectedRemitente(null)
                           }}
+                          inputProps={{ maxLength: 10 }}
                           sx={{ bgcolor: '#ffffff' }}
+                          error={!!formErrors.remitenteCi}
+                          helperText={formErrors.remitenteCi}
                         />
                       </Grid>
                       <Grid size={{ xs: 6 }}>
@@ -436,7 +511,10 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
                             setRemitenteTelefono(e.target.value)
                             if (selectedRemitente) setSelectedRemitente(null)
                           }}
+                          inputProps={{ maxLength: 10 }}
                           sx={{ bgcolor: '#ffffff' }}
+                          error={!!formErrors.remitenteTelefono}
+                          helperText={formErrors.remitenteTelefono}
                         />
                       </Grid>
                     </Grid>
@@ -514,7 +592,10 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
                           label="Buscar / Nombre Completo Consignatario *"
                           size="small"
                           fullWidth
+                          inputProps={{ maxLength: 30 }}
                           sx={{ mb: 1.5, bgcolor: '#ffffff' }}
+                          error={!!formErrors.consignatarioNombre}
+                          helperText={formErrors.consignatarioNombre}
                         />
                       )}
                     />
@@ -530,7 +611,10 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
                             setConsignatarioCi(e.target.value)
                             if (selectedConsignatario) setSelectedConsignatario(null)
                           }}
+                          inputProps={{ maxLength: 10 }}
                           sx={{ bgcolor: '#ffffff' }}
+                          error={!!formErrors.consignatarioCi}
+                          helperText={formErrors.consignatarioCi}
                         />
                       </Grid>
                       <Grid size={{ xs: 6 }}>
@@ -543,7 +627,10 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
                             setConsignatarioTelefono(e.target.value)
                             if (selectedConsignatario) setSelectedConsignatario(null)
                           }}
+                          inputProps={{ maxLength: 10 }}
                           sx={{ bgcolor: '#ffffff' }}
+                          error={!!formErrors.consignatarioTelefono}
+                          helperText={formErrors.consignatarioTelefono}
                         />
                       </Grid>
                     </Grid>
@@ -572,7 +659,7 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
             type="button"
             variant="contained"
             startIcon={<CheckCircleIcon />}
-            disabled={submitting || loadingData}
+          disabled={submitting || loadingData || Object.keys(formErrors).length > 0}
             onClick={() => submitWithPaymentStatus(true)}
             sx={{
               textTransform: 'none',
@@ -591,7 +678,7 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
             type="button"
             variant="contained"
             startIcon={<ClockIcon />}
-            disabled={submitting || loadingData}
+            disabled={submitting || loadingData || Object.keys(formErrors).length > 0}
             onClick={() => submitWithPaymentStatus(false)}
             sx={{
               textTransform: 'none',

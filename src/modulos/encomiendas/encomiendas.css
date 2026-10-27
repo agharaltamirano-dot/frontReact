@@ -10,49 +10,174 @@
     opacity: 0;
     transform: translateY(6px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
+
 @media print {
   .MuiDialogActions-root {
-    display: none !important; /* oculta Cerrar e Imprimir Ticket */
+    display: none !important;
+    /* oculta Cerrar e Imprimir Ticket */
   }
 }
 
-/* Stat Cards */
+/* ===== STAT CARDS — diseño moderno con color ===== */
 .stat-card {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  border-radius: 12px !important;
+  position: relative;
+  overflow: hidden;
+  border: none !important;
+  border-radius: 16px !important;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+}
+
+.stat-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
 }
 
 .stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08) !important;
+  transform: translateY(-4px);
+}
+
+/* Iconos: bloques con gradiente sólido e ícono blanco */
+.stat-card .stat-icon {
+  color: #ffffff !important;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.18);
+}
+
+/* Etiqueta de cada tarjeta */
+.stat-card .MuiTypography-caption {
+  letter-spacing: 0.6px;
+  opacity: 0.85;
+}
+
+/* --- Total Registradas (azul) --- */
+.stat-card-total {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%) !important;
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.12) !important;
+}
+
+.stat-card-total::before {
+  background: linear-gradient(180deg, #60a5fa, #2563eb);
+}
+
+.stat-card-total .stat-icon {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8) !important;
+}
+
+.stat-card-total:hover {
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.22) !important;
+}
+
+.stat-card-total .MuiTypography-h6 {
+  color: #1d4ed8 !important;
+}
+
+/* --- Recaudado (verde esmeralda) --- */
+.stat-card-recaudado {
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%) !important;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.12) !important;
+}
+
+.stat-card-recaudado::before {
+  background: linear-gradient(180deg, #34d399, #059669);
+}
+
+.stat-card-recaudado .stat-icon {
+  background: linear-gradient(135deg, #10b981, #047857) !important;
+}
+
+.stat-card-recaudado:hover {
+  box-shadow: 0 12px 28px rgba(16, 185, 129, 0.22) !important;
+}
+
+.stat-card-recaudado .MuiTypography-h6 {
+  color: #047857 !important;
+}
+
+/* --- Estado Pagado (teal) --- */
+.stat-card-pagado {
+  background: linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%) !important;
+  box-shadow: 0 4px 16px rgba(20, 184, 166, 0.12) !important;
+}
+
+.stat-card-pagado::before {
+  background: linear-gradient(180deg, #2dd4bf, #0d9488);
+}
+
+.stat-card-pagado .stat-icon {
+  background: linear-gradient(135deg, #14b8a6, #0f766e) !important;
+}
+
+.stat-card-pagado:hover {
+  box-shadow: 0 12px 28px rgba(20, 184, 166, 0.22) !important;
+}
+
+.stat-card-pagado .MuiTypography-h6 {
+  color: #0f766e !important;
+}
+
+/* --- Por Pagar (naranja) --- */
+.stat-card-porpagar {
+  background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%) !important;
+  box-shadow: 0 4px 16px rgba(249, 115, 22, 0.12) !important;
+}
+
+.stat-card-porpagar::before {
+  background: linear-gradient(180deg, #fb923c, #ea580c);
+}
+
+.stat-card-porpagar .stat-icon {
+  background: linear-gradient(135deg, #f97316, #c2410c) !important;
+}
+
+.stat-card-porpagar:hover {
+  box-shadow: 0 12px 28px rgba(249, 115, 22, 0.22) !important;
+}
+
+.stat-card-porpagar .MuiTypography-h6 {
+  color: #c2410c !important;
 }
 
 /* MUI Custom Table styling overrides */
 .encomiendas-table-container {
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+  border-radius: 14px;
+  box-shadow: 0 6px 24px rgba(15, 23, 42, 0.08) !important;
   overflow: hidden;
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  border: 1px solid rgba(226, 232, 240, 0.9);
 }
 
-.encomiendas-table th {
-  background-color: #f8fafc !important;
-  color: #475569 !important;
-  font-weight: 600 !important;
-  font-size: 0.825rem !important;
+/* Encabezado de tabla, acorde al módulo de horarios */
+.encomiendas-table thead th {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+  font-weight: 700 !important;
+  font-size: 12px !important;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border-bottom: 1px solid #e2e8f0 !important;
+  letter-spacing: 0.05em;
+  padding: 14px 18px !important;
+  border-bottom: 3px solid #0284c7 !important;
+  white-space: nowrap;
+}
+
+.encomiendas-table thead th:first-child {
+  border-top-left-radius: 9px;
+}
+
+.encomiendas-table thead th:last-child {
+  border-top-right-radius: 9px;
 }
 
 .encomiendas-table td {
   font-size: 0.875rem;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid #eef2f7;
   padding: 12px 16px !important;
 }
 
@@ -60,59 +185,91 @@
   transition: background-color 0.15s ease;
 }
 
-.encomiendas-table tbody tr:hover {
-  background-color: #f8fafc !important;
+/* Filas con zebra sutil y hover con tinte índigo */
+.encomiendas-table tbody tr:nth-of-type(even) {
+  background-color: #fafbff;
 }
 
-/* Custom Chips for Status */
+.encomiendas-table tbody tr:hover {
+  background-color: #eef2ff !important;
+}
+
+/* ===== Chips de estado — más notorios ===== */
+.encomiendas-view .encomiendas-table .badge-pagado,
+.encomiendas-view .encomiendas-table .badge-por-pagar,
+.encomiendas-view .encomiendas-table .badge-activa,
+.encomiendas-view .encomiendas-table .badge-anulada {
+  color: #ffffff !important;
+}
+
 .badge-pagado {
-  background-color: #e8f5e9 !important;
-  color: #2e7d32 !important;
-  font-weight: 600 !important;
-  border: 1px solid #c8e6c9 !important;
+  background: linear-gradient(135deg, #22c55e, #15803d) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  border: none !important;
+  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.35);
 }
 
 .badge-por-pagar {
-  background-color: #fff3e0 !important;
-  color: #ed6c02 !important;
-  font-weight: 600 !important;
-  border: 1px solid #ffe0b2 !important;
+  background: linear-gradient(135deg, #f97316, #c2410c) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  border: none !important;
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.35);
 }
 
 .badge-activa {
-  background-color: #e3f2fd !important;
-  color: #0288d1 !important;
-  font-weight: 600 !important;
-  border: 1px solid #bbdefb !important;
+  background: linear-gradient(135deg, #0ea5e9, #0369a1) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  border: none !important;
+  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.35);
 }
 
 .badge-anulada {
-  background-color: #ffebee !important;
-  color: #d32f2f !important;
-  font-weight: 600 !important;
-  border: 1px solid #ffcdd2 !important;
+  background: linear-gradient(135deg, #ef4444, #b91c1c) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  border: none !important;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.35);
 }
 
+/* ===== Número de tracking destacado ===== */
 .tracking-number {
   font-family: 'Roboto Mono', monospace, monospace;
-  font-weight: 700;
-  color: #1e293b;
-  background: #f1f5f9;
-  padding: 4px 8px;
-  border-radius: 6px;
+  font-weight: 800;
+  color: #ffffff;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  padding: 4px 10px;
+  border-radius: 8px;
   display: inline-block;
-  letter-spacing: -0.2px;
+  letter-spacing: 0.4px;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
 }
 
+.encomiendas-view .encomiendas-table .tracking-number {
+  background: #4338ca;
+  color: #fff;
+}
+
+.encomiendas-view .encomiendas-table .encomiendas-destino {
+  background: #0369a1 !important;
+  color: #fff !important;
+  border: 1px solid #0369a1 !important;
+  font-weight: 700 !important;
+}
+
+/* ===== Nombres y teléfonos más legibles ===== */
 .person-name {
-  font-weight: 600;
-  color: #1e293b;
+  font-weight: 700;
+  color: #0f172a;
   display: block;
 }
 
 .person-phone {
   font-size: 0.775rem;
-  color: #64748b;
+  font-weight: 600;
+  color: #6366f1;
   display: flex;
   align-items: center;
   gap: 3px;
@@ -123,18 +280,21 @@
 .ticket-modal-paper {
   border-radius: 16px !important;
 }
+
 @media print {
   body {
     margin: 0 !important;
     padding: 0 !important;
   }
+
   .ticket-print-area {
     margin: 0 !important;
     padding: 0 !important;
   }
+
   .ticket-modal-paper {
-    box-shadow: none !important; /* quita sombra del diálogo */
+    box-shadow: none !important;
+    /* quita sombra del diálogo */
     border: none !important;
   }
 }
-

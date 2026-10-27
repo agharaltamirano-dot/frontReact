@@ -877,9 +877,13 @@ function Vehiculos() {
                   <label className="input-label">Distribución de Asientos <span className="required">*</span></label>
                   <div className="distrib-carousel" role="list" style={{ width: '100%' }}>
                     {distribucionesList.map((d) => {
-                      const maxFila = d.asientos && d.asientos.length > 0 ? Math.max(...d.asientos.map(s => s.fila)) : 1
+                      const maxFila = d.asientos && d.asientos.length > 0 ? Math.max(...d.asientos.map(s => Number(s.fila) || 1)) : 1
                       const rows = maxFila
-                      const cols = 3
+                      const maxCol = d.asientos && d.asientos.length > 0 ? Math.max(...d.asientos.map(s => Number(s.columna) || 1)) : 3
+                      // Mostrar cuarta columna solo si hay al menos un asiento con columna 4
+                      const cols = maxCol >= 4 ? 4 : 3
+                      // Si mostramos 4 columnas, hacemos las columnas ligeramente más estrechas para mantener el layout
+                      const gridColsStyle = cols === 4 ? `repeat(4, 0.85fr)` : `repeat(3, 1fr)`
 
                       return (
                         <div
@@ -890,7 +894,7 @@ function Vehiculos() {
                           tabIndex={0}
                         >
                           <div className="dist-card-title">{d.nombre}</div>
-                          <div className="dist-seats-grid" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
+                          <div className="dist-seats-grid" style={{ gridTemplateColumns: gridColsStyle }}>
                             {Array.from({ length: rows }).map((_, rIdx) => (
                               Array.from({ length: cols }).map((_, cIdx) => {
                                 const fila = rIdx + 1

@@ -30,8 +30,26 @@ function authHeaders() {
   };
 }
 
+function getHorarioStart(horario) {
+  const fecha = String(horario?.fecha || "").split("T")[0];
+  const hora = String(horario?.hora || "").slice(0, 5);
+  const start = new Date(`${fecha}T${hora}:00`);
+  return Number.isFinite(start.getTime()) ? start : null;
+}
+
+function isHorarioEnRuta(horario, now = new Date()) {
+  const salida = getHorarioStart(horario);
+
+  return (
+    salida !== null &&
+    now >= salida &&
+    now < salida.getTime() + 2 * 60 * 60 * 1000
+  );
+}
+
 function Horarios() {
   const [loading, setLoading] = useState(false);
+  const [currentTime, setCurrentTime] = useState(() => new Date());
   const [searchTerm, setSearchTerm] = useState("");
   const [rutaFilter, setRutaFilter] = useState("todos");
   const [origenFilter, setOrigenFilter] = useState("todos");
@@ -56,6 +74,12 @@ function Horarios() {
   const [notification, setNotification] = useState(null);
   const [horarioToDelete, setHorarioToDelete] = useState(null);
   const [saving, setSaving] = useState(false);
+
+  // Modal para cambiar hora de retorno
+  const [changeHorario, setChangeHorario] = useState(null);
+  const [changeSelectedDate, setChangeSelectedDate] = useState("");
+  const [changeSelectedTime, setChangeSelectedTime] = useState("");
+  const [changeTimeError, setChangeTimeError] = useState("");
 
   // Formulario
   const [formData, setFormData] = useState({
@@ -87,6 +111,64 @@ function Horarios() {
   }
 
   const filteredTimes = allTimes.filter((t) => t.includes(timeSearch));
+  const getUnavailableVehicles = (fecha, hora) => {
+    const today = format(currentTime, "yyyy-MM-dd");
+    const candidateTime =
+      hora || (fecha === today ? format(currentTime, "HH:mm") : "00:00");
+    const candidateStart = new Date(`${fecha}T${candidateTime}:00`);
+    if (!Number.isFinite(candidateStart.getTime())) return new Set();
+
+    const candidateEnd = candidateStart.getTime() + 2 * 60 * 60 * 1000;
+    return new Set(
+      horarios
+        .filter((horario) => {
+          if (
+            editingHorario &&
+            String(horario.id) === String(editingHorario.id)
+          ) {
+            return false;
+          }
+
+          const existingStart = getHorarioStart(horario);
+          if (!existingStart) return false;
+          const existingEnd = existingStart.getTime() + 2 * 60 * 60 * 1000;
+
+          return (
+            candidateStart.getTime() < existingEnd &&
+            candidateEnd > existingStart.getTime()
+          );
+        })
+        .map((horario) =>
+          Number(horario.vehiculoId || horario.vehiculo?.id),
+        )
+        .filter(Number.isFinite),
+    );
+  };
+  const updateScheduleField = (field, value) => {
+    const nextFormData = { ...formData, [field]: value };
+    const unavailableVehicles = getUnavailableVehicles(
+      nextFormData.fecha,
+      nextFormData.hora,
+    );
+
+    if (
+      nextFormData.vehiculoId &&
+      unavailableVehicles.has(Number(nextFormData.vehiculoId))
+    ) {
+      nextFormData.vehiculoId = "";
+      setVehicleSearch("");
+      showNotification(
+        "Se desasignó el vehículo porque el horario seleccionado se cruza con otro viaje",
+        "error",
+      );
+    }
+
+    setFormData(nextFormData);
+  };
+  const vehiculosEnRuta = getUnavailableVehicles(
+    formData.fecha,
+    formData.hora,
+  );
   const filteredVehicles = vehiculos.filter((v) => {
     const normalize = (s = "") =>
       String(s)
@@ -118,12 +200,153 @@ function Horarios() {
     const movil = tryNormalize(String(v.movil) || "");
 
     return (
-      !term ||
-      placa.includes(term) ||
-      movil.includes(term) ||
-      fullname.includes(term)
+      !vehiculosEnRuta.has(Number(v.id)) &&
+      (!term ||
+        placa.includes(term) ||
+        movil.includes(term) ||
+        fullname.includes(term))
     );
   });
+
+  // Helper: crear horario usando el endpoint POST existente
+  const createHorario = async (payload) => {
+    console.log('Creating horario with payload:', payload)
+    var data = {
+      estado: payload.estado,
+      fecha: payload.fecha,
+      hora: payload.hora,
+      rutaId: payload.rutaId,
+      vehiculoId: payload.vehiculoId ?? payload.vehiculo?.id,
+    }
+    const res = await fetch(BASE_URL_HORARIOS, {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      throw new Error(`POST /horarios failed: ${res.status} ${txt}`);
+    }
+    return res.json();
+  };
+
+  const openChangeModal = (horario) => {
+    const departureDate = String(
+      horario?.fecha || new Date().toLocaleDateString("en-CA"),
+    ).split("T")[0];
+    const departureTime = String(horario?.hora || "00:00").slice(0, 5);
+    const departure = new Date(`${departureDate}T${departureTime}:00`);
+    const returnDate = new Date(departure.getTime() + 2 * 60 * 60 * 1000);
+
+    setChangeHorario(horario);
+    setChangeSelectedDate(format(returnDate, "yyyy-MM-dd"));
+    setChangeSelectedTime(format(returnDate, "HH:mm"));
+    setChangeTimeError("");
+  };
+
+  const closeChangeModal = () => {
+    setChangeHorario(null);
+    setChangeSelectedDate("");
+    setChangeSelectedTime("");
+    setChangeTimeError("");
+  };
+
+  const confirmChangeTime = async () => {
+    if (!changeSelectedDate || !changeSelectedTime) {
+      setChangeTimeError("Seleccione una fecha y hora válidas");
+      return;
+    }
+
+    const selectedReturn = new Date(
+      `${changeSelectedDate}T${changeSelectedTime}:00`,
+    );
+    const departureDate = String(changeHorario?.fecha || "").split("T")[0];
+    const departureTime = String(changeHorario?.hora || "00:00").slice(0, 5);
+    const departure = new Date(`${departureDate}T${departureTime}:00`);
+
+    if (selectedReturn < new Date()) {
+      setChangeTimeError("La fecha y hora de retorno no pueden estar en el pasado");
+      return;
+    }
+
+    if (selectedReturn < departure) {
+      setChangeTimeError("La fecha y hora de retorno no pueden ser anteriores a la salida");
+      return;
+    }
+
+    // Buscar ruta inversa (origen/destino intercambiados) en la lista `rutas`
+    const extractEndpoints = (ruta) => {
+      if (!ruta) return { origen: null, destino: null };
+      if (Array.isArray(ruta.destinos) && ruta.destinos.length) {
+        const sorted = [...ruta.destinos].sort((a, b) => (a.orden || 0) - (b.orden || 0));
+        const first = sorted[0];
+        const last = sorted[sorted.length - 1];
+        const origen = first?.puntoVenta?.id || first?.puntoVenta || null;
+        const destino = last?.puntoVenta?.id || last?.puntoVenta || null;
+        return { origen, destino };
+      }
+      return {
+        origen: ruta.origenId || ruta.origen?.id || null,
+        destino: ruta.destinoId || ruta.destino?.id || null,
+      };
+    };
+
+    // Obtener endpoints del horario original (puede tener ruta embebida o solo rutaId)
+    let originalOrigen = null;
+    let originalDestino = null;
+    if (changeHorario?.ruta) {
+      const e = extractEndpoints(changeHorario.ruta);
+      originalOrigen = e.origen;
+      originalDestino = e.destino;
+    } else if (changeHorario?.rutaId) {
+      const rObj = rutas.find((r) => Number(r.id) === Number(changeHorario.rutaId));
+      const e = extractEndpoints(rObj || {});
+      originalOrigen = e.origen;
+      originalDestino = e.destino;
+    }
+
+    // buscar ruta que tenga origen === originalDestino y destino === originalOrigen
+    const reverseRoute = rutas.find((r) => {
+      const e = extractEndpoints(r);
+      return (
+        String(e.origen) === String(originalDestino) &&
+        String(e.destino) === String(originalOrigen)
+      );
+    });
+
+    if (!reverseRoute) {
+      showNotification(
+        "No se encontró una ruta de retorno (origen/destino invertidos). No se creó el horario.",
+        "error",
+      );
+      return;
+    }
+
+    // Construir nuevo payload a enviar al servicio (mismos datos que el original pero con fecha hoy, hora seleccionada y ruta inversa)
+    const newPayload = { ...changeHorario, fecha: changeSelectedDate, hora: changeSelectedTime, rutaId: Number(reverseRoute.id) };
+    // Eliminar id para creación
+    delete newPayload.id;
+
+    try {
+      const created = await createHorario(newPayload);
+      setHorarios((prev) => [created, ...prev]);
+      showNotification(`Horario de retorno creado para ${changeSelectedTime}`, "success");
+    } catch (err) {
+      console.log("POST backend crear horario no disponible:", err.message);
+      setHorarios((prev) => [{ ...newPayload, id: Date.now() }, ...prev]);
+      showNotification(`Horario agregado localmente a ${changeSelectedTime}`, "success");
+    }
+
+    closeChangeModal();
+  };
+
+  useEffect(() => {
+    const intervalId = window.setInterval(
+      () => setCurrentTime(new Date()),
+      30_000,
+    );
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -426,6 +649,20 @@ function Horarios() {
       setSaving(false);
       return;
     }
+    const vehicleIsOnRoute = horarios.some(
+      (horario) =>
+        Number(horario.vehiculoId || horario.vehiculo?.id) ===
+          Number(formData.vehiculoId) &&
+        isHorarioEnRuta(horario, new Date()),
+    );
+    if (vehicleIsOnRoute) {
+      showNotification(
+        "Este vehículo está en ruta y no puede asignarse a otro horario",
+        "error",
+      );
+      setSaving(false);
+      return;
+    }
 
     // Validar que no exista ya un horario con la misma fecha, hora y vehículo
     const isDuplicate = horarios.some(
@@ -497,15 +734,8 @@ function Horarios() {
         const newId = Date.now();
         const newHorario = { ...payload, id: newId };
         try {
-          const res = await fetch(BASE_URL_HORARIOS, {
-            method: "POST",
-            headers: authHeaders(),
-            body: JSON.stringify(payload),
-          });
-          if (res.ok) {
-            const data = await res.json();
-            newHorario.id = data.id || newId;
-          }
+          const data = await createHorario(payload);
+          newHorario.id = data.id || newId;
         } catch (err) {
           console.log("POST backend horarios no disponible:", err.message);
         }
@@ -678,6 +908,93 @@ function Horarios() {
         </div>
       )}
 
+      {/* Modal Cambiar Hora de Retorno */}
+      {changeHorario && (
+        <div className="modal-overlay" onClick={closeChangeModal}>
+          <div
+            className="modal-content confirmation-modal"
+            style={{ maxWidth: "480px" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h2>Cambiar Hora de Retorno</h2>
+              <button className="modal-close" onClick={closeChangeModal}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+
+            <div style={{ padding: "18px 24px" }}>
+              <p style={{ color: "var(--slate-700)", fontSize: "15px", lineHeight: "1.6", margin: 0 }}>
+                Este vehículo va a retornar, ¿desea cambiar la hora de retorno?
+              </p>
+
+              <div style={{ marginTop: 12 }}>
+                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                  <DatePicker
+                    label="Fecha de Retorno"
+                    format="dd/MM/yyyy"
+                    value={
+                      changeSelectedDate
+                        ? new Date(`${changeSelectedDate}T00:00:00`)
+                        : null
+                    }
+                    minDate={new Date()}
+                    onChange={(newDate) => {
+                      setChangeSelectedDate(
+                        newDate && Number.isFinite(newDate.getTime())
+                          ? format(newDate, "yyyy-MM-dd")
+                          : "",
+                      );
+                      setChangeTimeError("");
+                    }}
+                    slotProps={{
+                      popper: { sx: { zIndex: 2100 } },
+                      textField: { fullWidth: true, size: "small" },
+                    }}
+                  />
+                </LocalizationProvider>
+              </div>
+
+              <div style={{ marginTop: 12 }}>
+                <label className="input-label">Hora de Retorno</label>
+                <select
+                  className="input-field"
+                  value={changeSelectedTime}
+                  onChange={(e) => {
+                    setChangeSelectedTime(e.target.value);
+                    setChangeTimeError("");
+                  }}
+                >
+                  <option value="">Seleccione una hora...</option>
+                  {allTimes.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+                {changeTimeError && (
+                  <div style={{ color: "#dc2626", fontSize: 13, marginTop: 6 }}>
+                    {changeTimeError}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="modal-actions" style={{ padding: "18px 24px" }}>
+              <button className="cancel-btn" onClick={closeChangeModal}>
+                Cancelar
+              </button>
+              <button className="save-btn" onClick={confirmChangeTime}>
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Content Card */}
       <div className="content-card">
         {/* Toolbar Superior */}
@@ -731,6 +1048,7 @@ function Horarios() {
             <LocalizationProvider dateAdapter={AdapterDateFns}>
               <DatePicker
                 label="Fecha"
+                format="dd/MM/yyyy"
                 value={dateFilter}
                 onChange={(newVal) => setDateFilter(newVal)}
                 slotProps={{
@@ -840,6 +1158,7 @@ function Horarios() {
                     : "";
 
                   const actionAllowed = isHorarioActionAllowed(h);
+                  const enRuta = isHorarioEnRuta(h, currentTime);
 
                   return (
                     <tr
@@ -864,8 +1183,9 @@ function Horarios() {
                         <div
                           style={{
                             display: "flex",
-                            alignItems: "center",
-                            gap: 10,
+                            flexDirection: "column",
+                            alignItems: "flex-start",
+                            gap: 6,
                           }}
                         >
                           <div
@@ -880,6 +1200,11 @@ function Horarios() {
                           >
                             {vehInfo?.movil ?? ""}
                           </div>
+                          {enRuta && (
+                            <span className="badge badge-en-ruta">
+                              En ruta
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td>
@@ -906,6 +1231,27 @@ function Horarios() {
                               <line x1="12" y1="2" x2="12" y2="12" />
                             </svg>
                           </button> */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openChangeModal(h);
+                            }}
+                            className="action-btn change-btn"
+                            title="Cambiar Hora de Retorno"
+                            style={{
+                              marginRight: 8,
+                              color: "#0f172a",
+                              padding: 6,
+                              background: "transparent",
+                              border: "none",
+                            }}
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M21 12a9 9 0 11-2.8-6.1" />
+                              <polyline points="21 3 21 9 15 9" />
+                            </svg>
+                          </button>
+
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1125,15 +1471,22 @@ function Horarios() {
             <form onSubmit={handleSave} className="modal-form">
               <div className="form-grid-2">
                 <div className="input-group">
-                  <label className="input-label">Fecha de Salida</label>
-                  <input
-                    type="date"
-                    className="input-field"
-                    value={formData.fecha}
-                    min={new Date().toLocaleDateString("en-CA")}
-                    onChange={(e) => {
-                      const newFecha = e.target.value;
-                      setFormData({ ...formData, fecha: newFecha });
+                  <LocalizationProvider dateAdapter={AdapterDateFns}>
+                    <DatePicker
+                      label="Fecha de Salida"
+                      format="dd/MM/yyyy"
+                      value={
+                        formData.fecha
+                          ? new Date(`${formData.fecha}T00:00:00`)
+                          : null
+                      }
+                      minDate={new Date()}
+                      onChange={(newDate) => {
+                        const newFecha =
+                          newDate && Number.isFinite(newDate.getTime())
+                            ? format(newDate, "yyyy-MM-dd")
+                            : "";
+                      updateScheduleField("fecha", newFecha);
                       // si la fecha seleccionada es hoy, validar la hora seleccionada
                       const todayStr = new Date().toLocaleDateString("en-CA");
                       if (newFecha === todayStr && formData.hora) {
@@ -1150,9 +1503,13 @@ function Horarios() {
                       } else {
                         setTimeError("");
                       }
-                    }}
-                    required
-                  />
+                      }}
+                      slotProps={{
+                        popper: { sx: { zIndex: 2100 } },
+                        textField: { fullWidth: true, required: true, size: "small" },
+                      }}
+                    />
+                  </LocalizationProvider>
                 </div>
 
                 <div className="input-group" ref={timeListRef}>
@@ -1216,7 +1573,7 @@ function Horarios() {
                                 } else {
                                   setTimeError("");
                                 }
-                                setFormData({ ...formData, hora: newHora });
+                                updateScheduleField("hora", newHora);
                                 setShowTimeList(false);
                                 setTimeSearch("");
                               }}

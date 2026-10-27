@@ -111,12 +111,30 @@ export default function Clientes() {
   // Computa errores incluyendo duplicados (ignora el mismo registro cuando se edita)
   const computeErrors = (f) => {
     const errors = {}
-    if (!f.nombreCompleto.trim()) errors.nombreCompleto = 'El nombre es requerido'
-    if (!f.ci.trim()) errors.ci = 'El CI es requerido'
-    if (!f.telefono.trim()) errors.telefono = 'El teléfono es requerido'
+    const nombreTrim = (f.nombreCompleto || '').trim()
+    // Nombre obligatorio, con longitud mínima 3 y máxima 30
+    if (!nombreTrim) {
+      errors.nombreCompleto = 'El nombre es requerido'
+    } else if (nombreTrim.length < 3) {
+      errors.nombreCompleto = 'El nombre debe tener al menos 3 caracteres'
+    } else if (nombreTrim.length > 30) {
+      errors.nombreCompleto = 'El nombre no puede superar los 30 caracteres'
+    }
 
-    const nameQ = (f.nombreCompleto || '').trim().toLowerCase()
-    const ciQ = (f.ci || '').trim().toLowerCase()
+    // CI no obligatorio. Si CI se provee, validar longitud entre 8 y 10.
+    const ciTrim = (f.ci || '').trim()
+    if (ciTrim) {
+      if (ciTrim.length < 8 || ciTrim.length > 10) errors.ci = 'El CI debe tener entre 8 y 10 dígitos'
+    }
+
+    // Teléfono no obligatorio. Si se provee, debe tener entre 7 y 10 caracteres.
+    const telTrim = (f.telefono || '').trim()
+    if (telTrim) {
+      if (telTrim.length < 7 || telTrim.length > 10) errors.telefono = 'El teléfono debe tener entre 7 y 10 caracteres'
+    }
+
+    const nameQ = nombreTrim.toLowerCase()
+    const ciQ = ciTrim.toLowerCase()
 
     if (nameQ) {
       const dup = clientes.some(c => {
@@ -191,10 +209,8 @@ export default function Clientes() {
       <Box className="clientes-header">
         <Box>
           <Typography variant="h5" className="clientes-title">
-            Gestión de Clientes
           </Typography>
           <Typography variant="body2" className="clientes-subtitle">
-            {clientes.length} cliente{clientes.length !== 1 ? 's' : ''} registrado{clientes.length !== 1 ? 's' : ''}
           </Typography>
         </Box>
         <Stack direction="row" spacing={1.5} alignItems="center">
@@ -240,9 +256,10 @@ export default function Clientes() {
             ) : null,
             sx: {
               background: 'white',
-              borderRadius: '10px',
+              borderRadius: '8px',
               '& fieldset': { borderColor: '#e2e8f0' },
-              '&:hover fieldset': { borderColor: '#6366f1' },
+              '&:hover fieldset': { borderColor: '#0284c7' },
+              '&.Mui-focused fieldset': { borderColor: '#0284c7' },
             }
           }}
         />
@@ -252,7 +269,7 @@ export default function Clientes() {
       <Paper elevation={0} className="clientes-table-paper">
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-            <CircularProgress size={40} sx={{ color: '#6366f1' }} />
+            <CircularProgress size={40} sx={{ color: '#0284c7' }} />
           </Box>
         ) : (
           <TableContainer>
@@ -350,9 +367,12 @@ export default function Clientes() {
               shape="rounded"
               sx={{
                 '& .MuiPaginationItem-root.Mui-selected': {
-                  background: 'linear-gradient(135deg,#6366f1,#4f46e5)',
+                  background: '#0284C7',
                   color: '#fff',
-                  fontWeight: 700
+                  fontWeight: 700,
+                  '&:hover': {
+                    background: '#0369A1'
+                  }
                 }
               }}
             />
@@ -371,7 +391,7 @@ export default function Clientes() {
         <DialogTitle sx={{ pb: 1 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <Box className="modal-icon-box">
-              <PersonIcon sx={{ fontSize: 20, color: '#6366f1' }} />
+              <PersonIcon sx={{ fontSize: 20, color: '#0284C7' }} />
             </Box>
             <Box>
               <Typography fontWeight={700} fontSize={16} sx={{ color: '#1e293b' }}>
@@ -399,7 +419,8 @@ export default function Clientes() {
               InputProps={{
                 startAdornment: <InputAdornment position="start"><PersonIcon sx={{ fontSize: 16, color: '#94a3b8' }} /></InputAdornment>
               }}
-              sx={{ '& fieldset': { borderRadius: '10px' } }}
+              inputProps={{ maxLength: 30 }}
+              sx={{ '& fieldset': { borderRadius: '8px' }, '&:hover fieldset': { borderColor: '#0284c7' }, '&.Mui-focused fieldset': { borderColor: '#0284c7' } }}
             />
             <TextField
               label="CI / Documento de Identidad"
@@ -412,7 +433,7 @@ export default function Clientes() {
               InputProps={{
                 startAdornment: <InputAdornment position="start"><BadgeIcon sx={{ fontSize: 16, color: '#94a3b8' }} /></InputAdornment>
               }}
-              sx={{ '& fieldset': { borderRadius: '10px' } }}
+              sx={{ '& fieldset': { borderRadius: '8px' }, '&:hover fieldset': { borderColor: '#0284c7' }, '&.Mui-focused fieldset': { borderColor: '#0284c7' } }}
             />
             <TextField
               label="Teléfono"
@@ -425,7 +446,8 @@ export default function Clientes() {
               InputProps={{
                 startAdornment: <InputAdornment position="start"><PhoneIcon sx={{ fontSize: 16, color: '#94a3b8' }} /></InputAdornment>
               }}
-              sx={{ '& fieldset': { borderRadius: '10px' } }}
+              inputProps={{ maxLength: 10 }}
+              sx={{ '& fieldset': { borderRadius: '8px' }, '&:hover fieldset': { borderColor: '#0284c7' }, '&.Mui-focused fieldset': { borderColor: '#0284c7' } }}
             />
           </Stack>
         </DialogContent>

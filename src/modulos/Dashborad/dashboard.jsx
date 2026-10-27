@@ -208,7 +208,7 @@ export default function Dashboard() {
       <div className="table-card">
         <div className="chart-card-header" style={{ marginBottom: 12 }}>
           <div className="chart-title-group">
-            <h3>Encomiendas Pendientes de Recojo (fechaEntrega = null)</h3>
+            <h3>Encomiendas Pendientes de Recojo</h3>
             <p>Listado de paquetes en depósito aguardando por el consignatario</p>
           </div>
           <span className="chart-badge" style={{ background: '#fef3c7', color: '#b45309' }}>
