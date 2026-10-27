@@ -4,12 +4,15 @@ import { Box, Stack, Button, Dialog, DialogTitle, DialogContent, DialogActions, 
 import { getHorarioById, postPasajesBatch, deletePasaje, getHojaRuta, putPasaje } from './ventaPasajesSevice'
 import { getClientes } from '../../encomiendas/registrarEncomienda/registrarEncomiendaService'
 import { getPuntosVenta } from '../../puntoVenta/puntoVentaService'
+import { telefonoValido } from './validarTelefono'
+import { nombreValido } from './validarNombre'
 import './ventaPasajes.css'
 
 export default function VentaPasajes() {
   const { id } = useParams()
   const [horario, setHorario] = useState(null)
   const [selectedSeats, setSelectedSeats] = useState([])
+  const [showPassengerErrors, setShowPassengerErrors] = useState(false)
   const [clientesList, setClientesList] = useState([])
   const [puntosVentaList, setPuntosVentaList] = useState([])
   const [pasajesOpen, setPasajesOpen] = useState(false)
@@ -505,13 +508,19 @@ const abrirHojaRutaFallback = (url) => {
       return
     }
 
+    const asientoInvalido = selectedSeats.find(s => !nombreValido(s.pasajero) || !telefonoValido(s.telefono))
+    if (asientoInvalido) {
+      setShowPassengerErrors(true)
+      const mensaje = !nombreValido(asientoInvalido.pasajero)
+        ? `Nombre inválido en asiento ${asientoInvalido.numero}: debe tener entre 3 y 20 caracteres`
+        : `Teléfono inválido en asiento ${asientoInvalido.numero}: debe tener entre 8 y 10 dígitos`
+      showNotification(mensaje, 'warning')
+      return
+    }
+
     // Validate and build items
     const items = []
     for (const s of selectedSeats) {
-      if (!s.pasajero) {
-        showNotification(`Ingrese nombre para asiento ${s.numero}`, 'warning')
-        return
-      }
       if (!s.destinoId) {
         showNotification(`Seleccione destino para asiento ${s.numero}`, 'warning')
         return
@@ -542,9 +551,9 @@ const abrirHojaRutaFallback = (url) => {
         horarioId: horario?.id ?? id,
         usuarioId: usuarioId,
         cliente: {
-          nombreCompleto: s.pasajero,
+          nombreCompleto: s.pasajero.trim(),
           ci: s.ci || null,
-          telefono: s.telefono || null,
+          telefono: String(s.telefono).trim(),
           estado: true
         }
       }
@@ -563,6 +572,7 @@ const abrirHojaRutaFallback = (url) => {
       setHorario(prev => ({ ...prev, pasajes: merged }))
       // clear selected
       setSelectedSeats([])
+      setShowPassengerErrors(false)
       showNotification('Operación realizada con éxito', 'success')
       // small delay to allow snackbar to be visible, then refresh horario from API
       setTimeout(async () => {
@@ -897,12 +907,20 @@ const sumaPasajes = (horario?.pasajes || []).reduce((acc, p) => {
                           return `${option.nombreCompleto || ''} ${option.ci ? `- CI: ${option.ci}` : ''}`.trim()
                         }}
                         value={s.pasajero || ''}
+                        inputValue={s.pasajero || ''}
                         onChange={(event, newValue) => handleSelectCliente(s.id, newValue)}
-                        onInputChange={(event, newInputValue) => updateSelectedField(s.id, 'pasajero', newInputValue)}
+                        onInputChange={(event, newInputValue, reason) => {
+                          if (reason === 'input' || reason === 'clear') {
+                            updateSelectedField(s.id, 'pasajero', newInputValue)
+                          }
+                        }}
                         renderInput={(params) => (
                           <TextField
                             {...params}
                             placeholder="Nombre del pasajero (obligatorio)"
+                            required
+                            error={showPassengerErrors && !nombreValido(s.pasajero)}
+                            helperText={showPassengerErrors && !nombreValido(s.pasajero) ? 'Ingrese entre 3 y 20 caracteres' : ''}
                             fullWidth
                           />
                         )}
@@ -918,9 +936,13 @@ const sumaPasajes = (horario?.pasajes || []).reduce((acc, p) => {
                         <TextField
                           size="small"
                           type="tel"
-                          placeholder="Teléfono (opcional)"
-                          value={s.telefono || ''}
+                          placeholder="Teléfono (obligatorio)"
+                          value={s.telefono ?? ''}
                           onChange={(e) => updateSelectedField(s.id, 'telefono', e.target.value)}
+                          required
+                          error={showPassengerErrors && !telefonoValido(s.telefono)}
+                          helperText={showPassengerErrors && !telefonoValido(s.telefono) ? 'Ingrese entre 8 y 10 dígitos' : ''}
+                          slotProps={{ htmlInput: { inputMode: 'numeric', 'aria-label': `Teléfono del asiento ${s.numero}` } }}
                           fullWidth
                         />
                       </Stack>

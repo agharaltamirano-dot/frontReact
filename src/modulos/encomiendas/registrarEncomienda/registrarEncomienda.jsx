@@ -109,8 +109,7 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
   // Notificaciones
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' })
 
-  // Errores de validación en tiempo real
-  const [formErrors, setFormErrors] = useState({})
+  const [editedFields, setEditedFields] = useState({})
 
 
   const getAuthData = () => {
@@ -158,15 +157,15 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
             if (e.clienteRemitente) {
               setSelectedRemitente(e.clienteRemitente)
               setRemitenteNombre(e.clienteRemitente.nombreCompleto || '')
-              setRemitenteCi(e.clienteRemitente.ci || '')
-              setRemitenteTelefono(e.clienteRemitente.telefono || '')
+              setRemitenteCi(String(e.clienteRemitente.ci ?? ''))
+              setRemitenteTelefono(String(e.clienteRemitente.telefono ?? ''))
             }
             // Consignatario
             if (e.clienteConsignatario) {
               setSelectedConsignatario(e.clienteConsignatario)
               setConsignatarioNombre(e.clienteConsignatario.nombreCompleto || '')
-              setConsignatarioCi(e.clienteConsignatario.ci || '')
-              setConsignatarioTelefono(e.clienteConsignatario.telefono || '')
+              setConsignatarioCi(String(e.clienteConsignatario.ci ?? ''))
+              setConsignatarioTelefono(String(e.clienteConsignatario.telefono ?? ''))
             }
           } else {
             // Seleccionar primer destino por defecto si existe
@@ -188,11 +187,6 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
     }
   }, [open])
 
-  // Validación en tiempo real: se ejecuta al cambiar los campos de remitente/consignatario
-  useEffect(() => {
-    setFormErrors(validateFields())
-  }, [remitenteNombre, remitenteCi, remitenteTelefono, consignatarioNombre, consignatarioCi, consignatarioTelefono])
-
   const resetForm = () => {
     setContenido('')
     setMonto('')
@@ -206,7 +200,11 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
     setConsignatarioNombre('')
     setConsignatarioCi('')
     setConsignatarioTelefono('')
-    setFormErrors({})
+    setEditedFields({})
+  }
+
+  const markFieldEdited = (field) => {
+    setEditedFields(prev => prev[field] ? prev : { ...prev, [field]: true })
   }
 
   // Obtener ID del usuario activo desde sessionStorage
@@ -231,8 +229,8 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
     } else if (newValue && newValue.id) {
       setSelectedRemitente(newValue)
       setRemitenteNombre(newValue.nombreCompleto || '')
-      setRemitenteCi(newValue.ci || '')
-      setRemitenteTelefono(newValue.telefono || '')
+      setRemitenteCi(String(newValue.ci ?? ''))
+      setRemitenteTelefono(String(newValue.telefono ?? ''))
     } else {
       setSelectedRemitente(null)
       setRemitenteNombre('')
@@ -247,8 +245,8 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
     } else if (newValue && newValue.id) {
       setSelectedConsignatario(newValue)
       setConsignatarioNombre(newValue.nombreCompleto || '')
-      setConsignatarioCi(newValue.ci || '')
-      setConsignatarioTelefono(newValue.telefono || '')
+      setConsignatarioCi(String(newValue.ci ?? ''))
+      setConsignatarioTelefono(String(newValue.telefono ?? ''))
     } else {
       setSelectedConsignatario(null)
       setConsignatarioNombre('')
@@ -268,9 +266,8 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
 
     // Revalidar una vez antes de enviar
     const latestErrors = validateFields()
-    setFormErrors(latestErrors)
     if (Object.keys(latestErrors).length > 0) {
-      setSnackbar({ open: true, message: 'Corrija los errores del formulario antes de continuar.', severity: 'warning' })
+      setSnackbar({ open: true, message: Object.values(latestErrors)[0], severity: 'warning' })
       return
     }
 
@@ -408,6 +405,9 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
     return errors
   }
 
+  const formErrors = validateFields()
+  const fieldError = (field) => editedFields[field] ? formErrors[field] : undefined
+
   return (
     <>
       <Dialog
@@ -444,11 +444,6 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
             </Box>
           ) : (
             <Box component="form" id="form-registrar-encomienda" onSubmit={handleSubmit}>
-              {Object.keys(formErrors).length > 0 && (
-                <Alert severity="warning" sx={{ mb: 2 }}>
-                  Existen errores en el formulario. Corrija los campos indicados antes de continuar.
-                </Alert>
-              )}
               <Grid container spacing={2.5} sx={{ alignItems: 'stretch' }}>
                 <Grid size={{ xs: 12, md: 4 }}>
                   <Box className="client-column-box" sx={{ height: '100%' }}>
@@ -465,8 +460,10 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
                         return `${option.nombreCompleto || ''} ${option.ci ? `- CI: ${option.ci}` : ''}`.trim()
                       }}
                       onChange={handleSelectRemitente}
-                      onInputChange={(event, newInputValue) => {
-                        if (!selectedRemitente) {
+                      onInputChange={(event, newInputValue, reason) => {
+                        if (reason === 'input' || reason === 'clear') {
+                          markFieldEdited('remitenteNombre')
+                          setSelectedRemitente(null)
                           setRemitenteNombre(newInputValue)
                         }
                       }}
@@ -478,8 +475,8 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
                           fullWidth
                           inputProps={{ maxLength: 30 }}
                           sx={{ mb: 1.5, bgcolor: '#ffffff' }}
-                          error={!!formErrors.remitenteNombre}
-                          helperText={formErrors.remitenteNombre}
+                          error={!!fieldError('remitenteNombre')}
+                          helperText={fieldError('remitenteNombre')}
                         />
                       )}
                     />
@@ -492,13 +489,14 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
                           fullWidth
                           value={remitenteCi}
                           onChange={(e) => {
+                            markFieldEdited('remitenteCi')
                             setRemitenteCi(e.target.value)
                             if (selectedRemitente) setSelectedRemitente(null)
                           }}
                           inputProps={{ maxLength: 10 }}
                           sx={{ bgcolor: '#ffffff' }}
-                          error={!!formErrors.remitenteCi}
-                          helperText={formErrors.remitenteCi}
+                          error={!!fieldError('remitenteCi')}
+                          helperText={fieldError('remitenteCi')}
                         />
                       </Grid>
                       <Grid size={{ xs: 6 }}>
@@ -508,13 +506,14 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
                           fullWidth
                           value={remitenteTelefono}
                           onChange={(e) => {
+                            markFieldEdited('remitenteTelefono')
                             setRemitenteTelefono(e.target.value)
                             if (selectedRemitente) setSelectedRemitente(null)
                           }}
                           inputProps={{ maxLength: 10 }}
                           sx={{ bgcolor: '#ffffff' }}
-                          error={!!formErrors.remitenteTelefono}
-                          helperText={formErrors.remitenteTelefono}
+                          error={!!fieldError('remitenteTelefono')}
+                          helperText={fieldError('remitenteTelefono')}
                         />
                       </Grid>
                     </Grid>
@@ -581,8 +580,10 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
                         return `${option.nombreCompleto || ''} ${option.ci ? `- CI: ${option.ci}` : ''}`.trim()
                       }}
                       onChange={handleSelectConsignatario}
-                      onInputChange={(event, newInputValue) => {
-                        if (!selectedConsignatario) {
+                      onInputChange={(event, newInputValue, reason) => {
+                        if (reason === 'input' || reason === 'clear') {
+                          markFieldEdited('consignatarioNombre')
+                          setSelectedConsignatario(null)
                           setConsignatarioNombre(newInputValue)
                         }
                       }}
@@ -594,8 +595,8 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
                           fullWidth
                           inputProps={{ maxLength: 30 }}
                           sx={{ mb: 1.5, bgcolor: '#ffffff' }}
-                          error={!!formErrors.consignatarioNombre}
-                          helperText={formErrors.consignatarioNombre}
+                          error={!!fieldError('consignatarioNombre')}
+                          helperText={fieldError('consignatarioNombre')}
                         />
                       )}
                     />
@@ -608,13 +609,14 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
                           fullWidth
                           value={consignatarioCi}
                           onChange={(e) => {
+                            markFieldEdited('consignatarioCi')
                             setConsignatarioCi(e.target.value)
                             if (selectedConsignatario) setSelectedConsignatario(null)
                           }}
                           inputProps={{ maxLength: 10 }}
                           sx={{ bgcolor: '#ffffff' }}
-                          error={!!formErrors.consignatarioCi}
-                          helperText={formErrors.consignatarioCi}
+                          error={!!fieldError('consignatarioCi')}
+                          helperText={fieldError('consignatarioCi')}
                         />
                       </Grid>
                       <Grid size={{ xs: 6 }}>
@@ -624,13 +626,14 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
                           fullWidth
                           value={consignatarioTelefono}
                           onChange={(e) => {
+                            markFieldEdited('consignatarioTelefono')
                             setConsignatarioTelefono(e.target.value)
                             if (selectedConsignatario) setSelectedConsignatario(null)
                           }}
                           inputProps={{ maxLength: 10 }}
                           sx={{ bgcolor: '#ffffff' }}
-                          error={!!formErrors.consignatarioTelefono}
-                          helperText={formErrors.consignatarioTelefono}
+                          error={!!fieldError('consignatarioTelefono')}
+                          helperText={fieldError('consignatarioTelefono')}
                         />
                       </Grid>
                     </Grid>
@@ -659,7 +662,7 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
             type="button"
             variant="contained"
             startIcon={<CheckCircleIcon />}
-          disabled={submitting || loadingData || Object.keys(formErrors).length > 0}
+            disabled={submitting || loadingData}
             onClick={() => submitWithPaymentStatus(true)}
             sx={{
               textTransform: 'none',
@@ -678,7 +681,7 @@ export default function RegistrarEncomienda({ open, onClose, onSuccess, encomien
             type="button"
             variant="contained"
             startIcon={<ClockIcon />}
-            disabled={submitting || loadingData || Object.keys(formErrors).length > 0}
+            disabled={submitting || loadingData}
             onClick={() => submitWithPaymentStatus(false)}
             sx={{
               textTransform: 'none',
